@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: backend-format
+        name: "backend: format"
+        entry: sh -c 'cd metrics-backend && pnpm format'
+        language: system
+        files: ^metrics-backend/
+        pass_filenames: false
+
+      - id: backend-lint
+        name: "backend: lint"
+        entry: sh -c 'cd metrics-backend && pnpm lint'
+        language: system
+        files: ^metrics-backend/
+        pass_filenames: false
+
+      - id: backend-build
+        name: "backend: build"
+        entry: sh -c 'cd metrics-backend && pnpm tsc --noEmit'
+        language: system
+        files: ^metrics-backend/
+        pass_filenames: false
