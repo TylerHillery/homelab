@@ -4,7 +4,7 @@ This project sets up monitoring for my homelab.
 
 ## Metrics Collection
 
-Each PC will run an [OTel Collector](https://opentelemetry.io/docs/collector/) as a [systemd-managed binary service](https://opentelemetry.io/docs/collector/install/binary/linux/#automatic-service-configuration) using the [host metrics receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/hostmetricsreceiver). Each collector will use the [OTLP gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlpexporter) to send metrics to a centrall deployed [gateway collector](https://opentelemetry.io/docs/collector/deployment/gateway/).
+Each PC will run an [OTel Collector](https://opentelemetry.io/docs/collector/) as a [systemd-managed binary service](https://opentelemetry.io/docs/collector/install/binary/linux/#automatic-service-configuration) using the [host metrics receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/hostmetricsreceiver). Each collector will use the [OTLP gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlpexporter) to send metrics to a central deployed [gateway collector](https://opentelemetry.io/docs/collector/deployment/gateway/).
 
 The gateway collector acts as a central aggregation point for all other collectors and is deployed on a single PC. The gateway collector will then fan out the data to multiple exporters:
 
