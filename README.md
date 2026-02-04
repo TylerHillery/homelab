@@ -2,6 +2,12 @@
 
 Monorepo containing all services and infrastructure code for my homelab.
 
+## Table of Contents
+
+- [Device Attestation](#device-attestation)
+- [Metrics Collection](#metrics-collection)
+- [Hardware](#hardware)
+
 ## Device Attestation
 
 The Device Attestation Service enables secure, zero-touch onboarding of devices into the homelab environment by establishing a hardware root of trust using TPM (Trusted Platform Module) chips. During first boot, devices perform remote attestation by proving their TPM is genuine (via Endorsement Key validation), their boot state is untampered (via Platform Configuration Register measurements), and their identity is authentic (via Attestation Key certificate signing). Once validated, the attestation server issues a certificate that represents the device's trusted identity, allowing it to participate in the homelab's production workloads.
