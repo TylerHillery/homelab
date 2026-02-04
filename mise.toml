@@ -1,7 +1,7 @@
 [tools]
 node = "24.11.1"
 pnpm = "latest"
-pre-commit = "latest"
+prek = "latest"
 
-[tasks.precommit]
-run = "pre-commit run --all-files"
+[tasks.prek]
+run = "prek run --all-files"
