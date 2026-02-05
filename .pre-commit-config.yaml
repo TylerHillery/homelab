@@ -30,21 +30,21 @@ repos:
 
       - id: attestation-format
         name: "attestation: format"
-        entry: sh -c 'cd device-attestation-service && pnpm format'
+        entry: sh -c 'cd attestation && pnpm format'
         language: system
-        files: ^device-attestation-service/
+        files: ^attestation/
         pass_filenames: false
 
       - id: attestation-lint
         name: "attestation: lint"
-        entry: sh -c 'cd device-attestation-service && pnpm lint'
+        entry: sh -c 'cd attestation && pnpm lint'
         language: system
-        files: ^device-attestation-service/
+        files: ^attestation/
         pass_filenames: false
 
       - id: attestation-build
         name: "attestation: build"
-        entry: sh -c 'cd device-attestation-service && pnpm tsc --noEmit'
+        entry: sh -c 'cd attestation && pnpm tsc --noEmit'
         language: system
-        files: ^device-attestation-service/
+        files: ^attestation/
         pass_filenames: false
