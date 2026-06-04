@@ -4,9 +4,19 @@ Monorepo containing all services and infrastructure code for my homelab.
 
 ## Table of Contents
 
+- [Device Provisioning](#device-provisioning)
 - [Device Attestation](#device-attestation)
 - [Metrics Collection](#metrics-collection)
 - [Hardware](#hardware)
+
+## Device Provisioning
+
+The Device Provisioning system is responsible for the initial lifecycle of bare-metal hardware, starting from a powered-on machine with no operating system and ending with a fully installed OS capable of performing device attestation. This includes:
+
+- ProxyDHCP via [dnsmaq](https://en.wikipedia.org/wiki/Dnsmasq) to provide [PXE](https://en.wikipedia.org/wiki/Preboot_Execution_Environment) boot information (including the delivery of the inital [iPXE](https://ipxe.org/) bootloader via [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol)) when booting without replacing the primary DHCP server (my router)
+- iPXE routing based on device metadata allowing boot behavior to change based on device metadata
+- OS system install via [netboot.xyz](netboot.xyz) leveraging upstream installings without maintaing OS images
+- Delivery of [cloud-init](https://cloud-init.io/) configuration which provides first-boot instructions for the device
 
 ## Device Attestation
 
