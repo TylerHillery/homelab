@@ -1,0 +1,349 @@
+# Upstream golink documentation
+
+> [!NOTE]
+> This is the documentation imported from the original golink project. It is
+> retained for historical and compatibility reference; commands and deployment
+> instructions may not describe the current HLIMS fork.
+
+golink is a private shortlink service for your [tailnet].
+It lets you create short, memorable links for the websites you and your team use most.
+If you're new to golink, learn more in our [announcement blog post](https://tailscale.com/blog/golink/).
+If you were looking for a SaaS go link service that doesn't use Tailscale,
+you might be thinking of [golinks.io](https://golinks.io) or [trot.to](http://trot.to)
+
+[tailnet]: https://tailscale.com/kb/1136/tailnet/
+
+![Screenshot of golink home screen](screenshot.png)
+
+## How Tailscale uses golink
+
+We use golink at Tailscale every day by every part of the company.
+It is easily one of the most used services on our corporate tailnet.
+We even had to change our new hire onboarding to have employees join our tailnet sooner,
+since much of the rest of our onboarding involved visiting various go links.
+
+Our production environment is pretty plain; we just run it on a pretty vanilla EC2 VM.
+We [back up](#backups) all of our go links once a week from a GitHub Action that stores the snapshot in our internal git monorepo.
+That repo has a wrapper script around `golink --resolve-from-backup` so that anyone with a local copy of the repo can always resolve go links offline.
+
+## Building and running
+
+To build from source and run in dev mode:
+
+    go run ./cmd/golink -dev-listen :8080
+
+golink will be available at http://localhost:8080/,
+storing links in a temporary database, and will not attempt to join a tailnet.
+
+The equivalent using the pre-built docker image:
+
+    docker run -it --rm -p 8080:8080 ghcr.io/tailscale/golink:main -dev-listen :8080
+
+If you receive the docker error `unable to open database file: out of memory (14)`,
+use a persistent volume as documented in [Running in production](#running-in-production).
+
+### Updating Dependencies
+
+After updating dependencies and making changes to `go.mod` and `go.sum`, `flake.nix` needs
+to be updated to reflect the new SHA256 of the go dependencies. This can be done by running:
+
+```bash
+./update-flake.sh
+```
+
+## Joining a tailnet
+
+Create an [auth key] for your tailnet at <https://login.tailscale.com/admin/settings/keys>.
+Configure the auth key to your preferences, but at a minimum we generally recommend:
+
+ - add a [tag] (maybe something like `tag:golink`) to make it easier to set ACLs for controlling access and to ensure the node doesn't expires.
+ - don't set "ephemeral" so the node isn't removed if it goes offline
+
+Once you have a key, set it as the `TS_AUTHKEY` environment variable when starting golink.
+You will also need to specify your sqlite database file:
+
+    TS_AUTHKEY="tskey-auth-<key>" go run ./cmd/golink -sqlitedb golink.db
+
+golink stores its tailscale data files in a `tsnet-golink` directory inside [os.UserConfigDir].
+As long as this is on a persistent volume, the auth key only needs to be provided on first run.
+
+[auth key]: https://tailscale.com/kb/1085/auth-keys/
+[tag]: https://tailscale.com/kb/1068/acl-tags/
+[os.UserConfigDir]: https://pkg.go.dev/os#UserConfigDir
+
+## Registering as a Tailscale Service
+
+By default, golink registers as a regular tailnet node. However, you can register it as a [Tailscale Service],
+which provides more stable identity and is especially useful for ephemeral infrastructure (like fly.io)
+where storage may be lost.
+
+To register as a service:
+
+```bash
+TS_AUTHKEY="tskey-auth-<key>" go run ./cmd/golink -sqlitedb golink.db --register-as-service=svc:golink
+```
+
+Or using the environment variable:
+
+```bash
+TS_SERVICE_NAME="svc:golink" TS_AUTHKEY="tskey-auth-<key>" go run ./cmd/golink -sqlitedb golink.db
+```
+
+**Requirements:**
+- The node must be tagged (e.g., `tag:golink`)
+- Your ACL policy must define the service and include auto-approvers
+- Services only support HTTPS on port 443
+
+**Admin Capabilities in Service Mode:**
+
+Admin capability grants work in service mode by looking up the user's capabilities via the Tailscale daemon whois API. This means admin permissions are properly enforced based on your ACL policy, just like in regular mode.
+
+Example ACL configuration:
+
+```json
+{
+  "tagOwners": {
+    "tag:golink": ["autogroup:admin"]
+  },
+  "autoApprovers": {
+    "services": {
+      "svc:golink": ["tag:golink"]
+    }
+  }
+}
+```
+
+[Tailscale Service]: https://tailscale.com/kb/1534/services/
+
+## Docker Compose
+
+To run golink via Docker Compose:
+
+```yaml
+volumes:
+  data:
+
+services:
+  golink:
+    image: ghcr.io/tailscale/golink:main
+    container_name: golink
+    restart: unless-stopped
+    volumes:
+      - 'data:/home/nonroot'
+```
+
+To initialize the container with an auth key run:
+
+    docker compose run --rm --env 'TS_AUTHKEY=tskey-auth-<key>' golink
+
+## MagicDNS
+
+When golink joins your tailnet, it will attempt to use "go" as its node name,
+and will be available at http://go.tailnet0000.ts.net/ (or whatever your tailnet name is).
+To make it accessible simply as http://go/, enable [MagicDNS] for your tailnet.
+With MagicDNS enabled, no special configuration or browser extensions are needed on client devices.
+Users just need to have Tailscale installed and connected to the tailnet.
+
+[MagicDNS]: https://tailscale.com/kb/1081/magicdns/
+
+## Running in production
+
+golink compiles as a single static binary (including the frontend) and can be deployed and run like any other binary.
+Two pieces of data should be on persistent volumes:
+
+ - tailscale data files in the `tsnet-golink` directory inside [os.UserConfigDir]
+ - the sqlite database file where links are stored
+
+In the docker image, both are stored in `/home/nonroot`, so you can mount a persistent volume:
+
+    docker run -v /persistent/data:/home/nonroot ghcr.io/tailscale/golink:main
+
+The mounted directory will need to be writable by the nonroot user (uid: 65532, gid: 65532),
+for example by calling `sudo chown 65532 /persistent/data`.
+Alternatively, you can run golink as root using `docker run -u root`.
+
+No ports need to be exposed, whether running as a binary or in docker.
+golink will listen on port 80 on the tailscale interface, so can be accessed at http://go/.
+
+<details>
+  <summary>Deploy on Fly</summary>
+
+  See <https://fly.io/docs/> for full instructions for deploying apps on Fly, but this should give you a good start.
+  Replace `FLY_APP_NAME` and `FLY_VOLUME_NAME` with your app and volume names.
+
+  Create a [fly.toml](https://fly.io/docs/reference/configuration/) file:
+
+  ``` toml
+app = "FLY_APP_NAME"
+
+[build]
+image = "ghcr.io/tailscale/golink:main"
+
+[deploy]
+strategy = "immediate"
+
+[mounts]
+source="FLY_VOLUME_NAME"
+destination="/home/nonroot"
+```
+
+  Then run the commands with the [flyctl CLI].
+
+  ``` sh
+  $ flyctl apps create FLY_APP_NAME
+  $ flyctl volumes create FLY_VOLUME_NAME
+  $ flyctl secrets set TS_AUTHKEY=tskey-auth-<key>
+  $ flyctl deploy
+  ```
+
+[flyctl CLI]: https://fly.io/docs/hands-on/install-flyctl/
+
+</details>
+
+<details>
+  <summary>Deploy on Modal</summary>
+
+  See the [Modal docs](https://modal.com/docs/guide/managing-deployments) for full instructions on long-lived deployments.
+
+  Create a `golinks.py` file:
+
+  ```python
+import subprocess
+
+import modal
+
+app = modal.App(name="golinks")
+
+vol = modal.Volume.from_name("golinks-data", create_if_missing=True)
+
+image = modal.Image.from_registry(
+    "golang:1.23.0-bookworm",
+    add_python="3.10",
+).run_commands(["go install -v github.com/tailscale/golink/cmd/golink@latest"])
+
+@app.cls(
+    image=image,
+    secrets=[modal.Secret.from_name("golinks")],
+    volumes={"/root/.config": vol},
+    keep_warm=1,
+    concurrency_limit=1,
+)
+class Golinks:
+    @modal.enter()
+    def start_golinks(self):
+        subprocess.Popen(
+            [
+                "golink",
+                "-verbose",
+                "--sqlitedb",
+                "/root/.config/golink.db",
+            ]
+        )
+```
+
+  Then create your secret and deploy with the [Modal CLI](https://github.com/modal-labs/modal-client):
+
+  ```sh
+$ modal secret create golinks TS_AUTHKEY=<key>
+$ modal deploy golinks.py
+  ```
+
+</details>
+
+<details>
+  <summary>Deploy on Kubernetes</summary>
+
+  There is an helm chart provided [here](https://github.com/tiesmaster/golink-helm-chart)
+  that can be used to deploy golink to Kubernetes.
+  See the `README.md` for [full instructions](https://github.com/tiesmaster/golink-helm-chart#installing-the-chart),
+  and [helm values](https://github.com/tiesmaster/golink-helm-chart?tab=readme-ov-file#values).
+  But in a nutshell, you can deploy to Kubernetes like this:
+
+  ```sh
+  helm install golink oci://ghcr.io/tiesmaster/golink
+  ```
+
+</details>
+
+## Permissions
+
+By default, users own the links they create and only they can update or delete those links.
+Ownership can be transferred to another user from the link edit page.
+Links whose owner is no longer part of the tailnet can be edited by any user,
+at which point that user will become the new owner.
+
+Users can be granted admin access to edit all links using [ACL grants] in your tailnet policy file.
+For example, if you have your golink instance tagged with `tag:golink` and a user group named `group:golink-admins`,
+you can grant them admin access using:
+
+```json
+{
+  "grants": [{
+      "src": ["group:golink-admins"],
+      "dst": ["tag:golink"],
+      "app": {
+        "tailscale.com/cap/golink": [{
+            "admin": true
+        }]
+      }
+  }]
+}
+```
+
+Or if you want to effectively disable the ownership model and allow everyone in your tailnet to edit all links,
+you could assign the grant to `autogroup:member`:
+
+```json
+{
+  "grants": [{
+      "src": ["autogroup:member"],
+      "dst": ["tag:golink"],
+      "app": {
+        "tailscale.com/cap/golink": [{
+            "admin": true
+        }]
+      }
+  }]
+}
+```
+
+[ACL grants]: https://tailscale.com/kb/1324/acl-grants
+
+## Backups
+
+Once you have golink running, you can back up all of your links in [JSON lines] format from <http://go/.export>.
+At Tailscale, we snapshot our links weekly and store them in git.
+
+To restore links, specify the snapshot file on startup.
+Only links that don't already exist in the database will be added.
+
+    golink -snapshot links.json
+
+[JSON lines]: https://jsonlines.org/
+
+You can also resolve links locally using a snapshot file:
+
+    golink -resolve-from-backup links.json go/link
+
+## Firefox configuration
+
+If you're using Firefox, you might want to configure two options to make it easy to load links:
+
+  * to prevent `go/` page loads from the address bar being treated as searches,
+    navigate to `about:config` and add a boolean setting `browser.fixup.domainwhitelist.go`
+    with a value of _true_
+
+  * if you use HTTPS-Only Mode, [add an exception](https://support.mozilla.org/en-US/kb/https-only-prefs#w_add-exceptions-for-http-websites-when-youre-in-https-only-mode)
+
+## HTTPS
+
+When golink joins your tailnet it will check to see if HTTPS is enabled and
+begin serving HTTPS traffic it detects that it is. When HTTPS is enabled golink
+will redirect all requests received by the HTTP endpoint first to their internal
+HTTPS equivalent before redirecting to the external link destination.
+
+**NB:** If you use `curl` to interact with the API of a golink instance with HTTPS
+enabled over its HTTP interface you _must_ specify the `-L` flag to follow these
+redirects or else your request will terminate early with an empty response. We
+recommend the use of the `-L` flag in all deployments regardless of current
+HTTPS status to avoid accidental outages should it be enabled in the future.

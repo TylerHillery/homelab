@@ -1,7 +1,17 @@
-[tools]
-node = "24.11.1"
-pnpm = "latest"
-prek = "latest"
+monorepo_root = true
+min_version = "2026.9.5"
 
-[tasks.prek]
+[monorepo]
+config_roots = ["services/*"]
+lockfile = true
+
+[tools]
+prek = "0.5.2"
+
+[tasks.check]
+description = "Run checks for every project"
+depends = ["//services/...:check"]
+
+[tasks."precommit"]
+description = "Run all repository pre-commit hooks"
 run = "prek run --all-files"

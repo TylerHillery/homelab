@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: HLIMS API
+  version: 0.1.0
+  description: API for homelab inventory, services, and short links.
+servers:
+  - url: http://go/.api/v1
+paths:
+  /links:
+    get:
+      operationId: listLinks
+      summary: List short links
+      responses:
+        "200":
+          description: Short links
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Link"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createLink
+      summary: Create a short link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLink"
+      responses:
+        "201":
+          description: Link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        default:
+          $ref: "#/components/responses/Error"
+  /links/{short}:
+    parameters:
+      - $ref: "#/components/parameters/Short"
+    get:
+      operationId: getLink
+      summary: Get a short link
+      responses:
+        "200":
+          description: Short link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        default:
+          $ref: "#/components/responses/Error"
+    put:
+      operationId: updateLink
+      summary: Replace a short link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLink"
+      responses:
+        "200":
+          description: Link updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: deleteLink
+      summary: Delete a short link
+      responses:
+        "204":
+          description: Link deleted
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    Short:
+      name: short
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^\w[\w\-.]*$'
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Link:
+      type: object
+      required: [short, url, owner, createdAt, updatedAt]
+      properties:
+        short:
+          type: string
+        url:
+          type: string
+        owner:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateLink:
+      type: object
+      additionalProperties: false
+      required: [short, url]
+      properties:
+        short:
+          type: string
+        url:
+          type: string
+    UpdateLink:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string

@@ -1,0 +1,59 @@
+[tools]
+air = "1.67.4"
+go = "1.26.6"
+golangci-lint = "2.13.2"
+sqlc = "1.31.1"
+uv = "0.11.23"
+"go:github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen" = "2.8.0"
+"go:github.com/pressly/goose/v3/cmd/goose" = "3.28.0"
+"go:mvdan.cc/gofumpt" = "0.12.0"
+
+[tasks.check]
+description = "Run all HLIMS checks"
+depends = [":format-check", ":generate-check", ":lint", ":test", ":sql:lint"]
+
+[tasks.serve]
+description = "Run HLIMS in development mode"
+run = "go run ./cmd/hlims -dev-listen 127.0.0.1:8080"
+
+[tasks.dev]
+description = "Run HLIMS with live reload at http://localhost:8090"
+run = "air -c .air.toml"
+
+[tasks.test]
+description = "Run HLIMS tests"
+run = "go test ./..."
+
+[tasks.format]
+description = "Format HLIMS Go code"
+run = "gofumpt -w ."
+
+[tasks.format-check]
+description = "Check HLIMS Go formatting"
+run = 'test -z "$(gofumpt -l .)"'
+
+[tasks.lint]
+description = "Lint HLIMS Go code"
+run = "golangci-lint run ./..."
+
+[tasks.generate]
+description = "Generate HLIMS API and database code"
+run = "go generate ./..."
+
+[tasks.generate-check]
+description = "Verify committed generated code is current"
+run = '''
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+cp -R generated "$tmp/generated"
+go generate ./...
+diff -ru "$tmp/generated" generated
+'''
+
+[tasks."sql:lint"]
+description = "Lint HLIMS SQL files"
+run = "uvx --from sqlfluff==4.3.0 sqlfluff lint db"
+
+[tasks."sql:format"]
+description = "Format HLIMS SQL files"
+run = "uvx --from sqlfluff==4.3.0 sqlfluff format db"
