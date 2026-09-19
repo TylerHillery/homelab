@@ -14,10 +14,10 @@ depends = [":format-check", ":generate-check", ":lint", ":test", ":sql:lint"]
 
 [tasks.serve]
 description = "Run HLIMS in development mode"
-run = "go run ./cmd/hlims -dev-listen 127.0.0.1:8080"
+run = "go run ./cmd/hlimsd -listen 127.0.0.1:8080 -sqlitedb :memory:"
 
 [tasks.dev]
-description = "Run HLIMS with live reload at http://localhost:8090"
+description = "Run HLIMS with demo inventory and live reload at http://localhost:8090"
 run = "air -c .air.toml"
 
 [tasks.test]

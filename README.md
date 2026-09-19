@@ -35,7 +35,7 @@ such as device attestation, will live beside HLIMS under `services/`.
 ```bash
 mise install --monorepo
 mise run check
-mise run hooks:run
+mise run precommit
 ```
 
 Each project owns its tools and tasks in its local `mise.toml`. From the

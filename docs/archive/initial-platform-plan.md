@@ -2,6 +2,15 @@
 
 Status: deferred on 2026-09-12.
 
+The current provisioning direction is documented in
+[Zero-Touch Provisioning](../architecture/zero-touch-provisioning.md). This
+archive records design intent; the provisioning and attestation systems were
+not implemented on the archived branch.
+
+The current telemetry evaluation is documented in
+[Observability](../architecture/observability.md). The custom metrics streaming
+path below remains historical rather than part of the current recommendation.
+
 This document preserves the original ideas for a more automated homelab
 platform. The implementation was removed from `main` so the repository can
 focus on deploying useful services first. The exact former tree is retained on

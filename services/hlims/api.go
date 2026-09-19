@@ -1,184 +1,122 @@
-package golink
+package hlims
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
-	"io"
-	"io/fs"
 	"net/http"
-	"sort"
-	"strings"
-	texttemplate "text/template"
-	"time"
 
 	"github.com/TylerHillery/homelab/services/hlims/generated/api"
+	database "github.com/TylerHillery/homelab/services/hlims/generated/db"
 )
 
-type apiServer struct{}
-
-func registerAPIHandlers(mux *http.ServeMux) {
-	api.HandlerFromMuxWithBaseURL(apiServer{}, mux, "/.api/v1")
+type apiServer struct {
+	db       *sql.DB
+	queries  *database.Queries
+	resolver resolver
 }
 
-func (apiServer) ListLinks(w http.ResponseWriter, _ *http.Request) {
-	links, err := db.LoadAll()
+func registerAPIHandlers(mux *http.ServeMux, server apiServer) {
+	api.HandlerFromMuxWithBaseURL(server, mux, "/api/v1")
+}
+
+func (s apiServer) ListMachines(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.queries.ListMachineDetails(r.Context())
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to list links")
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to list machines")
 		return
 	}
-	sort.Slice(links, func(i, j int) bool { return links[i].Short < links[j].Short })
 
-	items := make([]api.Link, 0, len(links))
-	for _, link := range links {
-		items = append(items, apiLink(link))
+	items := make([]api.Machine, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, machineListResponse(row))
 	}
 	writeJSON(w, http.StatusOK, struct {
-		Items []api.Link `json:"items"`
+		Items []api.Machine `json:"items"`
 	}{Items: items})
 }
 
-func (apiServer) GetLink(w http.ResponseWriter, _ *http.Request, short api.Short) {
-	link, err := db.Load(short)
-	if errors.Is(err, fs.ErrNotExist) {
-		writeAPIError(w, http.StatusNotFound, "not_found", "link not found")
-		return
-	}
+func (s apiServer) ListMachineInstances(w http.ResponseWriter, r *http.Request, machine api.MachineSlug) {
+	rows, err := s.queries.ListInstancesByMachineSlug(r.Context(), machine)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to load link")
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to list instances")
 		return
 	}
-	writeJSON(w, http.StatusOK, apiLink(link))
+
+	items := make([]api.MachineInstance, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, api.MachineInstance{
+			PublicId:        row.PublicID,
+			Name:            row.Name,
+			Slug:            row.Slug,
+			Port:            int(row.Port),
+			ServicePublicId: row.ServicePublicID,
+			ServiceName:     row.ServiceName,
+			ServiceSlug:     row.ServiceSlug,
+		})
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Items []api.MachineInstance `json:"items"`
+	}{Items: items})
 }
 
-func (apiServer) CreateLink(w http.ResponseWriter, r *http.Request) {
-	var body api.CreateLink
-	if !decodeJSON(w, r, &body) {
-		return
+func (s apiServer) ResolveInstance(
+	w http.ResponseWriter,
+	r *http.Request,
+	machine api.MachineSlug,
+	service api.ServiceSlug,
+	instance api.InstanceSlug,
+	params api.ResolveInstanceParams,
+) {
+	via := ""
+	if params.Via != nil {
+		via = string(*params.Via)
 	}
-	if _, err := db.Load(body.Short); err == nil {
-		writeAPIError(w, http.StatusConflict, "already_exists", "link already exists")
-		return
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to load link")
-		return
-	}
-	createOrUpdateAPILink(w, r, body.Short, body.Url, nil)
-}
-
-func (apiServer) UpdateLink(w http.ResponseWriter, r *http.Request, short api.Short) {
-	var body api.UpdateLink
-	if !decodeJSON(w, r, &body) {
-		return
-	}
-	link, err := db.Load(short)
-	if errors.Is(err, fs.ErrNotExist) {
-		writeAPIError(w, http.StatusNotFound, "not_found", "link not found")
-		return
-	}
+	destination, err := s.resolver.instance(r.Context(), machine, service, instance, via, "", r.URL.Query())
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to load link")
+		writeResolveError(w, err)
 		return
 	}
-	createOrUpdateAPILink(w, r, short, body.Url, link)
+	writeJSON(w, http.StatusOK, api.ResolvedDestination{
+		Url: destination.URL,
+		Via: api.Via(destination.Via),
+	})
 }
 
-func (apiServer) DeleteLink(w http.ResponseWriter, r *http.Request, short api.Short) {
-	link, err := db.Load(short)
-	if errors.Is(err, fs.ErrNotExist) {
-		writeAPIError(w, http.StatusNotFound, "not_found", "link not found")
-		return
+func (s apiServer) ResolveMachinePort(
+	w http.ResponseWriter,
+	r *http.Request,
+	machine api.MachineSlug,
+	port int,
+	params api.ResolveMachinePortParams,
+) {
+	via := ""
+	if params.Via != nil {
+		via = string(*params.Via)
 	}
+	scheme := ""
+	if params.Scheme != nil {
+		scheme = string(*params.Scheme)
+	}
+	destination, err := s.resolver.machinePort(r.Context(), machine, port, via, scheme, "", r.URL.Query())
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to load link")
+		writeResolveError(w, err)
 		return
 	}
-	current, ok := apiCurrentUser(w, r)
-	if !ok {
-		return
-	}
-	if !canEditLink(r.Context(), link, current) {
-		writeAPIError(w, http.StatusForbidden, "forbidden", "link is owned by another user")
-		return
-	}
-	if err := db.Delete(short); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to delete link")
-		return
-	}
-	deleteLinkStats(link)
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, api.ResolvedDestination{
+		Url: destination.URL,
+		Via: api.Via(destination.Via),
+	})
 }
 
-func createOrUpdateAPILink(w http.ResponseWriter, r *http.Request, short, long string, existing *Link) {
-	if !reShortName.MatchString(short) {
-		writeAPIError(w, http.StatusBadRequest, "invalid_short", "short may only contain letters, numbers, dash, and period")
-		return
-	}
-	if _, err := texttemplate.New("").Funcs(expandFuncMap).Parse(long); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_url", "url contains an invalid template")
-		return
-	}
-	current, ok := apiCurrentUser(w, r)
-	if !ok {
-		return
-	}
-	if !canEditLink(r.Context(), existing, current) {
-		writeAPIError(w, http.StatusForbidden, "forbidden", "link is owned by another user")
-		return
-	}
-
-	now := time.Now().UTC()
-	status := http.StatusOK
-	if existing == nil {
-		existing = &Link{Short: short, Created: now, Owner: current.login}
-		status = http.StatusCreated
-	}
-	existing.Short = short
-	existing.Long = long
-	existing.LastEdit = now
-	if err := db.Save(existing); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to save link")
-		return
-	}
-	if status == http.StatusCreated {
-		totalLinkCount.Inc()
-	}
-	writeJSON(w, status, apiLink(existing))
-}
-
-func apiCurrentUser(w http.ResponseWriter, r *http.Request) (user, bool) {
-	current, err := currentUser(r)
-	if err != nil {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Tailscale identity is required")
-		return user{}, false
-	}
-	return current, true
-}
-
-func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	if contentType := r.Header.Get("Content-Type"); !strings.HasPrefix(contentType, "application/json") {
-		writeAPIError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content-Type must be application/json")
-		return false
-	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_json", "request body must be valid JSON")
-		return false
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writeAPIError(w, http.StatusBadRequest, "invalid_json", "request body must contain one JSON value")
-		return false
-	}
-	return true
-}
-
-func apiLink(link *Link) api.Link {
-	return api.Link{
-		Short:     link.Short,
-		Url:       link.Long,
-		Owner:     link.Owner,
-		CreatedAt: link.Created,
-		UpdatedAt: link.LastEdit,
+func writeResolveError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errDestinationNotFound):
+		writeAPIError(w, http.StatusNotFound, "not_found", "destination not found")
+	case errors.Is(err, errInvalidPort), errors.Is(err, errInvalidScheme), errors.Is(err, errInvalidVia):
+		writeAPIError(w, http.StatusBadRequest, "invalid_destination", err.Error())
+	default:
+		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to resolve destination")
 	}
 }
 

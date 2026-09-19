@@ -9,20 +9,296 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
 
-// CreateLink defines model for CreateLink.
-type CreateLink struct {
-	Short string `json:"short"`
-	Url   string `json:"url"`
+// Defines values for AssetPlacementType.
+const (
+	AssetPlacementTypeArea     AssetPlacementType = "area"
+	AssetPlacementTypeAsset    AssetPlacementType = "asset"
+	AssetPlacementTypeUnplaced AssetPlacementType = "unplaced"
+)
+
+// Valid indicates whether the value is a known member of the AssetPlacementType enum.
+func (e AssetPlacementType) Valid() bool {
+	switch e {
+	case AssetPlacementTypeArea:
+		return true
+	case AssetPlacementTypeAsset:
+		return true
+	case AssetPlacementTypeUnplaced:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CpuAllocation.
+const (
+	Dedicated CpuAllocation = "dedicated"
+	Shared    CpuAllocation = "shared"
+)
+
+// Valid indicates whether the value is a known member of the CpuAllocation enum.
+func (e CpuAllocation) Valid() bool {
+	switch e {
+	case Dedicated:
+		return true
+	case Shared:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MachineKind.
+const (
+	BareMetal      MachineKind = "bare_metal"
+	VirtualMachine MachineKind = "virtual_machine"
+)
+
+// Valid indicates whether the value is a known member of the MachineKind enum.
+func (e MachineKind) Valid() bool {
+	switch e {
+	case BareMetal:
+		return true
+	case VirtualMachine:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NetworkKind.
+const (
+	NetworkKindCloudVpc NetworkKind = "cloud_vpc"
+	NetworkKindLan      NetworkKind = "lan"
+	NetworkKindPublic   NetworkKind = "public"
+	NetworkKindTailnet  NetworkKind = "tailnet"
+)
+
+// Valid indicates whether the value is a known member of the NetworkKind enum.
+func (e NetworkKind) Valid() bool {
+	switch e {
+	case NetworkKindCloudVpc:
+		return true
+	case NetworkKindLan:
+		return true
+	case NetworkKindPublic:
+		return true
+	case NetworkKindTailnet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProductKind.
+const (
+	Drive     ProductKind = "drive"
+	Memory    ProductKind = "memory"
+	Processor ProductKind = "processor"
+	System    ProductKind = "system"
+)
+
+// Valid indicates whether the value is a known member of the ProductKind enum.
+func (e ProductKind) Valid() bool {
+	switch e {
+	case Drive:
+		return true
+	case Memory:
+		return true
+	case Processor:
+		return true
+	case System:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Scheme.
+const (
+	Http  Scheme = "http"
+	Https Scheme = "https"
+)
+
+// Valid indicates whether the value is a known member of the Scheme enum.
+func (e Scheme) Valid() bool {
+	switch e {
+	case Http:
+		return true
+	case Https:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StorageInterfaceKind.
+const (
+	Nvme    StorageInterfaceKind = "nvme"
+	Sas     StorageInterfaceKind = "sas"
+	Sata    StorageInterfaceKind = "sata"
+	Scsi    StorageInterfaceKind = "scsi"
+	Usb     StorageInterfaceKind = "usb"
+	Virtio  StorageInterfaceKind = "virtio"
+	Virtual StorageInterfaceKind = "virtual"
+)
+
+// Valid indicates whether the value is a known member of the StorageInterfaceKind enum.
+func (e StorageInterfaceKind) Valid() bool {
+	switch e {
+	case Nvme:
+		return true
+	case Sas:
+		return true
+	case Sata:
+		return true
+	case Scsi:
+		return true
+	case Usb:
+		return true
+	case Virtio:
+		return true
+	case Virtual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StorageMediaKind.
+const (
+	Hdd StorageMediaKind = "hdd"
+	Ssd StorageMediaKind = "ssd"
+)
+
+// Valid indicates whether the value is a known member of the StorageMediaKind enum.
+func (e StorageMediaKind) Valid() bool {
+	switch e {
+	case Hdd:
+		return true
+	case Ssd:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Via.
+const (
+	ViaLan     Via = "lan"
+	ViaTailnet Via = "tailnet"
+)
+
+// Valid indicates whether the value is a known member of the Via enum.
+func (e Via) Valid() bool {
+	switch e {
+	case ViaLan:
+		return true
+	case ViaTailnet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Address defines model for Address.
+type Address struct {
+	Address         string  `json:"address"`
+	AreaPublicId    *string `json:"areaPublicId,omitempty"`
+	DnsName         *string `json:"dnsName,omitempty"`
+	InterfaceName   *string `json:"interfaceName,omitempty"`
+	IsPrimary       bool    `json:"isPrimary"`
+	MachinePublicId *string `json:"machinePublicId,omitempty"`
+	Name            *string `json:"name,omitempty"`
+	NetworkPublicId string  `json:"networkPublicId"`
+	PublicId        string  `json:"publicId"`
+}
+
+// AddressWrite defines model for AddressWrite.
+type AddressWrite struct {
+	Address         string  `json:"address"`
+	AreaPublicId    *string `json:"areaPublicId,omitempty"`
+	DnsName         *string `json:"dnsName,omitempty"`
+	InterfaceName   *string `json:"interfaceName,omitempty"`
+	IsPrimary       *bool   `json:"isPrimary,omitempty"`
+	MachinePublicId *string `json:"machinePublicId,omitempty"`
+	Name            *string `json:"name,omitempty"`
+	NetworkPublicId string  `json:"networkPublicId"`
+}
+
+// Area defines model for Area.
+type Area struct {
+	MachineProviderPublicId string  `json:"machineProviderPublicId"`
+	Name                    string  `json:"name"`
+	Notes                   *string `json:"notes,omitempty"`
+	ProviderCode            *string `json:"providerCode,omitempty"`
+	PublicId                string  `json:"publicId"`
+	Slug                    Slug    `json:"slug"`
+}
+
+// AreaWrite defines model for AreaWrite.
+type AreaWrite struct {
+	MachineProviderPublicId string  `json:"machineProviderPublicId"`
+	Name                    string  `json:"name"`
+	Notes                   *string `json:"notes,omitempty"`
+	ProviderCode            *string `json:"providerCode,omitempty"`
+	Slug                    *Slug   `json:"slug,omitempty"`
+}
+
+// Asset defines model for Asset.
+type Asset struct {
+	EffectiveAreaPublicId *PublicId `json:"effectiveAreaPublicId,omitempty"`
+	Name                  *string   `json:"name,omitempty"`
+	Notes                 *string   `json:"notes,omitempty"`
+
+	// Placement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
+	Placement       AssetPlacement `json:"placement"`
+	ProductPublicId PublicId       `json:"productPublicId"`
+	PublicId        PublicId       `json:"publicId"`
+	SerialNumber    *string        `json:"serialNumber,omitempty"`
+	SystemUuid      *string        `json:"systemUuid,omitempty"`
+}
+
+// AssetPlacement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
+type AssetPlacement struct {
+	AreaPublicId        *PublicId          `json:"areaPublicId,omitempty"`
+	ParentAssetPublicId *PublicId          `json:"parentAssetPublicId,omitempty"`
+	Type                AssetPlacementType `json:"type"`
+}
+
+// AssetPlacementType defines model for AssetPlacementType.
+type AssetPlacementType string
+
+// AssetWrite defines model for AssetWrite.
+type AssetWrite struct {
+	Name  *string `json:"name,omitempty"`
+	Notes *string `json:"notes,omitempty"`
+
+	// Placement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
+	Placement       AssetPlacement `json:"placement"`
+	ProductPublicId PublicId       `json:"productPublicId"`
+	SerialNumber    *string        `json:"serialNumber,omitempty"`
+	SystemUuid      *string        `json:"systemUuid,omitempty"`
+}
+
+// CpuAllocation defines model for CpuAllocation.
+type CpuAllocation string
+
+// DriveSpec defines model for DriveSpec.
+type DriveSpec struct {
+	CapacityBytes int64                 `json:"capacityBytes"`
+	InterfaceKind *StorageInterfaceKind `json:"interfaceKind,omitempty"`
+	MediaKind     StorageMediaKind      `json:"mediaKind"`
 }
 
 // Error defines model for Error.
@@ -31,28 +307,465 @@ type Error struct {
 	Message string `json:"message"`
 }
 
-// Link defines model for Link.
-type Link struct {
-	CreatedAt time.Time `json:"createdAt"`
-	Owner     string    `json:"owner"`
-	Short     string    `json:"short"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Url       string    `json:"url"`
+// Instance defines model for Instance.
+type Instance struct {
+	MachinePublicId string  `json:"machinePublicId"`
+	Name            string  `json:"name"`
+	Notes           *string `json:"notes,omitempty"`
+	Port            int     `json:"port"`
+	PublicId        string  `json:"publicId"`
+	ServicePublicId string  `json:"servicePublicId"`
+	Slug            Slug    `json:"slug"`
 }
 
-// UpdateLink defines model for UpdateLink.
-type UpdateLink struct {
+// InstanceEndpoint defines model for InstanceEndpoint.
+type InstanceEndpoint struct {
+	AddressPublicId  string  `json:"addressPublicId"`
+	BasePath         string  `json:"basePath"`
+	InstancePublicId string  `json:"instancePublicId"`
+	IsPreferred      bool    `json:"isPreferred"`
+	Name             string  `json:"name"`
+	Notes            *string `json:"notes,omitempty"`
+	Port             int     `json:"port"`
+	PublicId         string  `json:"publicId"`
+	Scheme           Scheme  `json:"scheme"`
+}
+
+// InstanceEndpointWrite defines model for InstanceEndpointWrite.
+type InstanceEndpointWrite struct {
+	AddressPublicId  string  `json:"addressPublicId"`
+	BasePath         *string `json:"basePath,omitempty"`
+	InstancePublicId string  `json:"instancePublicId"`
+	IsPreferred      *bool   `json:"isPreferred,omitempty"`
+	Name             string  `json:"name"`
+	Notes            *string `json:"notes,omitempty"`
+	Port             int     `json:"port"`
+	Scheme           Scheme  `json:"scheme"`
+}
+
+// InstanceWrite defines model for InstanceWrite.
+type InstanceWrite struct {
+	MachinePublicId string  `json:"machinePublicId"`
+	Name            string  `json:"name"`
+	Notes           *string `json:"notes,omitempty"`
+	Port            int     `json:"port"`
+	ServicePublicId string  `json:"servicePublicId"`
+	Slug            *Slug   `json:"slug,omitempty"`
+}
+
+// Machine defines model for Machine.
+type Machine struct {
+	Architecture              *string               `json:"architecture,omitempty"`
+	AreaPublicId              PublicId              `json:"areaPublicId"`
+	AssetPublicId             *PublicId             `json:"assetPublicId,omitempty"`
+	CostCurrency              *string               `json:"costCurrency,omitempty"`
+	CpuAllocation             *CpuAllocation        `json:"cpuAllocation,omitempty"`
+	CpuCount                  *int                  `json:"cpuCount,omitempty"`
+	CpuVendor                 *string               `json:"cpuVendor,omitempty"`
+	EstimatedMonthlyCostCents *int64                `json:"estimatedMonthlyCostCents,omitempty"`
+	Hostname                  *string               `json:"hostname,omitempty"`
+	IsFavorite                bool                  `json:"isFavorite"`
+	Kernel                    *string               `json:"kernel,omitempty"`
+	Kind                      MachineKind           `json:"kind"`
+	MachineProviderPublicId   PublicId              `json:"machineProviderPublicId"`
+	MemoryBytes               *int64                `json:"memoryBytes,omitempty"`
+	Name                      string                `json:"name"`
+	Notes                     *string               `json:"notes,omitempty"`
+	OperatingSystem           *string               `json:"operatingSystem,omitempty"`
+	OperatingSystemVersion    *string               `json:"operatingSystemVersion,omitempty"`
+	OsMachineId               *string               `json:"osMachineId,omitempty"`
+	ParentMachinePublicId     *PublicId             `json:"parentMachinePublicId,omitempty"`
+	PublicId                  PublicId              `json:"publicId"`
+	Slug                      Slug                  `json:"slug"`
+	StorageBytes              *int64                `json:"storageBytes,omitempty"`
+	StorageInterfaceKind      *StorageInterfaceKind `json:"storageInterfaceKind,omitempty"`
+	StorageMediaKind          *StorageMediaKind     `json:"storageMediaKind,omitempty"`
+	VirtualizationPlatform    *string               `json:"virtualizationPlatform,omitempty"`
+}
+
+// MachineInstance defines model for MachineInstance.
+type MachineInstance struct {
+	Name            string `json:"name"`
+	Port            int    `json:"port"`
+	PublicId        string `json:"publicId"`
+	ServiceName     string `json:"serviceName"`
+	ServicePublicId string `json:"servicePublicId"`
+	ServiceSlug     Slug   `json:"serviceSlug"`
+	Slug            Slug   `json:"slug"`
+}
+
+// MachineKind defines model for MachineKind.
+type MachineKind string
+
+// MachineProvider defines model for MachineProvider.
+type MachineProvider struct {
+	HasLogo  bool   `json:"hasLogo"`
+	Name     string `json:"name"`
+	PublicId string `json:"publicId"`
+	Slug     Slug   `json:"slug"`
+}
+
+// MachineProviderWrite defines model for MachineProviderWrite.
+type MachineProviderWrite struct {
+	Name string `json:"name"`
+	Slug *Slug  `json:"slug,omitempty"`
+}
+
+// MachineUser defines model for MachineUser.
+type MachineUser struct {
+	IsPreferred     bool            `json:"isPreferred"`
+	MachinePublicId PublicId        `json:"machinePublicId"`
+	Notes           *string         `json:"notes,omitempty"`
+	PublicId        PublicId        `json:"publicId"`
+	Username        MachineUsername `json:"username"`
+}
+
+// MachineUserWrite defines model for MachineUserWrite.
+type MachineUserWrite struct {
+	IsPreferred     *bool           `json:"isPreferred,omitempty"`
+	MachinePublicId PublicId        `json:"machinePublicId"`
+	Notes           *string         `json:"notes,omitempty"`
+	Username        MachineUsername `json:"username"`
+}
+
+// MachineUsername defines model for MachineUsername.
+type MachineUsername = string
+
+// MachineWrite defines model for MachineWrite.
+type MachineWrite struct {
+	Architecture              *string               `json:"architecture,omitempty"`
+	AreaPublicId              PublicId              `json:"areaPublicId"`
+	AssetPublicId             *PublicId             `json:"assetPublicId,omitempty"`
+	CostCurrency              *string               `json:"costCurrency,omitempty"`
+	CpuAllocation             *CpuAllocation        `json:"cpuAllocation,omitempty"`
+	CpuCount                  *int                  `json:"cpuCount,omitempty"`
+	CpuVendor                 *string               `json:"cpuVendor,omitempty"`
+	EstimatedMonthlyCostCents *int64                `json:"estimatedMonthlyCostCents,omitempty"`
+	Hostname                  *string               `json:"hostname,omitempty"`
+	IsFavorite                *bool                 `json:"isFavorite,omitempty"`
+	Kernel                    *string               `json:"kernel,omitempty"`
+	Kind                      MachineKind           `json:"kind"`
+	MachineProviderPublicId   PublicId              `json:"machineProviderPublicId"`
+	MemoryBytes               *int64                `json:"memoryBytes,omitempty"`
+	Name                      string                `json:"name"`
+	Notes                     *string               `json:"notes,omitempty"`
+	OperatingSystem           *string               `json:"operatingSystem,omitempty"`
+	OperatingSystemVersion    *string               `json:"operatingSystemVersion,omitempty"`
+	OsMachineId               *string               `json:"osMachineId,omitempty"`
+	ParentMachinePublicId     *PublicId             `json:"parentMachinePublicId,omitempty"`
+	Slug                      *Slug                 `json:"slug,omitempty"`
+	StorageBytes              *int64                `json:"storageBytes,omitempty"`
+	StorageInterfaceKind      *StorageInterfaceKind `json:"storageInterfaceKind,omitempty"`
+	StorageMediaKind          *StorageMediaKind     `json:"storageMediaKind,omitempty"`
+	VirtualizationPlatform    *string               `json:"virtualizationPlatform,omitempty"`
+}
+
+// Manufacturer defines model for Manufacturer.
+type Manufacturer struct {
+	Name     string `json:"name"`
+	PublicId string `json:"publicId"`
+	Slug     Slug   `json:"slug"`
+}
+
+// ManufacturerWrite defines model for ManufacturerWrite.
+type ManufacturerWrite struct {
+	Name string `json:"name"`
+	Slug *Slug  `json:"slug,omitempty"`
+}
+
+// MemorySpec defines model for MemorySpec.
+type MemorySpec struct {
+	CapacityBytes int64   `json:"capacityBytes"`
+	FormFactor    *string `json:"formFactor,omitempty"`
+	MemoryType    string  `json:"memoryType"`
+	SpeedMts      *int    `json:"speedMts,omitempty"`
+}
+
+// Network defines model for Network.
+type Network struct {
+	AreaPublicId *string     `json:"areaPublicId,omitempty"`
+	Cidr         *string     `json:"cidr,omitempty"`
+	Kind         NetworkKind `json:"kind"`
+	Name         string      `json:"name"`
+	Notes        *string     `json:"notes,omitempty"`
+	PublicId     string      `json:"publicId"`
+	Slug         Slug        `json:"slug"`
+}
+
+// NetworkKind defines model for NetworkKind.
+type NetworkKind string
+
+// NetworkWrite defines model for NetworkWrite.
+type NetworkWrite struct {
+	AreaPublicId *string     `json:"areaPublicId,omitempty"`
+	Cidr         *string     `json:"cidr,omitempty"`
+	Kind         NetworkKind `json:"kind"`
+	Name         string      `json:"name"`
+	Notes        *string     `json:"notes,omitempty"`
+	Slug         *Slug       `json:"slug,omitempty"`
+}
+
+// ProcessorSpec defines model for ProcessorSpec.
+type ProcessorSpec struct {
+	BaseClockMhz *int `json:"baseClockMhz,omitempty"`
+	CoreCount    int  `json:"coreCount"`
+
+	// ThreadCount Must be greater than or equal to coreCount.
+	ThreadCount    int     `json:"threadCount"`
+	Virtualization *string `json:"virtualization,omitempty"`
+}
+
+// Product defines model for Product.
+type Product struct {
+	DriveSpec            *DriveSpec     `json:"driveSpec,omitempty"`
+	Kind                 ProductKind    `json:"kind"`
+	ManufacturerPublicId PublicId       `json:"manufacturerPublicId"`
+	MemorySpec           *MemorySpec    `json:"memorySpec,omitempty"`
+	Name                 string         `json:"name"`
+	Notes                *string        `json:"notes,omitempty"`
+	PartNumber           *string        `json:"partNumber,omitempty"`
+	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
+	PublicId             PublicId       `json:"publicId"`
+}
+
+// ProductKind defines model for ProductKind.
+type ProductKind string
+
+// ProductWrite The product kind determines which single spec is allowed and required; system products have no spec.
+type ProductWrite struct {
+	DriveSpec            *DriveSpec     `json:"driveSpec,omitempty"`
+	Kind                 ProductKind    `json:"kind"`
+	ManufacturerPublicId PublicId       `json:"manufacturerPublicId"`
+	MemorySpec           *MemorySpec    `json:"memorySpec,omitempty"`
+	Name                 string         `json:"name"`
+	Notes                *string        `json:"notes,omitempty"`
+	PartNumber           *string        `json:"partNumber,omitempty"`
+	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
+}
+
+// PublicId defines model for PublicId.
+type PublicId = string
+
+// ResolvedDestination defines model for ResolvedDestination.
+type ResolvedDestination struct {
 	Url string `json:"url"`
+	Via Via    `json:"via"`
 }
 
-// Short defines model for Short.
-type Short = string
+// Scheme defines model for Scheme.
+type Scheme string
 
-// CreateLinkJSONRequestBody defines body for CreateLink for application/json ContentType.
-type CreateLinkJSONRequestBody = CreateLink
+// Service defines model for Service.
+type Service struct {
+	Description *string `json:"description,omitempty"`
+	HasLogo     bool    `json:"hasLogo"`
+	Name        string  `json:"name"`
+	PublicId    string  `json:"publicId"`
+	Slug        Slug    `json:"slug"`
+}
 
-// UpdateLinkJSONRequestBody defines body for UpdateLink for application/json ContentType.
-type UpdateLinkJSONRequestBody = UpdateLink
+// ServiceWrite defines model for ServiceWrite.
+type ServiceWrite struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+	Slug        *Slug   `json:"slug,omitempty"`
+}
+
+// Slug defines model for Slug.
+type Slug = string
+
+// StorageInterfaceKind defines model for StorageInterfaceKind.
+type StorageInterfaceKind string
+
+// StorageMediaKind defines model for StorageMediaKind.
+type StorageMediaKind string
+
+// Topology defines model for Topology.
+type Topology struct {
+	Providers []TopologyProvider `json:"providers"`
+}
+
+// TopologyArea defines model for TopologyArea.
+type TopologyArea struct {
+	// Machines Root machines in the area. Descendants are recursively nested in children.
+	Machines []TopologyMachine `json:"machines"`
+	Name     string            `json:"name"`
+	PublicId PublicId          `json:"publicId"`
+	Slug     Slug              `json:"slug"`
+}
+
+// TopologyInstance defines model for TopologyInstance.
+type TopologyInstance struct {
+	// AvailableVia Network routes that can be selected by adding the via query parameter to resolverPath.
+	AvailableVia []Via    `json:"availableVia"`
+	Name         string   `json:"name"`
+	Port         int      `json:"port"`
+	PublicId     PublicId `json:"publicId"`
+
+	// ResolverPath Canonical root-relative redirect resolver path suitable for links.
+	ResolverPath string `json:"resolverPath"`
+	Slug         Slug   `json:"slug"`
+}
+
+// TopologyMachine defines model for TopologyMachine.
+type TopologyMachine struct {
+	Addresses              []TopologyMachineAddress `json:"addresses"`
+	Architecture           *string                  `json:"architecture,omitempty"`
+	Children               []TopologyMachine        `json:"children"`
+	CpuAllocation          *CpuAllocation           `json:"cpuAllocation,omitempty"`
+	CpuCount               *int                     `json:"cpuCount,omitempty"`
+	CpuVendor              *string                  `json:"cpuVendor,omitempty"`
+	Hostname               *string                  `json:"hostname,omitempty"`
+	IsFavorite             bool                     `json:"isFavorite"`
+	Kernel                 *string                  `json:"kernel,omitempty"`
+	Kind                   MachineKind              `json:"kind"`
+	MemoryBytes            *int64                   `json:"memoryBytes,omitempty"`
+	Name                   string                   `json:"name"`
+	OperatingSystem        *string                  `json:"operatingSystem,omitempty"`
+	OperatingSystemVersion *string                  `json:"operatingSystemVersion,omitempty"`
+	PublicId               PublicId                 `json:"publicId"`
+	Services               []TopologyService        `json:"services"`
+	Slug                   Slug                     `json:"slug"`
+	StorageBytes           *int64                   `json:"storageBytes,omitempty"`
+	StorageInterfaceKind   *StorageInterfaceKind    `json:"storageInterfaceKind,omitempty"`
+	StorageMediaKind       *StorageMediaKind        `json:"storageMediaKind,omitempty"`
+	Users                  []TopologyMachineUser    `json:"users"`
+	VirtualizationPlatform *string                  `json:"virtualizationPlatform,omitempty"`
+}
+
+// TopologyMachineAddress defines model for TopologyMachineAddress.
+type TopologyMachineAddress struct {
+	Address         string      `json:"address"`
+	DnsName         *string     `json:"dnsName,omitempty"`
+	InterfaceName   *string     `json:"interfaceName,omitempty"`
+	IsPrimary       bool        `json:"isPrimary"`
+	Name            *string     `json:"name,omitempty"`
+	NetworkKind     NetworkKind `json:"networkKind"`
+	NetworkPublicId PublicId    `json:"networkPublicId"`
+	PublicId        PublicId    `json:"publicId"`
+}
+
+// TopologyMachineUser defines model for TopologyMachineUser.
+type TopologyMachineUser struct {
+	IsPreferred bool            `json:"isPreferred"`
+	Notes       *string         `json:"notes,omitempty"`
+	PublicId    PublicId        `json:"publicId"`
+	Username    MachineUsername `json:"username"`
+}
+
+// TopologyProvider defines model for TopologyProvider.
+type TopologyProvider struct {
+	Areas    []TopologyArea `json:"areas"`
+	HasLogo  bool           `json:"hasLogo"`
+	Name     string         `json:"name"`
+	PublicId PublicId       `json:"publicId"`
+	Slug     Slug           `json:"slug"`
+}
+
+// TopologyService defines model for TopologyService.
+type TopologyService struct {
+	Description *string            `json:"description,omitempty"`
+	HasLogo     bool               `json:"hasLogo"`
+	Instances   []TopologyInstance `json:"instances"`
+	Name        string             `json:"name"`
+	PublicId    PublicId           `json:"publicId"`
+	Slug        Slug               `json:"slug"`
+}
+
+// Via defines model for Via.
+type Via string
+
+// InstanceSlug defines model for InstanceSlug.
+type InstanceSlug = Slug
+
+// MachineSlug defines model for MachineSlug.
+type MachineSlug = Slug
+
+// ServiceSlug defines model for ServiceSlug.
+type ServiceSlug = Slug
+
+// ResolveMachinePortParams defines parameters for ResolveMachinePort.
+type ResolveMachinePortParams struct {
+	Via    *Via    `form:"via,omitempty" json:"via,omitempty"`
+	Scheme *Scheme `form:"scheme,omitempty" json:"scheme,omitempty"`
+}
+
+// ResolveInstanceParams defines parameters for ResolveInstance.
+type ResolveInstanceParams struct {
+	Via *Via `form:"via,omitempty" json:"via,omitempty"`
+}
+
+// CreateAddressJSONRequestBody defines body for CreateAddress for application/json ContentType.
+type CreateAddressJSONRequestBody = AddressWrite
+
+// UpdateAddressJSONRequestBody defines body for UpdateAddress for application/json ContentType.
+type UpdateAddressJSONRequestBody = AddressWrite
+
+// CreateAreaJSONRequestBody defines body for CreateArea for application/json ContentType.
+type CreateAreaJSONRequestBody = AreaWrite
+
+// UpdateAreaJSONRequestBody defines body for UpdateArea for application/json ContentType.
+type UpdateAreaJSONRequestBody = AreaWrite
+
+// CreateAssetJSONRequestBody defines body for CreateAsset for application/json ContentType.
+type CreateAssetJSONRequestBody = AssetWrite
+
+// UpdateAssetJSONRequestBody defines body for UpdateAsset for application/json ContentType.
+type UpdateAssetJSONRequestBody = AssetWrite
+
+// CreateInstanceEndpointJSONRequestBody defines body for CreateInstanceEndpoint for application/json ContentType.
+type CreateInstanceEndpointJSONRequestBody = InstanceEndpointWrite
+
+// UpdateInstanceEndpointJSONRequestBody defines body for UpdateInstanceEndpoint for application/json ContentType.
+type UpdateInstanceEndpointJSONRequestBody = InstanceEndpointWrite
+
+// CreateInstanceJSONRequestBody defines body for CreateInstance for application/json ContentType.
+type CreateInstanceJSONRequestBody = InstanceWrite
+
+// UpdateInstanceJSONRequestBody defines body for UpdateInstance for application/json ContentType.
+type UpdateInstanceJSONRequestBody = InstanceWrite
+
+// CreateMachineProviderJSONRequestBody defines body for CreateMachineProvider for application/json ContentType.
+type CreateMachineProviderJSONRequestBody = MachineProviderWrite
+
+// UpdateMachineProviderJSONRequestBody defines body for UpdateMachineProvider for application/json ContentType.
+type UpdateMachineProviderJSONRequestBody = MachineProviderWrite
+
+// CreateMachineUserJSONRequestBody defines body for CreateMachineUser for application/json ContentType.
+type CreateMachineUserJSONRequestBody = MachineUserWrite
+
+// UpdateMachineUserJSONRequestBody defines body for UpdateMachineUser for application/json ContentType.
+type UpdateMachineUserJSONRequestBody = MachineUserWrite
+
+// CreateMachineJSONRequestBody defines body for CreateMachine for application/json ContentType.
+type CreateMachineJSONRequestBody = MachineWrite
+
+// UpdateMachineJSONRequestBody defines body for UpdateMachine for application/json ContentType.
+type UpdateMachineJSONRequestBody = MachineWrite
+
+// CreateManufacturerJSONRequestBody defines body for CreateManufacturer for application/json ContentType.
+type CreateManufacturerJSONRequestBody = ManufacturerWrite
+
+// UpdateManufacturerJSONRequestBody defines body for UpdateManufacturer for application/json ContentType.
+type UpdateManufacturerJSONRequestBody = ManufacturerWrite
+
+// CreateNetworkJSONRequestBody defines body for CreateNetwork for application/json ContentType.
+type CreateNetworkJSONRequestBody = NetworkWrite
+
+// UpdateNetworkJSONRequestBody defines body for UpdateNetwork for application/json ContentType.
+type UpdateNetworkJSONRequestBody = NetworkWrite
+
+// CreateProductJSONRequestBody defines body for CreateProduct for application/json ContentType.
+type CreateProductJSONRequestBody = ProductWrite
+
+// UpdateProductJSONRequestBody defines body for UpdateProduct for application/json ContentType.
+type UpdateProductJSONRequestBody = ProductWrite
+
+// CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
+type CreateServiceJSONRequestBody = ServiceWrite
+
+// UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
+type UpdateServiceJSONRequestBody = ServiceWrite
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -128,55 +841,342 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 
-	// ListLinks List short links
-	//
-	// Corresponds with GET /links (the `ListLinks` operationId).
-	ListLinks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ListAddresses performs a GET /addresses (the `ListAddresses` operationId) request.
+	ListAddresses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateLinkWithBody Create a short link
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with POST /links (the `CreateLink` operationId).
-	CreateLinkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// CreateAddressWithBody performs a POST /addresses (the `CreateAddress` operationId) request,
+	// with any type of body and a specified content type.
+	CreateAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateLink Create a short link
-	//
+	// CreateAddress performs a POST /addresses (the `CreateAddress` operationId) request.
 	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with POST /links (the `CreateLink` operationId).
-	CreateLink(ctx context.Context, body CreateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateAddress(ctx context.Context, body CreateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteLink Delete a short link
-	//
-	// Corresponds with DELETE /links/{short} (the `DeleteLink` operationId).
-	DeleteLink(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// DeleteAddress performs a DELETE /addresses/{publicId} (the `DeleteAddress` operationId) request.
+	DeleteAddress(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetLink Get a short link
-	//
-	// Corresponds with GET /links/{short} (the `GetLink` operationId).
-	GetLink(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetAddress performs a GET /addresses/{publicId} (the `GetAddress` operationId) request.
+	GetAddress(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateLinkWithBody Replace a short link
-	//
-	// Takes any type of body and a specified content type.
-	//
-	// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-	UpdateLinkWithBody(ctx context.Context, short Short, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// UpdateAddressWithBody performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateAddressWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateLink Replace a short link
-	//
+	// UpdateAddress performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request.
 	// Takes a body of the `application/json` content type.
-	//
-	// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-	UpdateLink(ctx context.Context, short Short, body UpdateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateAddress(ctx context.Context, publicId PublicId, body UpdateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAreas performs a GET /areas (the `ListAreas` operationId) request.
+	ListAreas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAreaWithBody performs a POST /areas (the `CreateArea` operationId) request,
+	// with any type of body and a specified content type.
+	CreateAreaWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateArea performs a POST /areas (the `CreateArea` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateArea(ctx context.Context, body CreateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteArea performs a DELETE /areas/{publicId} (the `DeleteArea` operationId) request.
+	DeleteArea(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetArea performs a GET /areas/{publicId} (the `GetArea` operationId) request.
+	GetArea(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAreaWithBody performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateAreaWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateArea performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateArea(ctx context.Context, publicId PublicId, body UpdateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAssets performs a GET /assets (the `ListAssets` operationId) request.
+	ListAssets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAssetWithBody performs a POST /assets (the `CreateAsset` operationId) request,
+	// with any type of body and a specified content type.
+	CreateAssetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateAsset performs a POST /assets (the `CreateAsset` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateAsset(ctx context.Context, body CreateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteAsset performs a DELETE /assets/{publicId} (the `DeleteAsset` operationId) request.
+	DeleteAsset(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAsset performs a GET /assets/{publicId} (the `GetAsset` operationId) request.
+	GetAsset(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAssetWithBody performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateAssetWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateAsset performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateAsset(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
+	ListInstanceEndpoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceEndpointWithBody performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
+	// with any type of body and a specified content type.
+	CreateInstanceEndpointWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceEndpoint performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateInstanceEndpoint(ctx context.Context, body CreateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteInstanceEndpoint performs a DELETE /instance-endpoints/{publicId} (the `DeleteInstanceEndpoint` operationId) request.
+	DeleteInstanceEndpoint(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetInstanceEndpoint performs a GET /instance-endpoints/{publicId} (the `GetInstanceEndpoint` operationId) request.
+	GetInstanceEndpoint(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstanceEndpointWithBody performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateInstanceEndpointWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstanceEndpoint performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateInstanceEndpoint(ctx context.Context, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstances performs a GET /instances (the `ListInstances` operationId) request.
+	ListInstances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceWithBody performs a POST /instances (the `CreateInstance` operationId) request,
+	// with any type of body and a specified content type.
+	CreateInstanceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstance performs a POST /instances (the `CreateInstance` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateInstance(ctx context.Context, body CreateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteInstance performs a DELETE /instances/{publicId} (the `DeleteInstance` operationId) request.
+	DeleteInstance(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetInstance performs a GET /instances/{publicId} (the `GetInstance` operationId) request.
+	GetInstance(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstanceWithBody performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateInstanceWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstance performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateInstance(ctx context.Context, publicId PublicId, body UpdateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMachineProviders performs a GET /machine-providers (the `ListMachineProviders` operationId) request.
+	ListMachineProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachineProviderWithBody performs a POST /machine-providers (the `CreateMachineProvider` operationId) request,
+	// with any type of body and a specified content type.
+	CreateMachineProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachineProvider performs a POST /machine-providers (the `CreateMachineProvider` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateMachineProvider(ctx context.Context, body CreateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMachineProvider performs a DELETE /machine-providers/{publicId} (the `DeleteMachineProvider` operationId) request.
+	DeleteMachineProvider(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMachineProvider performs a GET /machine-providers/{publicId} (the `GetMachineProvider` operationId) request.
+	GetMachineProvider(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineProviderWithBody performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateMachineProviderWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineProvider performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateMachineProvider(ctx context.Context, publicId PublicId, body UpdateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMachineProviderLogo performs a DELETE /machine-providers/{publicId}/logo (the `DeleteMachineProviderLogo` operationId) request.
+	DeleteMachineProviderLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMachineProviderLogo performs a GET /machine-providers/{publicId}/logo (the `GetMachineProviderLogo` operationId) request.
+	GetMachineProviderLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineProviderLogoWithBody performs a PUT /machine-providers/{publicId}/logo (the `UpdateMachineProviderLogo` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateMachineProviderLogoWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMachineUsers performs a GET /machine-users (the `ListMachineUsers` operationId) request.
+	ListMachineUsers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachineUserWithBody performs a POST /machine-users (the `CreateMachineUser` operationId) request,
+	// with any type of body and a specified content type.
+	CreateMachineUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachineUser performs a POST /machine-users (the `CreateMachineUser` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateMachineUser(ctx context.Context, body CreateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMachineUser performs a DELETE /machine-users/{publicId} (the `DeleteMachineUser` operationId) request.
+	DeleteMachineUser(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMachineUser performs a GET /machine-users/{publicId} (the `GetMachineUser` operationId) request.
+	GetMachineUser(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineUserWithBody performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateMachineUserWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineUser performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateMachineUser(ctx context.Context, publicId PublicId, body UpdateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMachines performs a GET /machines (the `ListMachines` operationId) request.
+	ListMachines(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachineWithBody performs a POST /machines (the `CreateMachine` operationId) request,
+	// with any type of body and a specified content type.
+	CreateMachineWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateMachine performs a POST /machines (the `CreateMachine` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateMachine(ctx context.Context, body CreateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMachineInstances performs a GET /machines/{machine}/instances (the `ListMachineInstances` operationId) request.
+	ListMachineInstances(ctx context.Context, machine MachineSlug, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteMachine performs a DELETE /machines/{publicId} (the `DeleteMachine` operationId) request.
+	DeleteMachine(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMachine performs a GET /machines/{publicId} (the `GetMachine` operationId) request.
+	GetMachine(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachineWithBody performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateMachineWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMachine performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateMachine(ctx context.Context, publicId PublicId, body UpdateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListManufacturers performs a GET /manufacturers (the `ListManufacturers` operationId) request.
+	ListManufacturers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateManufacturerWithBody performs a POST /manufacturers (the `CreateManufacturer` operationId) request,
+	// with any type of body and a specified content type.
+	CreateManufacturerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateManufacturer performs a POST /manufacturers (the `CreateManufacturer` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateManufacturer(ctx context.Context, body CreateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteManufacturer performs a DELETE /manufacturers/{publicId} (the `DeleteManufacturer` operationId) request.
+	DeleteManufacturer(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetManufacturer performs a GET /manufacturers/{publicId} (the `GetManufacturer` operationId) request.
+	GetManufacturer(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateManufacturerWithBody performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateManufacturerWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateManufacturer performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateManufacturer(ctx context.Context, publicId PublicId, body UpdateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListNetworks performs a GET /networks (the `ListNetworks` operationId) request.
+	ListNetworks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateNetworkWithBody performs a POST /networks (the `CreateNetwork` operationId) request,
+	// with any type of body and a specified content type.
+	CreateNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateNetwork performs a POST /networks (the `CreateNetwork` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateNetwork(ctx context.Context, body CreateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteNetwork performs a DELETE /networks/{publicId} (the `DeleteNetwork` operationId) request.
+	DeleteNetwork(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetNetwork performs a GET /networks/{publicId} (the `GetNetwork` operationId) request.
+	GetNetwork(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateNetworkWithBody performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateNetworkWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateNetwork performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateNetwork(ctx context.Context, publicId PublicId, body UpdateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListProducts performs a GET /products (the `ListProducts` operationId) request.
+	ListProducts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateProductWithBody performs a POST /products (the `CreateProduct` operationId) request,
+	// with any type of body and a specified content type.
+	CreateProductWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateProduct performs a POST /products (the `CreateProduct` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateProduct(ctx context.Context, body CreateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteProduct performs a DELETE /products/{publicId} (the `DeleteProduct` operationId) request.
+	DeleteProduct(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetProduct performs a GET /products/{publicId} (the `GetProduct` operationId) request.
+	GetProduct(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateProductWithBody performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateProductWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateProduct performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateProduct(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveMachinePort performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+	ResolveMachinePort(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveInstance performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+	ResolveInstance(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListServices performs a GET /services (the `ListServices` operationId) request.
+	ListServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateServiceWithBody performs a POST /services (the `CreateService` operationId) request,
+	// with any type of body and a specified content type.
+	CreateServiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateService performs a POST /services (the `CreateService` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateService(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteService performs a DELETE /services/{publicId} (the `DeleteService` operationId) request.
+	DeleteService(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetService performs a GET /services/{publicId} (the `GetService` operationId) request.
+	GetService(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateServiceWithBody performs a PUT /services/{publicId} (the `UpdateService` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateServiceWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateService performs a PUT /services/{publicId} (the `UpdateService` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateService(ctx context.Context, publicId PublicId, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteServiceLogo performs a DELETE /services/{publicId}/logo (the `DeleteServiceLogo` operationId) request.
+	DeleteServiceLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetServiceLogo performs a GET /services/{publicId}/logo (the `GetServiceLogo` operationId) request.
+	GetServiceLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateServiceLogoWithBody performs a PUT /services/{publicId}/logo (the `UpdateServiceLogo` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateServiceLogoWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTopology performs a GET /topology (the `GetTopology` operationId) request.
+	GetTopology(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-// ListLinks List short links
-//
-// Corresponds with GET /links (the `ListLinks` operationId).
-func (c *Client) ListLinks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListLinksRequest(c.Server)
+// ListAddresses performs a GET /addresses (the `ListAddresses` operationId) request.
+func (c *Client) ListAddresses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAddressesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -187,13 +1187,10 @@ func (c *Client) ListLinks(ctx context.Context, reqEditors ...RequestEditorFn) (
 	return c.Client.Do(req)
 }
 
-// CreateLinkWithBody Create a short link
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with POST /links (the `CreateLink` operationId).
-func (c *Client) CreateLinkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateLinkRequestWithBody(c.Server, contentType, body)
+// CreateAddressWithBody performs a POST /addresses (the `CreateAddress` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAddressRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -204,13 +1201,10 @@ func (c *Client) CreateLinkWithBody(ctx context.Context, contentType string, bod
 	return c.Client.Do(req)
 }
 
-// CreateLink Create a short link
-//
+// CreateAddress performs a POST /addresses (the `CreateAddress` operationId) request.
 // Takes a body of the `application/json` content type.
-//
-// Corresponds with POST /links (the `CreateLink` operationId).
-func (c *Client) CreateLink(ctx context.Context, body CreateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateLinkRequest(c.Server, body)
+func (c *Client) CreateAddress(ctx context.Context, body CreateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAddressRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -221,11 +1215,9 @@ func (c *Client) CreateLink(ctx context.Context, body CreateLinkJSONRequestBody,
 	return c.Client.Do(req)
 }
 
-// DeleteLink Delete a short link
-//
-// Corresponds with DELETE /links/{short} (the `DeleteLink` operationId).
-func (c *Client) DeleteLink(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteLinkRequest(c.Server, short)
+// DeleteAddress performs a DELETE /addresses/{publicId} (the `DeleteAddress` operationId) request.
+func (c *Client) DeleteAddress(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAddressRequest(c.Server, publicId)
 	if err != nil {
 		return nil, err
 	}
@@ -236,11 +1228,9 @@ func (c *Client) DeleteLink(ctx context.Context, short Short, reqEditors ...Requ
 	return c.Client.Do(req)
 }
 
-// GetLink Get a short link
-//
-// Corresponds with GET /links/{short} (the `GetLink` operationId).
-func (c *Client) GetLink(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetLinkRequest(c.Server, short)
+// GetAddress performs a GET /addresses/{publicId} (the `GetAddress` operationId) request.
+func (c *Client) GetAddress(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAddressRequest(c.Server, publicId)
 	if err != nil {
 		return nil, err
 	}
@@ -251,13 +1241,10 @@ func (c *Client) GetLink(ctx context.Context, short Short, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
-// UpdateLinkWithBody Replace a short link
-//
-// Takes any type of body and a specified content type.
-//
-// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-func (c *Client) UpdateLinkWithBody(ctx context.Context, short Short, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateLinkRequestWithBody(c.Server, short, contentType, body)
+// UpdateAddressWithBody performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateAddressWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAddressRequestWithBody(c.Server, publicId, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -268,13 +1255,10 @@ func (c *Client) UpdateLinkWithBody(ctx context.Context, short Short, contentTyp
 	return c.Client.Do(req)
 }
 
-// UpdateLink Replace a short link
-//
+// UpdateAddress performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request.
 // Takes a body of the `application/json` content type.
-//
-// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-func (c *Client) UpdateLink(ctx context.Context, short Short, body UpdateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateLinkRequest(c.Server, short, body)
+func (c *Client) UpdateAddress(ctx context.Context, publicId PublicId, body UpdateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAddressRequest(c.Server, publicId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +1269,1185 @@ func (c *Client) UpdateLink(ctx context.Context, short Short, body UpdateLinkJSO
 	return c.Client.Do(req)
 }
 
-// NewListLinksRequest constructs an http.Request for the ListLinks method
-func NewListLinksRequest(server string) (*http.Request, error) {
+// ListAreas performs a GET /areas (the `ListAreas` operationId) request.
+func (c *Client) ListAreas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAreasRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateAreaWithBody performs a POST /areas (the `CreateArea` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateAreaWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAreaRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateArea performs a POST /areas (the `CreateArea` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateArea(ctx context.Context, body CreateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAreaRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteArea performs a DELETE /areas/{publicId} (the `DeleteArea` operationId) request.
+func (c *Client) DeleteArea(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAreaRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetArea performs a GET /areas/{publicId} (the `GetArea` operationId) request.
+func (c *Client) GetArea(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAreaRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateAreaWithBody performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateAreaWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAreaRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateArea performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateArea(ctx context.Context, publicId PublicId, body UpdateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAreaRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAssets performs a GET /assets (the `ListAssets` operationId) request.
+func (c *Client) ListAssets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAssetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateAssetWithBody performs a POST /assets (the `CreateAsset` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateAssetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAssetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateAsset performs a POST /assets (the `CreateAsset` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateAsset(ctx context.Context, body CreateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateAssetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteAsset performs a DELETE /assets/{publicId} (the `DeleteAsset` operationId) request.
+func (c *Client) DeleteAsset(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAssetRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetAsset performs a GET /assets/{publicId} (the `GetAsset` operationId) request.
+func (c *Client) GetAsset(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAssetRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateAssetWithBody performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateAssetWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAssetRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateAsset performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateAsset(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateAssetRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
+func (c *Client) ListInstanceEndpoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceEndpointsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceEndpointWithBody performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateInstanceEndpointWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceEndpointRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceEndpoint performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateInstanceEndpoint(ctx context.Context, body CreateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceEndpointRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteInstanceEndpoint performs a DELETE /instance-endpoints/{publicId} (the `DeleteInstanceEndpoint` operationId) request.
+func (c *Client) DeleteInstanceEndpoint(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteInstanceEndpointRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetInstanceEndpoint performs a GET /instance-endpoints/{publicId} (the `GetInstanceEndpoint` operationId) request.
+func (c *Client) GetInstanceEndpoint(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInstanceEndpointRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstanceEndpointWithBody performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateInstanceEndpointWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceEndpointRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstanceEndpoint performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateInstanceEndpoint(ctx context.Context, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceEndpointRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstances performs a GET /instances (the `ListInstances` operationId) request.
+func (c *Client) ListInstances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstancesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceWithBody performs a POST /instances (the `CreateInstance` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateInstanceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstance performs a POST /instances (the `CreateInstance` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateInstance(ctx context.Context, body CreateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteInstance performs a DELETE /instances/{publicId} (the `DeleteInstance` operationId) request.
+func (c *Client) DeleteInstance(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteInstanceRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetInstance performs a GET /instances/{publicId} (the `GetInstance` operationId) request.
+func (c *Client) GetInstance(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInstanceRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstanceWithBody performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateInstanceWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstance performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateInstance(ctx context.Context, publicId PublicId, body UpdateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMachineProviders performs a GET /machine-providers (the `ListMachineProviders` operationId) request.
+func (c *Client) ListMachineProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMachineProvidersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachineProviderWithBody performs a POST /machine-providers (the `CreateMachineProvider` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateMachineProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachineProvider performs a POST /machine-providers (the `CreateMachineProvider` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateMachineProvider(ctx context.Context, body CreateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteMachineProvider performs a DELETE /machine-providers/{publicId} (the `DeleteMachineProvider` operationId) request.
+func (c *Client) DeleteMachineProvider(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMachineProviderRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetMachineProvider performs a GET /machine-providers/{publicId} (the `GetMachineProvider` operationId) request.
+func (c *Client) GetMachineProvider(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMachineProviderRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineProviderWithBody performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateMachineProviderWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineProviderRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineProvider performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateMachineProvider(ctx context.Context, publicId PublicId, body UpdateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineProviderRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteMachineProviderLogo performs a DELETE /machine-providers/{publicId}/logo (the `DeleteMachineProviderLogo` operationId) request.
+func (c *Client) DeleteMachineProviderLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMachineProviderLogoRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetMachineProviderLogo performs a GET /machine-providers/{publicId}/logo (the `GetMachineProviderLogo` operationId) request.
+func (c *Client) GetMachineProviderLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMachineProviderLogoRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineProviderLogoWithBody performs a PUT /machine-providers/{publicId}/logo (the `UpdateMachineProviderLogo` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateMachineProviderLogoWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineProviderLogoRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMachineUsers performs a GET /machine-users (the `ListMachineUsers` operationId) request.
+func (c *Client) ListMachineUsers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMachineUsersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachineUserWithBody performs a POST /machine-users (the `CreateMachineUser` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateMachineUserWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineUserRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachineUser performs a POST /machine-users (the `CreateMachineUser` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateMachineUser(ctx context.Context, body CreateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineUserRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteMachineUser performs a DELETE /machine-users/{publicId} (the `DeleteMachineUser` operationId) request.
+func (c *Client) DeleteMachineUser(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMachineUserRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetMachineUser performs a GET /machine-users/{publicId} (the `GetMachineUser` operationId) request.
+func (c *Client) GetMachineUser(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMachineUserRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineUserWithBody performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateMachineUserWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineUserRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineUser performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateMachineUser(ctx context.Context, publicId PublicId, body UpdateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineUserRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMachines performs a GET /machines (the `ListMachines` operationId) request.
+func (c *Client) ListMachines(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMachinesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachineWithBody performs a POST /machines (the `CreateMachine` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateMachineWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateMachine performs a POST /machines (the `CreateMachine` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateMachine(ctx context.Context, body CreateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateMachineRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMachineInstances performs a GET /machines/{machine}/instances (the `ListMachineInstances` operationId) request.
+func (c *Client) ListMachineInstances(ctx context.Context, machine MachineSlug, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMachineInstancesRequest(c.Server, machine)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteMachine performs a DELETE /machines/{publicId} (the `DeleteMachine` operationId) request.
+func (c *Client) DeleteMachine(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteMachineRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetMachine performs a GET /machines/{publicId} (the `GetMachine` operationId) request.
+func (c *Client) GetMachine(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetMachineRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachineWithBody performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateMachineWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateMachine performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateMachine(ctx context.Context, publicId PublicId, body UpdateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateMachineRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListManufacturers performs a GET /manufacturers (the `ListManufacturers` operationId) request.
+func (c *Client) ListManufacturers(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListManufacturersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateManufacturerWithBody performs a POST /manufacturers (the `CreateManufacturer` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateManufacturerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateManufacturerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateManufacturer performs a POST /manufacturers (the `CreateManufacturer` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateManufacturer(ctx context.Context, body CreateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateManufacturerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteManufacturer performs a DELETE /manufacturers/{publicId} (the `DeleteManufacturer` operationId) request.
+func (c *Client) DeleteManufacturer(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteManufacturerRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetManufacturer performs a GET /manufacturers/{publicId} (the `GetManufacturer` operationId) request.
+func (c *Client) GetManufacturer(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetManufacturerRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateManufacturerWithBody performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateManufacturerWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateManufacturerRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateManufacturer performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateManufacturer(ctx context.Context, publicId PublicId, body UpdateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateManufacturerRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListNetworks performs a GET /networks (the `ListNetworks` operationId) request.
+func (c *Client) ListNetworks(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListNetworksRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateNetworkWithBody performs a POST /networks (the `CreateNetwork` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateNetworkWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateNetworkRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateNetwork performs a POST /networks (the `CreateNetwork` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateNetwork(ctx context.Context, body CreateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateNetworkRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteNetwork performs a DELETE /networks/{publicId} (the `DeleteNetwork` operationId) request.
+func (c *Client) DeleteNetwork(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteNetworkRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetNetwork performs a GET /networks/{publicId} (the `GetNetwork` operationId) request.
+func (c *Client) GetNetwork(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetNetworkRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateNetworkWithBody performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateNetworkWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateNetworkRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateNetwork performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateNetwork(ctx context.Context, publicId PublicId, body UpdateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateNetworkRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListProducts performs a GET /products (the `ListProducts` operationId) request.
+func (c *Client) ListProducts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListProductsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateProductWithBody performs a POST /products (the `CreateProduct` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateProductWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProductRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateProduct performs a POST /products (the `CreateProduct` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateProduct(ctx context.Context, body CreateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateProductRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteProduct performs a DELETE /products/{publicId} (the `DeleteProduct` operationId) request.
+func (c *Client) DeleteProduct(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteProductRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetProduct performs a GET /products/{publicId} (the `GetProduct` operationId) request.
+func (c *Client) GetProduct(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetProductRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateProductWithBody performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateProductWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateProductRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateProduct performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateProduct(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateProductRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveMachinePort performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+func (c *Client) ResolveMachinePort(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveMachinePortRequest(c.Server, machine, port, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveInstance performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+func (c *Client) ResolveInstance(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveInstanceRequest(c.Server, machine, service, instance, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListServices performs a GET /services (the `ListServices` operationId) request.
+func (c *Client) ListServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListServicesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateServiceWithBody performs a POST /services (the `CreateService` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateServiceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateServiceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateService performs a POST /services (the `CreateService` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateService(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateServiceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteService performs a DELETE /services/{publicId} (the `DeleteService` operationId) request.
+func (c *Client) DeleteService(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteServiceRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetService performs a GET /services/{publicId} (the `GetService` operationId) request.
+func (c *Client) GetService(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetServiceRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateServiceWithBody performs a PUT /services/{publicId} (the `UpdateService` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateServiceWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateServiceRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateService performs a PUT /services/{publicId} (the `UpdateService` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateService(ctx context.Context, publicId PublicId, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateServiceRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteServiceLogo performs a DELETE /services/{publicId}/logo (the `DeleteServiceLogo` operationId) request.
+func (c *Client) DeleteServiceLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteServiceLogoRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetServiceLogo performs a GET /services/{publicId}/logo (the `GetServiceLogo` operationId) request.
+func (c *Client) GetServiceLogo(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetServiceLogoRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateServiceLogoWithBody performs a PUT /services/{publicId}/logo (the `UpdateServiceLogo` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateServiceLogoWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateServiceLogoRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetTopology performs a GET /topology (the `GetTopology` operationId) request.
+func (c *Client) GetTopology(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTopologyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewListAddressesRequest constructs an http.Request for the ListAddresses method
+func NewListAddressesRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -294,7 +2455,7 @@ func NewListLinksRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/links")
+	operationPath := fmt.Sprintf("/addresses")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -312,19 +2473,19 @@ func NewListLinksRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewCreateLinkRequest calls the generic CreateLink builder with application/json body
-func NewCreateLinkRequest(server string, body CreateLinkJSONRequestBody) (*http.Request, error) {
+// NewCreateAddressRequest calls the generic CreateAddress builder with application/json body
+func NewCreateAddressRequest(server string, body CreateAddressJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateLinkRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateAddressRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewCreateLinkRequestWithBody constructs an http.Request for the CreateLink method, with any body, and a specified content type
-func NewCreateLinkRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewCreateAddressRequestWithBody constructs an http.Request for the CreateAddress method, with any body, and a specified content type
+func NewCreateAddressRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -332,7 +2493,7 @@ func NewCreateLinkRequestWithBody(server string, contentType string, body io.Rea
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/links")
+	operationPath := fmt.Sprintf("/addresses")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -352,13 +2513,13 @@ func NewCreateLinkRequestWithBody(server string, contentType string, body io.Rea
 	return req, nil
 }
 
-// NewDeleteLinkRequest constructs an http.Request for the DeleteLink method
-func NewDeleteLinkRequest(server string, short Short) (*http.Request, error) {
+// NewDeleteAddressRequest constructs an http.Request for the DeleteAddress method
+func NewDeleteAddressRequest(server string, publicId PublicId) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "short", short, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +2529,7 @@ func NewDeleteLinkRequest(server string, short Short) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/links/%s", pathParam0)
+	operationPath := fmt.Sprintf("/addresses/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -386,13 +2547,13 @@ func NewDeleteLinkRequest(server string, short Short) (*http.Request, error) {
 	return req, nil
 }
 
-// NewGetLinkRequest constructs an http.Request for the GetLink method
-func NewGetLinkRequest(server string, short Short) (*http.Request, error) {
+// NewGetAddressRequest constructs an http.Request for the GetAddress method
+func NewGetAddressRequest(server string, publicId PublicId) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "short", short, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +2563,7 @@ func NewGetLinkRequest(server string, short Short) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/links/%s", pathParam0)
+	operationPath := fmt.Sprintf("/addresses/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -420,24 +2581,24 @@ func NewGetLinkRequest(server string, short Short) (*http.Request, error) {
 	return req, nil
 }
 
-// NewUpdateLinkRequest calls the generic UpdateLink builder with application/json body
-func NewUpdateLinkRequest(server string, short Short, body UpdateLinkJSONRequestBody) (*http.Request, error) {
+// NewUpdateAddressRequest calls the generic UpdateAddress builder with application/json body
+func NewUpdateAddressRequest(server string, publicId PublicId, body UpdateAddressJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateLinkRequestWithBody(server, short, "application/json", bodyReader)
+	return NewUpdateAddressRequestWithBody(server, publicId, "application/json", bodyReader)
 }
 
-// NewUpdateLinkRequestWithBody constructs an http.Request for the UpdateLink method, with any body, and a specified content type
-func NewUpdateLinkRequestWithBody(server string, short Short, contentType string, body io.Reader) (*http.Request, error) {
+// NewUpdateAddressRequestWithBody constructs an http.Request for the UpdateAddress method, with any body, and a specified content type
+func NewUpdateAddressRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "short", short, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +2608,7 @@ func NewUpdateLinkRequestWithBody(server string, short Short, contentType string
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/links/%s", pathParam0)
+	operationPath := fmt.Sprintf("/addresses/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -463,6 +2624,2432 @@ func NewUpdateLinkRequestWithBody(server string, short Short, contentType string
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAreasRequest constructs an http.Request for the ListAreas method
+func NewListAreasRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/areas")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAreaRequest calls the generic CreateArea builder with application/json body
+func NewCreateAreaRequest(server string, body CreateAreaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAreaRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAreaRequestWithBody constructs an http.Request for the CreateArea method, with any body, and a specified content type
+func NewCreateAreaRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/areas")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAreaRequest constructs an http.Request for the DeleteArea method
+func NewDeleteAreaRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/areas/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAreaRequest constructs an http.Request for the GetArea method
+func NewGetAreaRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/areas/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAreaRequest calls the generic UpdateArea builder with application/json body
+func NewUpdateAreaRequest(server string, publicId PublicId, body UpdateAreaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAreaRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateAreaRequestWithBody constructs an http.Request for the UpdateArea method, with any body, and a specified content type
+func NewUpdateAreaRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/areas/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAssetsRequest constructs an http.Request for the ListAssets method
+func NewListAssetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/assets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateAssetRequest calls the generic CreateAsset builder with application/json body
+func NewCreateAssetRequest(server string, body CreateAssetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateAssetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateAssetRequestWithBody constructs an http.Request for the CreateAsset method, with any body, and a specified content type
+func NewCreateAssetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/assets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteAssetRequest constructs an http.Request for the DeleteAsset method
+func NewDeleteAssetRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/assets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetAssetRequest constructs an http.Request for the GetAsset method
+func NewGetAssetRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/assets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateAssetRequest calls the generic UpdateAsset builder with application/json body
+func NewUpdateAssetRequest(server string, publicId PublicId, body UpdateAssetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateAssetRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateAssetRequestWithBody constructs an http.Request for the UpdateAsset method, with any body, and a specified content type
+func NewUpdateAssetRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/assets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListInstanceEndpointsRequest constructs an http.Request for the ListInstanceEndpoints method
+func NewListInstanceEndpointsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-endpoints")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceEndpointRequest calls the generic CreateInstanceEndpoint builder with application/json body
+func NewCreateInstanceEndpointRequest(server string, body CreateInstanceEndpointJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceEndpointRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceEndpointRequestWithBody constructs an http.Request for the CreateInstanceEndpoint method, with any body, and a specified content type
+func NewCreateInstanceEndpointRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-endpoints")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteInstanceEndpointRequest constructs an http.Request for the DeleteInstanceEndpoint method
+func NewDeleteInstanceEndpointRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-endpoints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInstanceEndpointRequest constructs an http.Request for the GetInstanceEndpoint method
+func NewGetInstanceEndpointRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-endpoints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateInstanceEndpointRequest calls the generic UpdateInstanceEndpoint builder with application/json body
+func NewUpdateInstanceEndpointRequest(server string, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateInstanceEndpointRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateInstanceEndpointRequestWithBody constructs an http.Request for the UpdateInstanceEndpoint method, with any body, and a specified content type
+func NewUpdateInstanceEndpointRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-endpoints/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListInstancesRequest constructs an http.Request for the ListInstances method
+func NewListInstancesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instances")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceRequest calls the generic CreateInstance builder with application/json body
+func NewCreateInstanceRequest(server string, body CreateInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceRequestWithBody constructs an http.Request for the CreateInstance method, with any body, and a specified content type
+func NewCreateInstanceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instances")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteInstanceRequest constructs an http.Request for the DeleteInstance method
+func NewDeleteInstanceRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInstanceRequest constructs an http.Request for the GetInstance method
+func NewGetInstanceRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateInstanceRequest calls the generic UpdateInstance builder with application/json body
+func NewUpdateInstanceRequest(server string, publicId PublicId, body UpdateInstanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateInstanceRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateInstanceRequestWithBody constructs an http.Request for the UpdateInstance method, with any body, and a specified content type
+func NewUpdateInstanceRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMachineProvidersRequest constructs an http.Request for the ListMachineProviders method
+func NewListMachineProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMachineProviderRequest calls the generic CreateMachineProvider builder with application/json body
+func NewCreateMachineProviderRequest(server string, body CreateMachineProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMachineProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMachineProviderRequestWithBody constructs an http.Request for the CreateMachineProvider method, with any body, and a specified content type
+func NewCreateMachineProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteMachineProviderRequest constructs an http.Request for the DeleteMachineProvider method
+func NewDeleteMachineProviderRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMachineProviderRequest constructs an http.Request for the GetMachineProvider method
+func NewGetMachineProviderRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMachineProviderRequest calls the generic UpdateMachineProvider builder with application/json body
+func NewUpdateMachineProviderRequest(server string, publicId PublicId, body UpdateMachineProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateMachineProviderRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateMachineProviderRequestWithBody constructs an http.Request for the UpdateMachineProvider method, with any body, and a specified content type
+func NewUpdateMachineProviderRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteMachineProviderLogoRequest constructs an http.Request for the DeleteMachineProviderLogo method
+func NewDeleteMachineProviderLogoRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMachineProviderLogoRequest constructs an http.Request for the GetMachineProviderLogo method
+func NewGetMachineProviderLogoRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMachineProviderLogoRequestWithBody constructs an http.Request for the UpdateMachineProviderLogo method, with any body, and a specified content type
+func NewUpdateMachineProviderLogoRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-providers/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMachineUsersRequest constructs an http.Request for the ListMachineUsers method
+func NewListMachineUsersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMachineUserRequest calls the generic CreateMachineUser builder with application/json body
+func NewCreateMachineUserRequest(server string, body CreateMachineUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMachineUserRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMachineUserRequestWithBody constructs an http.Request for the CreateMachineUser method, with any body, and a specified content type
+func NewCreateMachineUserRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteMachineUserRequest constructs an http.Request for the DeleteMachineUser method
+func NewDeleteMachineUserRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMachineUserRequest constructs an http.Request for the GetMachineUser method
+func NewGetMachineUserRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMachineUserRequest calls the generic UpdateMachineUser builder with application/json body
+func NewUpdateMachineUserRequest(server string, publicId PublicId, body UpdateMachineUserJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateMachineUserRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateMachineUserRequestWithBody constructs an http.Request for the UpdateMachineUser method, with any body, and a specified content type
+func NewUpdateMachineUserRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machine-users/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMachinesRequest constructs an http.Request for the ListMachines method
+func NewListMachinesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateMachineRequest calls the generic CreateMachine builder with application/json body
+func NewCreateMachineRequest(server string, body CreateMachineJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateMachineRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateMachineRequestWithBody constructs an http.Request for the CreateMachine method, with any body, and a specified content type
+func NewCreateMachineRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListMachineInstancesRequest constructs an http.Request for the ListMachineInstances method
+func NewListMachineInstancesRequest(server string, machine MachineSlug) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "machine", machine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines/%s/instances", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteMachineRequest constructs an http.Request for the DeleteMachine method
+func NewDeleteMachineRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetMachineRequest constructs an http.Request for the GetMachine method
+func NewGetMachineRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMachineRequest calls the generic UpdateMachine builder with application/json body
+func NewUpdateMachineRequest(server string, publicId PublicId, body UpdateMachineJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateMachineRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateMachineRequestWithBody constructs an http.Request for the UpdateMachine method, with any body, and a specified content type
+func NewUpdateMachineRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/machines/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListManufacturersRequest constructs an http.Request for the ListManufacturers method
+func NewListManufacturersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/manufacturers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateManufacturerRequest calls the generic CreateManufacturer builder with application/json body
+func NewCreateManufacturerRequest(server string, body CreateManufacturerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateManufacturerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateManufacturerRequestWithBody constructs an http.Request for the CreateManufacturer method, with any body, and a specified content type
+func NewCreateManufacturerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/manufacturers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteManufacturerRequest constructs an http.Request for the DeleteManufacturer method
+func NewDeleteManufacturerRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/manufacturers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetManufacturerRequest constructs an http.Request for the GetManufacturer method
+func NewGetManufacturerRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/manufacturers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateManufacturerRequest calls the generic UpdateManufacturer builder with application/json body
+func NewUpdateManufacturerRequest(server string, publicId PublicId, body UpdateManufacturerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateManufacturerRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateManufacturerRequestWithBody constructs an http.Request for the UpdateManufacturer method, with any body, and a specified content type
+func NewUpdateManufacturerRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/manufacturers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListNetworksRequest constructs an http.Request for the ListNetworks method
+func NewListNetworksRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/networks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateNetworkRequest calls the generic CreateNetwork builder with application/json body
+func NewCreateNetworkRequest(server string, body CreateNetworkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateNetworkRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateNetworkRequestWithBody constructs an http.Request for the CreateNetwork method, with any body, and a specified content type
+func NewCreateNetworkRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/networks")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteNetworkRequest constructs an http.Request for the DeleteNetwork method
+func NewDeleteNetworkRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/networks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetNetworkRequest constructs an http.Request for the GetNetwork method
+func NewGetNetworkRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/networks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateNetworkRequest calls the generic UpdateNetwork builder with application/json body
+func NewUpdateNetworkRequest(server string, publicId PublicId, body UpdateNetworkJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateNetworkRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateNetworkRequestWithBody constructs an http.Request for the UpdateNetwork method, with any body, and a specified content type
+func NewUpdateNetworkRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/networks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListProductsRequest constructs an http.Request for the ListProducts method
+func NewListProductsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/products")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateProductRequest calls the generic CreateProduct builder with application/json body
+func NewCreateProductRequest(server string, body CreateProductJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateProductRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateProductRequestWithBody constructs an http.Request for the CreateProduct method, with any body, and a specified content type
+func NewCreateProductRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/products")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteProductRequest constructs an http.Request for the DeleteProduct method
+func NewDeleteProductRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/products/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetProductRequest constructs an http.Request for the GetProduct method
+func NewGetProductRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/products/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateProductRequest calls the generic UpdateProduct builder with application/json body
+func NewUpdateProductRequest(server string, publicId PublicId, body UpdateProductJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateProductRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateProductRequestWithBody constructs an http.Request for the UpdateProduct method, with any body, and a specified content type
+func NewUpdateProductRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/products/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewResolveMachinePortRequest constructs an http.Request for the ResolveMachinePort method
+func NewResolveMachinePortRequest(server string, machine MachineSlug, port int, params *ResolveMachinePortParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "machine", machine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "port", port, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "integer", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/resolve/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Via != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "via", *params.Via, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Scheme != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "scheme", *params.Scheme, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewResolveInstanceRequest constructs an http.Request for the ResolveInstance method
+func NewResolveInstanceRequest(server string, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "machine", machine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "service", service, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "instance", instance, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/resolve/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Via != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "via", *params.Via, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListServicesRequest constructs an http.Request for the ListServices method
+func NewListServicesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateServiceRequest calls the generic CreateService builder with application/json body
+func NewCreateServiceRequest(server string, body CreateServiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateServiceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateServiceRequestWithBody constructs an http.Request for the CreateService method, with any body, and a specified content type
+func NewCreateServiceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteServiceRequest constructs an http.Request for the DeleteService method
+func NewDeleteServiceRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetServiceRequest constructs an http.Request for the GetService method
+func NewGetServiceRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateServiceRequest calls the generic UpdateService builder with application/json body
+func NewUpdateServiceRequest(server string, publicId PublicId, body UpdateServiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateServiceRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateServiceRequestWithBody constructs an http.Request for the UpdateService method, with any body, and a specified content type
+func NewUpdateServiceRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteServiceLogoRequest constructs an http.Request for the DeleteServiceLogo method
+func NewDeleteServiceLogoRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetServiceLogoRequest constructs an http.Request for the GetServiceLogo method
+func NewGetServiceLogoRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateServiceLogoRequestWithBody constructs an http.Request for the UpdateServiceLogo method, with any body, and a specified content type
+func NewUpdateServiceLogoRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/services/%s/logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetTopologyRequest constructs an http.Request for the GetTopology method
+func NewGetTopologyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topology")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -511,86 +5098,509 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
-	// ListLinksWithResponse List short links
+	// ListAddressesWithResponse performs a GET /addresses (the `ListAddresses` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with GET /links (the `ListLinks` operationId).
-	ListLinksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListLinksResponse, error)
+	ListAddressesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressesResponse, error)
 
-	// CreateLinkWithBodyWithResponse Create a short link
+	// CreateAddressWithBodyWithResponse performs a POST /addresses (the `CreateAddress` operationId) request,
+	// with any type of body and a specified content type.
 	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /links (the `CreateLink` operationId).
-	CreateLinkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateLinkResponse, error)
+	// Returns a wrapper object for the known response body format(s).
+	CreateAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAddressResponse, error)
 
-	// CreateLinkWithResponse Create a short link
-	//
+	// CreateAddressWithResponse performs a POST /addresses (the `CreateAddress` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with POST /links (the `CreateLink` operationId).
-	CreateLinkWithResponse(ctx context.Context, body CreateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLinkResponse, error)
+	CreateAddressWithResponse(ctx context.Context, body CreateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAddressResponse, error)
 
-	// DeleteLinkWithResponse Delete a short link
+	// DeleteAddressWithResponse performs a DELETE /addresses/{publicId} (the `DeleteAddress` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with DELETE /links/{short} (the `DeleteLink` operationId).
-	DeleteLinkWithResponse(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*DeleteLinkResponse, error)
+	DeleteAddressWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAddressResponse, error)
 
-	// GetLinkWithResponse Get a short link
+	// GetAddressWithResponse performs a GET /addresses/{publicId} (the `GetAddress` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with GET /links/{short} (the `GetLink` operationId).
-	GetLinkWithResponse(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*GetLinkResponse, error)
+	GetAddressWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAddressResponse, error)
 
-	// UpdateLinkWithBodyWithResponse Replace a short link
+	// UpdateAddressWithBodyWithResponse performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request,
+	// with any type of body and a specified content type.
 	//
-	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-	UpdateLinkWithBodyWithResponse(ctx context.Context, short Short, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateLinkResponse, error)
+	// Returns a wrapper object for the known response body format(s).
+	UpdateAddressWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAddressResponse, error)
 
-	// UpdateLinkWithResponse Replace a short link
-	//
+	// UpdateAddressWithResponse performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateAddressWithResponse(ctx context.Context, publicId PublicId, body UpdateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAddressResponse, error)
+
+	// ListAreasWithResponse performs a GET /areas (the `ListAreas` operationId) request.
 	//
-	// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-	UpdateLinkWithResponse(ctx context.Context, short Short, body UpdateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLinkResponse, error)
+	// Returns a wrapper object for the known response body format(s).
+	ListAreasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAreasResponse, error)
+
+	// CreateAreaWithBodyWithResponse performs a POST /areas (the `CreateArea` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateAreaWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAreaResponse, error)
+
+	// CreateAreaWithResponse performs a POST /areas (the `CreateArea` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateAreaWithResponse(ctx context.Context, body CreateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAreaResponse, error)
+
+	// DeleteAreaWithResponse performs a DELETE /areas/{publicId} (the `DeleteArea` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteAreaWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAreaResponse, error)
+
+	// GetAreaWithResponse performs a GET /areas/{publicId} (the `GetArea` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetAreaWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAreaResponse, error)
+
+	// UpdateAreaWithBodyWithResponse performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateAreaWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAreaResponse, error)
+
+	// UpdateAreaWithResponse performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateAreaWithResponse(ctx context.Context, publicId PublicId, body UpdateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAreaResponse, error)
+
+	// ListAssetsWithResponse performs a GET /assets (the `ListAssets` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListAssetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAssetsResponse, error)
+
+	// CreateAssetWithBodyWithResponse performs a POST /assets (the `CreateAsset` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateAssetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAssetResponse, error)
+
+	// CreateAssetWithResponse performs a POST /assets (the `CreateAsset` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateAssetWithResponse(ctx context.Context, body CreateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAssetResponse, error)
+
+	// DeleteAssetWithResponse performs a DELETE /assets/{publicId} (the `DeleteAsset` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteAssetWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAssetResponse, error)
+
+	// GetAssetWithResponse performs a GET /assets/{publicId} (the `GetAsset` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetAssetWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAssetResponse, error)
+
+	// UpdateAssetWithBodyWithResponse performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateAssetWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error)
+
+	// UpdateAssetWithResponse performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateAssetWithResponse(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error)
+
+	// ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListInstanceEndpointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error)
+
+	// CreateInstanceEndpointWithBodyWithResponse performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateInstanceEndpointWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceEndpointResponse, error)
+
+	// CreateInstanceEndpointWithResponse performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateInstanceEndpointWithResponse(ctx context.Context, body CreateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceEndpointResponse, error)
+
+	// DeleteInstanceEndpointWithResponse performs a DELETE /instance-endpoints/{publicId} (the `DeleteInstanceEndpoint` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceEndpointResponse, error)
+
+	// GetInstanceEndpointWithResponse performs a GET /instance-endpoints/{publicId} (the `GetInstanceEndpoint` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceEndpointResponse, error)
+
+	// UpdateInstanceEndpointWithBodyWithResponse performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateInstanceEndpointWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceEndpointResponse, error)
+
+	// UpdateInstanceEndpointWithResponse performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceEndpointResponse, error)
+
+	// ListInstancesWithResponse performs a GET /instances (the `ListInstances` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListInstancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error)
+
+	// CreateInstanceWithBodyWithResponse performs a POST /instances (the `CreateInstance` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateInstanceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceResponse, error)
+
+	// CreateInstanceWithResponse performs a POST /instances (the `CreateInstance` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateInstanceWithResponse(ctx context.Context, body CreateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceResponse, error)
+
+	// DeleteInstanceWithResponse performs a DELETE /instances/{publicId} (the `DeleteInstance` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteInstanceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceResponse, error)
+
+	// GetInstanceWithResponse performs a GET /instances/{publicId} (the `GetInstance` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetInstanceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceResponse, error)
+
+	// UpdateInstanceWithBodyWithResponse performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateInstanceWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceResponse, error)
+
+	// UpdateInstanceWithResponse performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateInstanceWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceResponse, error)
+
+	// ListMachineProvidersWithResponse performs a GET /machine-providers (the `ListMachineProviders` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListMachineProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachineProvidersResponse, error)
+
+	// CreateMachineProviderWithBodyWithResponse performs a POST /machine-providers (the `CreateMachineProvider` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateMachineProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineProviderResponse, error)
+
+	// CreateMachineProviderWithResponse performs a POST /machine-providers (the `CreateMachineProvider` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateMachineProviderWithResponse(ctx context.Context, body CreateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineProviderResponse, error)
+
+	// DeleteMachineProviderWithResponse performs a DELETE /machine-providers/{publicId} (the `DeleteMachineProvider` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteMachineProviderWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineProviderResponse, error)
+
+	// GetMachineProviderWithResponse performs a GET /machine-providers/{publicId} (the `GetMachineProvider` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMachineProviderWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineProviderResponse, error)
+
+	// UpdateMachineProviderWithBodyWithResponse performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMachineProviderWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineProviderResponse, error)
+
+	// UpdateMachineProviderWithResponse performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateMachineProviderWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineProviderResponse, error)
+
+	// DeleteMachineProviderLogoWithResponse performs a DELETE /machine-providers/{publicId}/logo (the `DeleteMachineProviderLogo` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteMachineProviderLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineProviderLogoResponse, error)
+
+	// GetMachineProviderLogoWithResponse performs a GET /machine-providers/{publicId}/logo (the `GetMachineProviderLogo` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMachineProviderLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineProviderLogoResponse, error)
+
+	// UpdateMachineProviderLogoWithBodyWithResponse performs a PUT /machine-providers/{publicId}/logo (the `UpdateMachineProviderLogo` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMachineProviderLogoWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineProviderLogoResponse, error)
+
+	// ListMachineUsersWithResponse performs a GET /machine-users (the `ListMachineUsers` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListMachineUsersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachineUsersResponse, error)
+
+	// CreateMachineUserWithBodyWithResponse performs a POST /machine-users (the `CreateMachineUser` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateMachineUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineUserResponse, error)
+
+	// CreateMachineUserWithResponse performs a POST /machine-users (the `CreateMachineUser` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateMachineUserWithResponse(ctx context.Context, body CreateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineUserResponse, error)
+
+	// DeleteMachineUserWithResponse performs a DELETE /machine-users/{publicId} (the `DeleteMachineUser` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteMachineUserWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineUserResponse, error)
+
+	// GetMachineUserWithResponse performs a GET /machine-users/{publicId} (the `GetMachineUser` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMachineUserWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineUserResponse, error)
+
+	// UpdateMachineUserWithBodyWithResponse performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMachineUserWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineUserResponse, error)
+
+	// UpdateMachineUserWithResponse performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateMachineUserWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineUserResponse, error)
+
+	// ListMachinesWithResponse performs a GET /machines (the `ListMachines` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListMachinesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error)
+
+	// CreateMachineWithBodyWithResponse performs a POST /machines (the `CreateMachine` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateMachineWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineResponse, error)
+
+	// CreateMachineWithResponse performs a POST /machines (the `CreateMachine` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateMachineWithResponse(ctx context.Context, body CreateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineResponse, error)
+
+	// ListMachineInstancesWithResponse performs a GET /machines/{machine}/instances (the `ListMachineInstances` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListMachineInstancesWithResponse(ctx context.Context, machine MachineSlug, reqEditors ...RequestEditorFn) (*ListMachineInstancesResponse, error)
+
+	// DeleteMachineWithResponse performs a DELETE /machines/{publicId} (the `DeleteMachine` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteMachineWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineResponse, error)
+
+	// GetMachineWithResponse performs a GET /machines/{publicId} (the `GetMachine` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMachineWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineResponse, error)
+
+	// UpdateMachineWithBodyWithResponse performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMachineWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineResponse, error)
+
+	// UpdateMachineWithResponse performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateMachineWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineResponse, error)
+
+	// ListManufacturersWithResponse performs a GET /manufacturers (the `ListManufacturers` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListManufacturersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListManufacturersResponse, error)
+
+	// CreateManufacturerWithBodyWithResponse performs a POST /manufacturers (the `CreateManufacturer` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateManufacturerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateManufacturerResponse, error)
+
+	// CreateManufacturerWithResponse performs a POST /manufacturers (the `CreateManufacturer` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateManufacturerWithResponse(ctx context.Context, body CreateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManufacturerResponse, error)
+
+	// DeleteManufacturerWithResponse performs a DELETE /manufacturers/{publicId} (the `DeleteManufacturer` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteManufacturerWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteManufacturerResponse, error)
+
+	// GetManufacturerWithResponse performs a GET /manufacturers/{publicId} (the `GetManufacturer` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetManufacturerWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetManufacturerResponse, error)
+
+	// UpdateManufacturerWithBodyWithResponse performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateManufacturerWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateManufacturerResponse, error)
+
+	// UpdateManufacturerWithResponse performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateManufacturerWithResponse(ctx context.Context, publicId PublicId, body UpdateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateManufacturerResponse, error)
+
+	// ListNetworksWithResponse performs a GET /networks (the `ListNetworks` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListNetworksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListNetworksResponse, error)
+
+	// CreateNetworkWithBodyWithResponse performs a POST /networks (the `CreateNetwork` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateNetworkResponse, error)
+
+	// CreateNetworkWithResponse performs a POST /networks (the `CreateNetwork` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateNetworkWithResponse(ctx context.Context, body CreateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateNetworkResponse, error)
+
+	// DeleteNetworkWithResponse performs a DELETE /networks/{publicId} (the `DeleteNetwork` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteNetworkWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteNetworkResponse, error)
+
+	// GetNetworkWithResponse performs a GET /networks/{publicId} (the `GetNetwork` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetNetworkWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetNetworkResponse, error)
+
+	// UpdateNetworkWithBodyWithResponse performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateNetworkWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateNetworkResponse, error)
+
+	// UpdateNetworkWithResponse performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateNetworkWithResponse(ctx context.Context, publicId PublicId, body UpdateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateNetworkResponse, error)
+
+	// ListProductsWithResponse performs a GET /products (the `ListProducts` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListProductsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListProductsResponse, error)
+
+	// CreateProductWithBodyWithResponse performs a POST /products (the `CreateProduct` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateProductWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProductResponse, error)
+
+	// CreateProductWithResponse performs a POST /products (the `CreateProduct` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateProductWithResponse(ctx context.Context, body CreateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProductResponse, error)
+
+	// DeleteProductWithResponse performs a DELETE /products/{publicId} (the `DeleteProduct` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteProductWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteProductResponse, error)
+
+	// GetProductWithResponse performs a GET /products/{publicId} (the `GetProduct` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetProductWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetProductResponse, error)
+
+	// UpdateProductWithBodyWithResponse performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateProductWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateProductResponse, error)
+
+	// UpdateProductWithResponse performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateProductWithResponse(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateProductResponse, error)
+
+	// ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ResolveMachinePortWithResponse(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*ResolveMachinePortResponse, error)
+
+	// ResolveInstanceWithResponse performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ResolveInstanceWithResponse(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error)
+
+	// ListServicesWithResponse performs a GET /services (the `ListServices` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListServicesResponse, error)
+
+	// CreateServiceWithBodyWithResponse performs a POST /services (the `CreateService` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateServiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
+
+	// CreateServiceWithResponse performs a POST /services (the `CreateService` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateServiceWithResponse(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
+
+	// DeleteServiceWithResponse performs a DELETE /services/{publicId} (the `DeleteService` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteServiceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
+
+	// GetServiceWithResponse performs a GET /services/{publicId} (the `GetService` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetServiceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetServiceResponse, error)
+
+	// UpdateServiceWithBodyWithResponse performs a PUT /services/{publicId} (the `UpdateService` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateServiceWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
+
+	// UpdateServiceWithResponse performs a PUT /services/{publicId} (the `UpdateService` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateServiceWithResponse(ctx context.Context, publicId PublicId, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
+
+	// DeleteServiceLogoWithResponse performs a DELETE /services/{publicId}/logo (the `DeleteServiceLogo` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteServiceLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteServiceLogoResponse, error)
+
+	// GetServiceLogoWithResponse performs a GET /services/{publicId}/logo (the `GetServiceLogo` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetServiceLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetServiceLogoResponse, error)
+
+	// UpdateServiceLogoWithBodyWithResponse performs a PUT /services/{publicId}/logo (the `UpdateServiceLogo` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateServiceLogoWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceLogoResponse, error)
+
+	// GetTopologyWithResponse performs a GET /topology (the `GetTopology` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetTopologyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTopologyResponse, error)
 }
 
-type ListLinksResponse struct {
+type ListAddressesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *struct {
-		Items []Link `json:"items"`
+		Items []Address `json:"items"`
 	}
 	// JSONDefault the response for an HTTP default `application/json` response
 	JSONDefault *Error
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r ListLinksResponse) GetJSON200() *struct {
-	Items []Link `json:"items"`
+func (r ListAddressesResponse) GetJSON200() *struct {
+	Items []Address `json:"items"`
 } {
 	return r.JSON200
 }
 
 // GetJSONDefault returns the response for an HTTP default `application/json` response
-func (r ListLinksResponse) GetJSONDefault() *Error {
+func (r ListAddressesResponse) GetJSONDefault() *Error {
 	return r.JSONDefault
 }
 
 // GetBody returns the raw response body bytes
-func (r ListLinksResponse) GetBody() []byte {
+func (r ListAddressesResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r ListLinksResponse) Status() string {
+func (r ListAddressesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -598,7 +5608,7 @@ func (r ListLinksResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ListLinksResponse) StatusCode() int {
+func (r ListAddressesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -606,39 +5616,39 @@ func (r ListLinksResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r ListLinksResponse) ContentType() string {
+func (r ListAddressesResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-type CreateLinkResponse struct {
+type CreateAddressResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *Link
+	JSON201 *Address
 	// JSONDefault the response for an HTTP default `application/json` response
 	JSONDefault *Error
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r CreateLinkResponse) GetJSON201() *Link {
+func (r CreateAddressResponse) GetJSON201() *Address {
 	return r.JSON201
 }
 
 // GetJSONDefault returns the response for an HTTP default `application/json` response
-func (r CreateLinkResponse) GetJSONDefault() *Error {
+func (r CreateAddressResponse) GetJSONDefault() *Error {
 	return r.JSONDefault
 }
 
 // GetBody returns the raw response body bytes
-func (r CreateLinkResponse) GetBody() []byte {
+func (r CreateAddressResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r CreateLinkResponse) Status() string {
+func (r CreateAddressResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -646,7 +5656,7 @@ func (r CreateLinkResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CreateLinkResponse) StatusCode() int {
+func (r CreateAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -654,14 +5664,14 @@ func (r CreateLinkResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r CreateLinkResponse) ContentType() string {
+func (r CreateAddressResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-type DeleteLinkResponse struct {
+type DeleteAddressResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSONDefault the response for an HTTP default `application/json` response
@@ -669,17 +5679,17 @@ type DeleteLinkResponse struct {
 }
 
 // GetJSONDefault returns the response for an HTTP default `application/json` response
-func (r DeleteLinkResponse) GetJSONDefault() *Error {
+func (r DeleteAddressResponse) GetJSONDefault() *Error {
 	return r.JSONDefault
 }
 
 // GetBody returns the raw response body bytes
-func (r DeleteLinkResponse) GetBody() []byte {
+func (r DeleteAddressResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r DeleteLinkResponse) Status() string {
+func (r DeleteAddressResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -687,7 +5697,7 @@ func (r DeleteLinkResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DeleteLinkResponse) StatusCode() int {
+func (r DeleteAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -695,39 +5705,39 @@ func (r DeleteLinkResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r DeleteLinkResponse) ContentType() string {
+func (r DeleteAddressResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-type GetLinkResponse struct {
+type GetAddressResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Link
+	JSON200 *Address
 	// JSONDefault the response for an HTTP default `application/json` response
 	JSONDefault *Error
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r GetLinkResponse) GetJSON200() *Link {
+func (r GetAddressResponse) GetJSON200() *Address {
 	return r.JSON200
 }
 
 // GetJSONDefault returns the response for an HTTP default `application/json` response
-func (r GetLinkResponse) GetJSONDefault() *Error {
+func (r GetAddressResponse) GetJSONDefault() *Error {
 	return r.JSONDefault
 }
 
 // GetBody returns the raw response body bytes
-func (r GetLinkResponse) GetBody() []byte {
+func (r GetAddressResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r GetLinkResponse) Status() string {
+func (r GetAddressResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -735,7 +5745,7 @@ func (r GetLinkResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetLinkResponse) StatusCode() int {
+func (r GetAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -743,39 +5753,39 @@ func (r GetLinkResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r GetLinkResponse) ContentType() string {
+func (r GetAddressResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-type UpdateLinkResponse struct {
+type UpdateAddressResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *Link
+	JSON200 *Address
 	// JSONDefault the response for an HTTP default `application/json` response
 	JSONDefault *Error
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r UpdateLinkResponse) GetJSON200() *Link {
+func (r UpdateAddressResponse) GetJSON200() *Address {
 	return r.JSON200
 }
 
 // GetJSONDefault returns the response for an HTTP default `application/json` response
-func (r UpdateLinkResponse) GetJSONDefault() *Error {
+func (r UpdateAddressResponse) GetJSONDefault() *Error {
 	return r.JSONDefault
 }
 
 // GetBody returns the raw response body bytes
-func (r UpdateLinkResponse) GetBody() []byte {
+func (r UpdateAddressResponse) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r UpdateLinkResponse) Status() string {
+func (r UpdateAddressResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -783,7 +5793,7 @@ func (r UpdateLinkResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r UpdateLinkResponse) StatusCode() int {
+func (r UpdateAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -791,113 +5801,4107 @@ func (r UpdateLinkResponse) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r UpdateLinkResponse) ContentType() string {
+func (r UpdateAddressResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
 	return ""
 }
 
-// ListLinksWithResponse List short links
+type ListAreasResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Area `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAreasResponse) GetJSON200() *struct {
+	Items []Area `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListAreasResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAreasResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAreasResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAreasResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAreasResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateAreaResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Area
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateAreaResponse) GetJSON201() *Area {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateAreaResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateAreaResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAreaResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAreaResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateAreaResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteAreaResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteAreaResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteAreaResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAreaResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAreaResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteAreaResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAreaResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Area
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAreaResponse) GetJSON200() *Area {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetAreaResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAreaResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAreaResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAreaResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAreaResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateAreaResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Area
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateAreaResponse) GetJSON200() *Area {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateAreaResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateAreaResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAreaResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAreaResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateAreaResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAssetsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Asset `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAssetsResponse) GetJSON200() *struct {
+	Items []Asset `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListAssetsResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAssetsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAssetsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAssetsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAssetsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateAssetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Asset
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateAssetResponse) GetJSON201() *Asset {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateAssetResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateAssetResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateAssetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateAssetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateAssetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteAssetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteAssetResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteAssetResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAssetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAssetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteAssetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetAssetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Asset
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAssetResponse) GetJSON200() *Asset {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetAssetResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAssetResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAssetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAssetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAssetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateAssetResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Asset
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateAssetResponse) GetJSON200() *Asset {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateAssetResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateAssetResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateAssetResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateAssetResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateAssetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceEndpointsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []InstanceEndpoint `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceEndpointsResponse) GetJSON200() *struct {
+	Items []InstanceEndpoint `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListInstanceEndpointsResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceEndpointsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceEndpointsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceEndpointsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceEndpointsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceEndpointResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *InstanceEndpoint
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceEndpointResponse) GetJSON201() *InstanceEndpoint {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateInstanceEndpointResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceEndpointResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceEndpointResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceEndpointResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceEndpointResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteInstanceEndpointResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteInstanceEndpointResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteInstanceEndpointResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteInstanceEndpointResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteInstanceEndpointResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteInstanceEndpointResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetInstanceEndpointResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceEndpoint
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetInstanceEndpointResponse) GetJSON200() *InstanceEndpoint {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetInstanceEndpointResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetInstanceEndpointResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInstanceEndpointResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInstanceEndpointResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetInstanceEndpointResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateInstanceEndpointResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceEndpoint
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateInstanceEndpointResponse) GetJSON200() *InstanceEndpoint {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateInstanceEndpointResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateInstanceEndpointResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateInstanceEndpointResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateInstanceEndpointResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateInstanceEndpointResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Instance `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstancesResponse) GetJSON200() *struct {
+	Items []Instance `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListInstancesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Instance
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceResponse) GetJSON201() *Instance {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateInstanceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteInstanceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteInstanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteInstanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Instance
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetInstanceResponse) GetJSON200() *Instance {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetInstanceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetInstanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetInstanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Instance
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateInstanceResponse) GetJSON200() *Instance {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateInstanceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateInstanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateInstanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMachineProvidersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []MachineProvider `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMachineProvidersResponse) GetJSON200() *struct {
+	Items []MachineProvider `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListMachineProvidersResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMachineProvidersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMachineProvidersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMachineProvidersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMachineProvidersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateMachineProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *MachineProvider
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateMachineProviderResponse) GetJSON201() *MachineProvider {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateMachineProviderResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateMachineProviderResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMachineProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMachineProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateMachineProviderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteMachineProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteMachineProviderResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteMachineProviderResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMachineProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMachineProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteMachineProviderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMachineProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MachineProvider
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMachineProviderResponse) GetJSON200() *MachineProvider {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetMachineProviderResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMachineProviderResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMachineProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMachineProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMachineProviderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMachineProviderResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MachineProvider
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateMachineProviderResponse) GetJSON200() *MachineProvider {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateMachineProviderResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMachineProviderResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMachineProviderResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMachineProviderResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMachineProviderResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteMachineProviderLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteMachineProviderLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteMachineProviderLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMachineProviderLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMachineProviderLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteMachineProviderLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMachineProviderLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetMachineProviderLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMachineProviderLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMachineProviderLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMachineProviderLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMachineProviderLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMachineProviderLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateMachineProviderLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMachineProviderLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMachineProviderLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMachineProviderLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMachineProviderLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMachineUsersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []MachineUser `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMachineUsersResponse) GetJSON200() *struct {
+	Items []MachineUser `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListMachineUsersResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMachineUsersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMachineUsersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMachineUsersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMachineUsersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateMachineUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *MachineUser
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateMachineUserResponse) GetJSON201() *MachineUser {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateMachineUserResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateMachineUserResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMachineUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMachineUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateMachineUserResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteMachineUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteMachineUserResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteMachineUserResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMachineUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMachineUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteMachineUserResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMachineUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MachineUser
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMachineUserResponse) GetJSON200() *MachineUser {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetMachineUserResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMachineUserResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMachineUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMachineUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMachineUserResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMachineUserResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MachineUser
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateMachineUserResponse) GetJSON200() *MachineUser {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateMachineUserResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMachineUserResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMachineUserResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMachineUserResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMachineUserResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMachinesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Machine `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMachinesResponse) GetJSON200() *struct {
+	Items []Machine `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListMachinesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMachinesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMachinesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMachinesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMachinesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateMachineResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Machine
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateMachineResponse) GetJSON201() *Machine {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateMachineResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateMachineResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateMachineResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateMachineResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateMachineResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMachineInstancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []MachineInstance `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMachineInstancesResponse) GetJSON200() *struct {
+	Items []MachineInstance `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListMachineInstancesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMachineInstancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMachineInstancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMachineInstancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMachineInstancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteMachineResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteMachineResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteMachineResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteMachineResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteMachineResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteMachineResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMachineResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Machine
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMachineResponse) GetJSON200() *Machine {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetMachineResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMachineResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMachineResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMachineResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMachineResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMachineResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Machine
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateMachineResponse) GetJSON200() *Machine {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateMachineResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMachineResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMachineResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMachineResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMachineResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListManufacturersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Manufacturer `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListManufacturersResponse) GetJSON200() *struct {
+	Items []Manufacturer `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListManufacturersResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListManufacturersResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListManufacturersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListManufacturersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListManufacturersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateManufacturerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Manufacturer
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateManufacturerResponse) GetJSON201() *Manufacturer {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateManufacturerResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateManufacturerResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateManufacturerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateManufacturerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateManufacturerResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteManufacturerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteManufacturerResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteManufacturerResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteManufacturerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteManufacturerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteManufacturerResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetManufacturerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Manufacturer
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetManufacturerResponse) GetJSON200() *Manufacturer {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetManufacturerResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetManufacturerResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetManufacturerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetManufacturerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetManufacturerResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateManufacturerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Manufacturer
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateManufacturerResponse) GetJSON200() *Manufacturer {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateManufacturerResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateManufacturerResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateManufacturerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateManufacturerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateManufacturerResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListNetworksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Network `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListNetworksResponse) GetJSON200() *struct {
+	Items []Network `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListNetworksResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListNetworksResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListNetworksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListNetworksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListNetworksResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Network
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateNetworkResponse) GetJSON201() *Network {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateNetworkResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateNetworkResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateNetworkResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteNetworkResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteNetworkResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteNetworkResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Network
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetNetworkResponse) GetJSON200() *Network {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetNetworkResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetNetworkResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetNetworkResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateNetworkResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Network
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateNetworkResponse) GetJSON200() *Network {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateNetworkResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateNetworkResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateNetworkResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateNetworkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateNetworkResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListProductsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Product `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListProductsResponse) GetJSON200() *struct {
+	Items []Product `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListProductsResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListProductsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListProductsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListProductsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListProductsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateProductResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Product
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateProductResponse) GetJSON201() *Product {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateProductResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateProductResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateProductResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateProductResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateProductResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteProductResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteProductResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteProductResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteProductResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteProductResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteProductResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetProductResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Product
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetProductResponse) GetJSON200() *Product {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetProductResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetProductResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetProductResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetProductResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetProductResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateProductResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Product
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateProductResponse) GetJSON200() *Product {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateProductResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateProductResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateProductResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateProductResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateProductResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResolveMachinePortResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResolvedDestination
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ResolveMachinePortResponse) GetJSON200() *ResolvedDestination {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ResolveMachinePortResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ResolveMachinePortResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveMachinePortResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveMachinePortResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResolveMachinePortResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResolveInstanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ResolvedDestination
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ResolveInstanceResponse) GetJSON200() *ResolvedDestination {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ResolveInstanceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ResolveInstanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveInstanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveInstanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResolveInstanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListServicesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Service `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListServicesResponse) GetJSON200() *struct {
+	Items []Service `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListServicesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListServicesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListServicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListServicesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListServicesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Service
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateServiceResponse) GetJSON201() *Service {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateServiceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateServiceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateServiceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteServiceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteServiceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteServiceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Service
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetServiceResponse) GetJSON200() *Service {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetServiceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetServiceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetServiceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Service
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateServiceResponse) GetJSON200() *Service {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateServiceResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateServiceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateServiceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteServiceLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteServiceLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteServiceLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteServiceLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteServiceLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteServiceLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetServiceLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetServiceLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetServiceLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetServiceLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetServiceLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetServiceLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateServiceLogoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateServiceLogoResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateServiceLogoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateServiceLogoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateServiceLogoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateServiceLogoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetTopologyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Topology
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTopologyResponse) GetJSON200() *Topology {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetTopologyResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTopologyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTopologyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTopologyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTopologyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ListAddressesWithResponse performs a GET /addresses (the `ListAddresses` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with GET /links (the `ListLinks` operationId).
-func (c *ClientWithResponses) ListLinksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListLinksResponse, error) {
-	rsp, err := c.ListLinks(ctx, reqEditors...)
+func (c *ClientWithResponses) ListAddressesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressesResponse, error) {
+	rsp, err := c.ListAddresses(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseListLinksResponse(rsp)
+	return ParseListAddressesResponse(rsp)
 }
 
-// CreateLinkWithBodyWithResponse Create a short link
+// CreateAddressWithBodyWithResponse performs a POST /addresses (the `CreateAddress` operationId) request,
+// with any type of body and a specified content type.
 //
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /links (the `CreateLink` operationId).
-func (c *ClientWithResponses) CreateLinkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateLinkResponse, error) {
-	rsp, err := c.CreateLinkWithBody(ctx, contentType, body, reqEditors...)
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAddressResponse, error) {
+	rsp, err := c.CreateAddressWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateLinkResponse(rsp)
+	return ParseCreateAddressResponse(rsp)
 }
 
-// CreateLinkWithResponse Create a short link
-//
+// CreateAddressWithResponse performs a POST /addresses (the `CreateAddress` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with POST /links (the `CreateLink` operationId).
-func (c *ClientWithResponses) CreateLinkWithResponse(ctx context.Context, body CreateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateLinkResponse, error) {
-	rsp, err := c.CreateLink(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateAddressWithResponse(ctx context.Context, body CreateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAddressResponse, error) {
+	rsp, err := c.CreateAddress(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateLinkResponse(rsp)
+	return ParseCreateAddressResponse(rsp)
 }
 
-// DeleteLinkWithResponse Delete a short link
+// DeleteAddressWithResponse performs a DELETE /addresses/{publicId} (the `DeleteAddress` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with DELETE /links/{short} (the `DeleteLink` operationId).
-func (c *ClientWithResponses) DeleteLinkWithResponse(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*DeleteLinkResponse, error) {
-	rsp, err := c.DeleteLink(ctx, short, reqEditors...)
+func (c *ClientWithResponses) DeleteAddressWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAddressResponse, error) {
+	rsp, err := c.DeleteAddress(ctx, publicId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeleteLinkResponse(rsp)
+	return ParseDeleteAddressResponse(rsp)
 }
 
-// GetLinkWithResponse Get a short link
+// GetAddressWithResponse performs a GET /addresses/{publicId} (the `GetAddress` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with GET /links/{short} (the `GetLink` operationId).
-func (c *ClientWithResponses) GetLinkWithResponse(ctx context.Context, short Short, reqEditors ...RequestEditorFn) (*GetLinkResponse, error) {
-	rsp, err := c.GetLink(ctx, short, reqEditors...)
+func (c *ClientWithResponses) GetAddressWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAddressResponse, error) {
+	rsp, err := c.GetAddress(ctx, publicId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetLinkResponse(rsp)
+	return ParseGetAddressResponse(rsp)
 }
 
-// UpdateLinkWithBodyWithResponse Replace a short link
+// UpdateAddressWithBodyWithResponse performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request,
+// with any type of body and a specified content type.
 //
-// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-func (c *ClientWithResponses) UpdateLinkWithBodyWithResponse(ctx context.Context, short Short, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateLinkResponse, error) {
-	rsp, err := c.UpdateLinkWithBody(ctx, short, contentType, body, reqEditors...)
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateAddressWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAddressResponse, error) {
+	rsp, err := c.UpdateAddressWithBody(ctx, publicId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateLinkResponse(rsp)
+	return ParseUpdateAddressResponse(rsp)
 }
 
-// UpdateLinkWithResponse Replace a short link
-//
+// UpdateAddressWithResponse performs a PUT /addresses/{publicId} (the `UpdateAddress` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Corresponds with PUT /links/{short} (the `UpdateLink` operationId).
-func (c *ClientWithResponses) UpdateLinkWithResponse(ctx context.Context, short Short, body UpdateLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLinkResponse, error) {
-	rsp, err := c.UpdateLink(ctx, short, body, reqEditors...)
+func (c *ClientWithResponses) UpdateAddressWithResponse(ctx context.Context, publicId PublicId, body UpdateAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAddressResponse, error) {
+	rsp, err := c.UpdateAddress(ctx, publicId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseUpdateLinkResponse(rsp)
+	return ParseUpdateAddressResponse(rsp)
 }
 
-// ParseListLinksResponse parses an HTTP response from a ListLinksWithResponse call
-func ParseListLinksResponse(rsp *http.Response) (*ListLinksResponse, error) {
+// ListAreasWithResponse performs a GET /areas (the `ListAreas` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListAreasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAreasResponse, error) {
+	rsp, err := c.ListAreas(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAreasResponse(rsp)
+}
+
+// CreateAreaWithBodyWithResponse performs a POST /areas (the `CreateArea` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateAreaWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAreaResponse, error) {
+	rsp, err := c.CreateAreaWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAreaResponse(rsp)
+}
+
+// CreateAreaWithResponse performs a POST /areas (the `CreateArea` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateAreaWithResponse(ctx context.Context, body CreateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAreaResponse, error) {
+	rsp, err := c.CreateArea(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAreaResponse(rsp)
+}
+
+// DeleteAreaWithResponse performs a DELETE /areas/{publicId} (the `DeleteArea` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteAreaWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAreaResponse, error) {
+	rsp, err := c.DeleteArea(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAreaResponse(rsp)
+}
+
+// GetAreaWithResponse performs a GET /areas/{publicId} (the `GetArea` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetAreaWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAreaResponse, error) {
+	rsp, err := c.GetArea(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAreaResponse(rsp)
+}
+
+// UpdateAreaWithBodyWithResponse performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateAreaWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAreaResponse, error) {
+	rsp, err := c.UpdateAreaWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAreaResponse(rsp)
+}
+
+// UpdateAreaWithResponse performs a PUT /areas/{publicId} (the `UpdateArea` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateAreaWithResponse(ctx context.Context, publicId PublicId, body UpdateAreaJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAreaResponse, error) {
+	rsp, err := c.UpdateArea(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAreaResponse(rsp)
+}
+
+// ListAssetsWithResponse performs a GET /assets (the `ListAssets` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListAssetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAssetsResponse, error) {
+	rsp, err := c.ListAssets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAssetsResponse(rsp)
+}
+
+// CreateAssetWithBodyWithResponse performs a POST /assets (the `CreateAsset` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateAssetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateAssetResponse, error) {
+	rsp, err := c.CreateAssetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAssetResponse(rsp)
+}
+
+// CreateAssetWithResponse performs a POST /assets (the `CreateAsset` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateAssetWithResponse(ctx context.Context, body CreateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateAssetResponse, error) {
+	rsp, err := c.CreateAsset(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateAssetResponse(rsp)
+}
+
+// DeleteAssetWithResponse performs a DELETE /assets/{publicId} (the `DeleteAsset` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteAssetWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteAssetResponse, error) {
+	rsp, err := c.DeleteAsset(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAssetResponse(rsp)
+}
+
+// GetAssetWithResponse performs a GET /assets/{publicId} (the `GetAsset` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetAssetWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetAssetResponse, error) {
+	rsp, err := c.GetAsset(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAssetResponse(rsp)
+}
+
+// UpdateAssetWithBodyWithResponse performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateAssetWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error) {
+	rsp, err := c.UpdateAssetWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAssetResponse(rsp)
+}
+
+// UpdateAssetWithResponse performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateAssetWithResponse(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error) {
+	rsp, err := c.UpdateAsset(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateAssetResponse(rsp)
+}
+
+// ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListInstanceEndpointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error) {
+	rsp, err := c.ListInstanceEndpoints(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceEndpointsResponse(rsp)
+}
+
+// CreateInstanceEndpointWithBodyWithResponse performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceEndpointWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceEndpointResponse, error) {
+	rsp, err := c.CreateInstanceEndpointWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceEndpointResponse(rsp)
+}
+
+// CreateInstanceEndpointWithResponse performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceEndpointWithResponse(ctx context.Context, body CreateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceEndpointResponse, error) {
+	rsp, err := c.CreateInstanceEndpoint(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceEndpointResponse(rsp)
+}
+
+// DeleteInstanceEndpointWithResponse performs a DELETE /instance-endpoints/{publicId} (the `DeleteInstanceEndpoint` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceEndpointResponse, error) {
+	rsp, err := c.DeleteInstanceEndpoint(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteInstanceEndpointResponse(rsp)
+}
+
+// GetInstanceEndpointWithResponse performs a GET /instance-endpoints/{publicId} (the `GetInstanceEndpoint` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceEndpointResponse, error) {
+	rsp, err := c.GetInstanceEndpoint(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInstanceEndpointResponse(rsp)
+}
+
+// UpdateInstanceEndpointWithBodyWithResponse performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceEndpointWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceEndpointResponse, error) {
+	rsp, err := c.UpdateInstanceEndpointWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceEndpointResponse(rsp)
+}
+
+// UpdateInstanceEndpointWithResponse performs a PUT /instance-endpoints/{publicId} (the `UpdateInstanceEndpoint` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceEndpointWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceEndpointResponse, error) {
+	rsp, err := c.UpdateInstanceEndpoint(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceEndpointResponse(rsp)
+}
+
+// ListInstancesWithResponse performs a GET /instances (the `ListInstances` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListInstancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error) {
+	rsp, err := c.ListInstances(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstancesResponse(rsp)
+}
+
+// CreateInstanceWithBodyWithResponse performs a POST /instances (the `CreateInstance` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceResponse, error) {
+	rsp, err := c.CreateInstanceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceResponse(rsp)
+}
+
+// CreateInstanceWithResponse performs a POST /instances (the `CreateInstance` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceWithResponse(ctx context.Context, body CreateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceResponse, error) {
+	rsp, err := c.CreateInstance(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceResponse(rsp)
+}
+
+// DeleteInstanceWithResponse performs a DELETE /instances/{publicId} (the `DeleteInstance` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteInstanceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceResponse, error) {
+	rsp, err := c.DeleteInstance(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteInstanceResponse(rsp)
+}
+
+// GetInstanceWithResponse performs a GET /instances/{publicId} (the `GetInstance` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetInstanceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceResponse, error) {
+	rsp, err := c.GetInstance(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInstanceResponse(rsp)
+}
+
+// UpdateInstanceWithBodyWithResponse performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceResponse, error) {
+	rsp, err := c.UpdateInstanceWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceResponse(rsp)
+}
+
+// UpdateInstanceWithResponse performs a PUT /instances/{publicId} (the `UpdateInstance` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceResponse, error) {
+	rsp, err := c.UpdateInstance(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceResponse(rsp)
+}
+
+// ListMachineProvidersWithResponse performs a GET /machine-providers (the `ListMachineProviders` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListMachineProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachineProvidersResponse, error) {
+	rsp, err := c.ListMachineProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMachineProvidersResponse(rsp)
+}
+
+// CreateMachineProviderWithBodyWithResponse performs a POST /machine-providers (the `CreateMachineProvider` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineProviderResponse, error) {
+	rsp, err := c.CreateMachineProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineProviderResponse(rsp)
+}
+
+// CreateMachineProviderWithResponse performs a POST /machine-providers (the `CreateMachineProvider` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineProviderWithResponse(ctx context.Context, body CreateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineProviderResponse, error) {
+	rsp, err := c.CreateMachineProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineProviderResponse(rsp)
+}
+
+// DeleteMachineProviderWithResponse performs a DELETE /machine-providers/{publicId} (the `DeleteMachineProvider` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteMachineProviderWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineProviderResponse, error) {
+	rsp, err := c.DeleteMachineProvider(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMachineProviderResponse(rsp)
+}
+
+// GetMachineProviderWithResponse performs a GET /machine-providers/{publicId} (the `GetMachineProvider` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMachineProviderWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineProviderResponse, error) {
+	rsp, err := c.GetMachineProvider(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMachineProviderResponse(rsp)
+}
+
+// UpdateMachineProviderWithBodyWithResponse performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineProviderWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineProviderResponse, error) {
+	rsp, err := c.UpdateMachineProviderWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineProviderResponse(rsp)
+}
+
+// UpdateMachineProviderWithResponse performs a PUT /machine-providers/{publicId} (the `UpdateMachineProvider` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineProviderWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineProviderResponse, error) {
+	rsp, err := c.UpdateMachineProvider(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineProviderResponse(rsp)
+}
+
+// DeleteMachineProviderLogoWithResponse performs a DELETE /machine-providers/{publicId}/logo (the `DeleteMachineProviderLogo` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteMachineProviderLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineProviderLogoResponse, error) {
+	rsp, err := c.DeleteMachineProviderLogo(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMachineProviderLogoResponse(rsp)
+}
+
+// GetMachineProviderLogoWithResponse performs a GET /machine-providers/{publicId}/logo (the `GetMachineProviderLogo` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMachineProviderLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineProviderLogoResponse, error) {
+	rsp, err := c.GetMachineProviderLogo(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMachineProviderLogoResponse(rsp)
+}
+
+// UpdateMachineProviderLogoWithBodyWithResponse performs a PUT /machine-providers/{publicId}/logo (the `UpdateMachineProviderLogo` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineProviderLogoWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineProviderLogoResponse, error) {
+	rsp, err := c.UpdateMachineProviderLogoWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineProviderLogoResponse(rsp)
+}
+
+// ListMachineUsersWithResponse performs a GET /machine-users (the `ListMachineUsers` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListMachineUsersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachineUsersResponse, error) {
+	rsp, err := c.ListMachineUsers(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMachineUsersResponse(rsp)
+}
+
+// CreateMachineUserWithBodyWithResponse performs a POST /machine-users (the `CreateMachineUser` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineUserWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineUserResponse, error) {
+	rsp, err := c.CreateMachineUserWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineUserResponse(rsp)
+}
+
+// CreateMachineUserWithResponse performs a POST /machine-users (the `CreateMachineUser` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineUserWithResponse(ctx context.Context, body CreateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineUserResponse, error) {
+	rsp, err := c.CreateMachineUser(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineUserResponse(rsp)
+}
+
+// DeleteMachineUserWithResponse performs a DELETE /machine-users/{publicId} (the `DeleteMachineUser` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteMachineUserWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineUserResponse, error) {
+	rsp, err := c.DeleteMachineUser(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMachineUserResponse(rsp)
+}
+
+// GetMachineUserWithResponse performs a GET /machine-users/{publicId} (the `GetMachineUser` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMachineUserWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineUserResponse, error) {
+	rsp, err := c.GetMachineUser(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMachineUserResponse(rsp)
+}
+
+// UpdateMachineUserWithBodyWithResponse performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineUserWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineUserResponse, error) {
+	rsp, err := c.UpdateMachineUserWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineUserResponse(rsp)
+}
+
+// UpdateMachineUserWithResponse performs a PUT /machine-users/{publicId} (the `UpdateMachineUser` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineUserWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineUserResponse, error) {
+	rsp, err := c.UpdateMachineUser(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineUserResponse(rsp)
+}
+
+// ListMachinesWithResponse performs a GET /machines (the `ListMachines` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListMachinesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error) {
+	rsp, err := c.ListMachines(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMachinesResponse(rsp)
+}
+
+// CreateMachineWithBodyWithResponse performs a POST /machines (the `CreateMachine` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMachineResponse, error) {
+	rsp, err := c.CreateMachineWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineResponse(rsp)
+}
+
+// CreateMachineWithResponse performs a POST /machines (the `CreateMachine` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateMachineWithResponse(ctx context.Context, body CreateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMachineResponse, error) {
+	rsp, err := c.CreateMachine(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateMachineResponse(rsp)
+}
+
+// ListMachineInstancesWithResponse performs a GET /machines/{machine}/instances (the `ListMachineInstances` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListMachineInstancesWithResponse(ctx context.Context, machine MachineSlug, reqEditors ...RequestEditorFn) (*ListMachineInstancesResponse, error) {
+	rsp, err := c.ListMachineInstances(ctx, machine, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMachineInstancesResponse(rsp)
+}
+
+// DeleteMachineWithResponse performs a DELETE /machines/{publicId} (the `DeleteMachine` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteMachineWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteMachineResponse, error) {
+	rsp, err := c.DeleteMachine(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteMachineResponse(rsp)
+}
+
+// GetMachineWithResponse performs a GET /machines/{publicId} (the `GetMachine` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMachineWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetMachineResponse, error) {
+	rsp, err := c.GetMachine(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMachineResponse(rsp)
+}
+
+// UpdateMachineWithBodyWithResponse performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMachineResponse, error) {
+	rsp, err := c.UpdateMachineWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineResponse(rsp)
+}
+
+// UpdateMachineWithResponse performs a PUT /machines/{publicId} (the `UpdateMachine` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMachineWithResponse(ctx context.Context, publicId PublicId, body UpdateMachineJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMachineResponse, error) {
+	rsp, err := c.UpdateMachine(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMachineResponse(rsp)
+}
+
+// ListManufacturersWithResponse performs a GET /manufacturers (the `ListManufacturers` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListManufacturersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListManufacturersResponse, error) {
+	rsp, err := c.ListManufacturers(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListManufacturersResponse(rsp)
+}
+
+// CreateManufacturerWithBodyWithResponse performs a POST /manufacturers (the `CreateManufacturer` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateManufacturerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateManufacturerResponse, error) {
+	rsp, err := c.CreateManufacturerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateManufacturerResponse(rsp)
+}
+
+// CreateManufacturerWithResponse performs a POST /manufacturers (the `CreateManufacturer` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateManufacturerWithResponse(ctx context.Context, body CreateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManufacturerResponse, error) {
+	rsp, err := c.CreateManufacturer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateManufacturerResponse(rsp)
+}
+
+// DeleteManufacturerWithResponse performs a DELETE /manufacturers/{publicId} (the `DeleteManufacturer` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteManufacturerWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteManufacturerResponse, error) {
+	rsp, err := c.DeleteManufacturer(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteManufacturerResponse(rsp)
+}
+
+// GetManufacturerWithResponse performs a GET /manufacturers/{publicId} (the `GetManufacturer` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetManufacturerWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetManufacturerResponse, error) {
+	rsp, err := c.GetManufacturer(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetManufacturerResponse(rsp)
+}
+
+// UpdateManufacturerWithBodyWithResponse performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateManufacturerWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateManufacturerResponse, error) {
+	rsp, err := c.UpdateManufacturerWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateManufacturerResponse(rsp)
+}
+
+// UpdateManufacturerWithResponse performs a PUT /manufacturers/{publicId} (the `UpdateManufacturer` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateManufacturerWithResponse(ctx context.Context, publicId PublicId, body UpdateManufacturerJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateManufacturerResponse, error) {
+	rsp, err := c.UpdateManufacturer(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateManufacturerResponse(rsp)
+}
+
+// ListNetworksWithResponse performs a GET /networks (the `ListNetworks` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListNetworksWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListNetworksResponse, error) {
+	rsp, err := c.ListNetworks(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListNetworksResponse(rsp)
+}
+
+// CreateNetworkWithBodyWithResponse performs a POST /networks (the `CreateNetwork` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateNetworkWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateNetworkResponse, error) {
+	rsp, err := c.CreateNetworkWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateNetworkResponse(rsp)
+}
+
+// CreateNetworkWithResponse performs a POST /networks (the `CreateNetwork` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateNetworkWithResponse(ctx context.Context, body CreateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateNetworkResponse, error) {
+	rsp, err := c.CreateNetwork(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateNetworkResponse(rsp)
+}
+
+// DeleteNetworkWithResponse performs a DELETE /networks/{publicId} (the `DeleteNetwork` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteNetworkWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteNetworkResponse, error) {
+	rsp, err := c.DeleteNetwork(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteNetworkResponse(rsp)
+}
+
+// GetNetworkWithResponse performs a GET /networks/{publicId} (the `GetNetwork` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetNetworkWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetNetworkResponse, error) {
+	rsp, err := c.GetNetwork(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetNetworkResponse(rsp)
+}
+
+// UpdateNetworkWithBodyWithResponse performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateNetworkWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateNetworkResponse, error) {
+	rsp, err := c.UpdateNetworkWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateNetworkResponse(rsp)
+}
+
+// UpdateNetworkWithResponse performs a PUT /networks/{publicId} (the `UpdateNetwork` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateNetworkWithResponse(ctx context.Context, publicId PublicId, body UpdateNetworkJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateNetworkResponse, error) {
+	rsp, err := c.UpdateNetwork(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateNetworkResponse(rsp)
+}
+
+// ListProductsWithResponse performs a GET /products (the `ListProducts` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListProductsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListProductsResponse, error) {
+	rsp, err := c.ListProducts(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListProductsResponse(rsp)
+}
+
+// CreateProductWithBodyWithResponse performs a POST /products (the `CreateProduct` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateProductWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateProductResponse, error) {
+	rsp, err := c.CreateProductWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateProductResponse(rsp)
+}
+
+// CreateProductWithResponse performs a POST /products (the `CreateProduct` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateProductWithResponse(ctx context.Context, body CreateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateProductResponse, error) {
+	rsp, err := c.CreateProduct(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateProductResponse(rsp)
+}
+
+// DeleteProductWithResponse performs a DELETE /products/{publicId} (the `DeleteProduct` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteProductWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteProductResponse, error) {
+	rsp, err := c.DeleteProduct(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteProductResponse(rsp)
+}
+
+// GetProductWithResponse performs a GET /products/{publicId} (the `GetProduct` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetProductWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetProductResponse, error) {
+	rsp, err := c.GetProduct(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetProductResponse(rsp)
+}
+
+// UpdateProductWithBodyWithResponse performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateProductWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateProductResponse, error) {
+	rsp, err := c.UpdateProductWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateProductResponse(rsp)
+}
+
+// UpdateProductWithResponse performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateProductWithResponse(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateProductResponse, error) {
+	rsp, err := c.UpdateProduct(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateProductResponse(rsp)
+}
+
+// ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ResolveMachinePortWithResponse(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*ResolveMachinePortResponse, error) {
+	rsp, err := c.ResolveMachinePort(ctx, machine, port, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveMachinePortResponse(rsp)
+}
+
+// ResolveInstanceWithResponse performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ResolveInstanceWithResponse(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error) {
+	rsp, err := c.ResolveInstance(ctx, machine, service, instance, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveInstanceResponse(rsp)
+}
+
+// ListServicesWithResponse performs a GET /services (the `ListServices` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListServicesResponse, error) {
+	rsp, err := c.ListServices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListServicesResponse(rsp)
+}
+
+// CreateServiceWithBodyWithResponse performs a POST /services (the `CreateService` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateServiceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
+	rsp, err := c.CreateServiceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateServiceResponse(rsp)
+}
+
+// CreateServiceWithResponse performs a POST /services (the `CreateService` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateServiceWithResponse(ctx context.Context, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
+	rsp, err := c.CreateService(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateServiceResponse(rsp)
+}
+
+// DeleteServiceWithResponse performs a DELETE /services/{publicId} (the `DeleteService` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error) {
+	rsp, err := c.DeleteService(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteServiceResponse(rsp)
+}
+
+// GetServiceWithResponse performs a GET /services/{publicId} (the `GetService` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetServiceWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetServiceResponse, error) {
+	rsp, err := c.GetService(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetServiceResponse(rsp)
+}
+
+// UpdateServiceWithBodyWithResponse performs a PUT /services/{publicId} (the `UpdateService` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateServiceWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
+	rsp, err := c.UpdateServiceWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateServiceResponse(rsp)
+}
+
+// UpdateServiceWithResponse performs a PUT /services/{publicId} (the `UpdateService` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateServiceWithResponse(ctx context.Context, publicId PublicId, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
+	rsp, err := c.UpdateService(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateServiceResponse(rsp)
+}
+
+// DeleteServiceLogoWithResponse performs a DELETE /services/{publicId}/logo (the `DeleteServiceLogo` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteServiceLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteServiceLogoResponse, error) {
+	rsp, err := c.DeleteServiceLogo(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteServiceLogoResponse(rsp)
+}
+
+// GetServiceLogoWithResponse performs a GET /services/{publicId}/logo (the `GetServiceLogo` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetServiceLogoWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetServiceLogoResponse, error) {
+	rsp, err := c.GetServiceLogo(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetServiceLogoResponse(rsp)
+}
+
+// UpdateServiceLogoWithBodyWithResponse performs a PUT /services/{publicId}/logo (the `UpdateServiceLogo` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateServiceLogoWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceLogoResponse, error) {
+	rsp, err := c.UpdateServiceLogoWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateServiceLogoResponse(rsp)
+}
+
+// GetTopologyWithResponse performs a GET /topology (the `GetTopology` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetTopologyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetTopologyResponse, error) {
+	rsp, err := c.GetTopology(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTopologyResponse(rsp)
+}
+
+// ParseListAddressesResponse parses an HTTP response from a ListAddressesWithResponse call
+func ParseListAddressesResponse(rsp *http.Response) (*ListAddressesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ListLinksResponse{
+	response := &ListAddressesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -905,7 +9909,7 @@ func ParseListLinksResponse(rsp *http.Response) (*ListLinksResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
-			Items []Link `json:"items"`
+			Items []Address `json:"items"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
@@ -924,22 +9928,22 @@ func ParseListLinksResponse(rsp *http.Response) (*ListLinksResponse, error) {
 	return response, nil
 }
 
-// ParseCreateLinkResponse parses an HTTP response from a CreateLinkWithResponse call
-func ParseCreateLinkResponse(rsp *http.Response) (*CreateLinkResponse, error) {
+// ParseCreateAddressResponse parses an HTTP response from a CreateAddressWithResponse call
+func ParseCreateAddressResponse(rsp *http.Response) (*CreateAddressResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CreateLinkResponse{
+	response := &CreateAddressResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Link
+		var dest Address
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -957,15 +9961,15 @@ func ParseCreateLinkResponse(rsp *http.Response) (*CreateLinkResponse, error) {
 	return response, nil
 }
 
-// ParseDeleteLinkResponse parses an HTTP response from a DeleteLinkWithResponse call
-func ParseDeleteLinkResponse(rsp *http.Response) (*DeleteLinkResponse, error) {
+// ParseDeleteAddressResponse parses an HTTP response from a DeleteAddressWithResponse call
+func ParseDeleteAddressResponse(rsp *http.Response) (*DeleteAddressResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeleteLinkResponse{
+	response := &DeleteAddressResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -986,22 +9990,22 @@ func ParseDeleteLinkResponse(rsp *http.Response) (*DeleteLinkResponse, error) {
 	return response, nil
 }
 
-// ParseGetLinkResponse parses an HTTP response from a GetLinkWithResponse call
-func ParseGetLinkResponse(rsp *http.Response) (*GetLinkResponse, error) {
+// ParseGetAddressResponse parses an HTTP response from a GetAddressWithResponse call
+func ParseGetAddressResponse(rsp *http.Response) (*GetAddressResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetLinkResponse{
+	response := &GetAddressResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Link
+		var dest Address
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1019,22 +10023,2123 @@ func ParseGetLinkResponse(rsp *http.Response) (*GetLinkResponse, error) {
 	return response, nil
 }
 
-// ParseUpdateLinkResponse parses an HTTP response from a UpdateLinkWithResponse call
-func ParseUpdateLinkResponse(rsp *http.Response) (*UpdateLinkResponse, error) {
+// ParseUpdateAddressResponse parses an HTTP response from a UpdateAddressWithResponse call
+func ParseUpdateAddressResponse(rsp *http.Response) (*UpdateAddressResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &UpdateLinkResponse{
+	response := &UpdateAddressResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Link
+		var dest Address
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAreasResponse parses an HTTP response from a ListAreasWithResponse call
+func ParseListAreasResponse(rsp *http.Response) (*ListAreasResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAreasResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Area `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAreaResponse parses an HTTP response from a CreateAreaWithResponse call
+func ParseCreateAreaResponse(rsp *http.Response) (*CreateAreaResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAreaResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Area
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAreaResponse parses an HTTP response from a DeleteAreaWithResponse call
+func ParseDeleteAreaResponse(rsp *http.Response) (*DeleteAreaResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAreaResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAreaResponse parses an HTTP response from a GetAreaWithResponse call
+func ParseGetAreaResponse(rsp *http.Response) (*GetAreaResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAreaResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Area
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAreaResponse parses an HTTP response from a UpdateAreaWithResponse call
+func ParseUpdateAreaResponse(rsp *http.Response) (*UpdateAreaResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAreaResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Area
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAssetsResponse parses an HTTP response from a ListAssetsWithResponse call
+func ParseListAssetsResponse(rsp *http.Response) (*ListAssetsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAssetsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Asset `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateAssetResponse parses an HTTP response from a CreateAssetWithResponse call
+func ParseCreateAssetResponse(rsp *http.Response) (*CreateAssetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateAssetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Asset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteAssetResponse parses an HTTP response from a DeleteAssetWithResponse call
+func ParseDeleteAssetResponse(rsp *http.Response) (*DeleteAssetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteAssetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAssetResponse parses an HTTP response from a GetAssetWithResponse call
+func ParseGetAssetResponse(rsp *http.Response) (*GetAssetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAssetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Asset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateAssetResponse parses an HTTP response from a UpdateAssetWithResponse call
+func ParseUpdateAssetResponse(rsp *http.Response) (*UpdateAssetResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateAssetResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Asset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceEndpointsResponse parses an HTTP response from a ListInstanceEndpointsWithResponse call
+func ParseListInstanceEndpointsResponse(rsp *http.Response) (*ListInstanceEndpointsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceEndpointsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []InstanceEndpoint `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceEndpointResponse parses an HTTP response from a CreateInstanceEndpointWithResponse call
+func ParseCreateInstanceEndpointResponse(rsp *http.Response) (*CreateInstanceEndpointResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceEndpointResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest InstanceEndpoint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteInstanceEndpointResponse parses an HTTP response from a DeleteInstanceEndpointWithResponse call
+func ParseDeleteInstanceEndpointResponse(rsp *http.Response) (*DeleteInstanceEndpointResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteInstanceEndpointResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInstanceEndpointResponse parses an HTTP response from a GetInstanceEndpointWithResponse call
+func ParseGetInstanceEndpointResponse(rsp *http.Response) (*GetInstanceEndpointResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInstanceEndpointResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceEndpoint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateInstanceEndpointResponse parses an HTTP response from a UpdateInstanceEndpointWithResponse call
+func ParseUpdateInstanceEndpointResponse(rsp *http.Response) (*UpdateInstanceEndpointResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateInstanceEndpointResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceEndpoint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstancesResponse parses an HTTP response from a ListInstancesWithResponse call
+func ParseListInstancesResponse(rsp *http.Response) (*ListInstancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Instance `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceResponse parses an HTTP response from a CreateInstanceWithResponse call
+func ParseCreateInstanceResponse(rsp *http.Response) (*CreateInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Instance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteInstanceResponse parses an HTTP response from a DeleteInstanceWithResponse call
+func ParseDeleteInstanceResponse(rsp *http.Response) (*DeleteInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInstanceResponse parses an HTTP response from a GetInstanceWithResponse call
+func ParseGetInstanceResponse(rsp *http.Response) (*GetInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Instance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateInstanceResponse parses an HTTP response from a UpdateInstanceWithResponse call
+func ParseUpdateInstanceResponse(rsp *http.Response) (*UpdateInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Instance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMachineProvidersResponse parses an HTTP response from a ListMachineProvidersWithResponse call
+func ParseListMachineProvidersResponse(rsp *http.Response) (*ListMachineProvidersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMachineProvidersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []MachineProvider `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMachineProviderResponse parses an HTTP response from a CreateMachineProviderWithResponse call
+func ParseCreateMachineProviderResponse(rsp *http.Response) (*CreateMachineProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMachineProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest MachineProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMachineProviderResponse parses an HTTP response from a DeleteMachineProviderWithResponse call
+func ParseDeleteMachineProviderResponse(rsp *http.Response) (*DeleteMachineProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMachineProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMachineProviderResponse parses an HTTP response from a GetMachineProviderWithResponse call
+func ParseGetMachineProviderResponse(rsp *http.Response) (*GetMachineProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMachineProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MachineProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMachineProviderResponse parses an HTTP response from a UpdateMachineProviderWithResponse call
+func ParseUpdateMachineProviderResponse(rsp *http.Response) (*UpdateMachineProviderResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMachineProviderResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MachineProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMachineProviderLogoResponse parses an HTTP response from a DeleteMachineProviderLogoWithResponse call
+func ParseDeleteMachineProviderLogoResponse(rsp *http.Response) (*DeleteMachineProviderLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMachineProviderLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMachineProviderLogoResponse parses an HTTP response from a GetMachineProviderLogoWithResponse call
+func ParseGetMachineProviderLogoResponse(rsp *http.Response) (*GetMachineProviderLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMachineProviderLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 304:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMachineProviderLogoResponse parses an HTTP response from a UpdateMachineProviderLogoWithResponse call
+func ParseUpdateMachineProviderLogoResponse(rsp *http.Response) (*UpdateMachineProviderLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMachineProviderLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMachineUsersResponse parses an HTTP response from a ListMachineUsersWithResponse call
+func ParseListMachineUsersResponse(rsp *http.Response) (*ListMachineUsersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMachineUsersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []MachineUser `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMachineUserResponse parses an HTTP response from a CreateMachineUserWithResponse call
+func ParseCreateMachineUserResponse(rsp *http.Response) (*CreateMachineUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMachineUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest MachineUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMachineUserResponse parses an HTTP response from a DeleteMachineUserWithResponse call
+func ParseDeleteMachineUserResponse(rsp *http.Response) (*DeleteMachineUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMachineUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMachineUserResponse parses an HTTP response from a GetMachineUserWithResponse call
+func ParseGetMachineUserResponse(rsp *http.Response) (*GetMachineUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMachineUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MachineUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMachineUserResponse parses an HTTP response from a UpdateMachineUserWithResponse call
+func ParseUpdateMachineUserResponse(rsp *http.Response) (*UpdateMachineUserResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMachineUserResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MachineUser
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMachinesResponse parses an HTTP response from a ListMachinesWithResponse call
+func ParseListMachinesResponse(rsp *http.Response) (*ListMachinesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMachinesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Machine `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateMachineResponse parses an HTTP response from a CreateMachineWithResponse call
+func ParseCreateMachineResponse(rsp *http.Response) (*CreateMachineResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateMachineResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Machine
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMachineInstancesResponse parses an HTTP response from a ListMachineInstancesWithResponse call
+func ParseListMachineInstancesResponse(rsp *http.Response) (*ListMachineInstancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMachineInstancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []MachineInstance `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteMachineResponse parses an HTTP response from a DeleteMachineWithResponse call
+func ParseDeleteMachineResponse(rsp *http.Response) (*DeleteMachineResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteMachineResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMachineResponse parses an HTTP response from a GetMachineWithResponse call
+func ParseGetMachineResponse(rsp *http.Response) (*GetMachineResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMachineResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Machine
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMachineResponse parses an HTTP response from a UpdateMachineWithResponse call
+func ParseUpdateMachineResponse(rsp *http.Response) (*UpdateMachineResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMachineResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Machine
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListManufacturersResponse parses an HTTP response from a ListManufacturersWithResponse call
+func ParseListManufacturersResponse(rsp *http.Response) (*ListManufacturersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListManufacturersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Manufacturer `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateManufacturerResponse parses an HTTP response from a CreateManufacturerWithResponse call
+func ParseCreateManufacturerResponse(rsp *http.Response) (*CreateManufacturerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateManufacturerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Manufacturer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteManufacturerResponse parses an HTTP response from a DeleteManufacturerWithResponse call
+func ParseDeleteManufacturerResponse(rsp *http.Response) (*DeleteManufacturerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteManufacturerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetManufacturerResponse parses an HTTP response from a GetManufacturerWithResponse call
+func ParseGetManufacturerResponse(rsp *http.Response) (*GetManufacturerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetManufacturerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Manufacturer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateManufacturerResponse parses an HTTP response from a UpdateManufacturerWithResponse call
+func ParseUpdateManufacturerResponse(rsp *http.Response) (*UpdateManufacturerResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateManufacturerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Manufacturer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListNetworksResponse parses an HTTP response from a ListNetworksWithResponse call
+func ParseListNetworksResponse(rsp *http.Response) (*ListNetworksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListNetworksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Network `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateNetworkResponse parses an HTTP response from a CreateNetworkWithResponse call
+func ParseCreateNetworkResponse(rsp *http.Response) (*CreateNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Network
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteNetworkResponse parses an HTTP response from a DeleteNetworkWithResponse call
+func ParseDeleteNetworkResponse(rsp *http.Response) (*DeleteNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetNetworkResponse parses an HTTP response from a GetNetworkWithResponse call
+func ParseGetNetworkResponse(rsp *http.Response) (*GetNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Network
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateNetworkResponse parses an HTTP response from a UpdateNetworkWithResponse call
+func ParseUpdateNetworkResponse(rsp *http.Response) (*UpdateNetworkResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateNetworkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Network
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListProductsResponse parses an HTTP response from a ListProductsWithResponse call
+func ParseListProductsResponse(rsp *http.Response) (*ListProductsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListProductsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Product `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateProductResponse parses an HTTP response from a CreateProductWithResponse call
+func ParseCreateProductResponse(rsp *http.Response) (*CreateProductResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateProductResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Product
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteProductResponse parses an HTTP response from a DeleteProductWithResponse call
+func ParseDeleteProductResponse(rsp *http.Response) (*DeleteProductResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteProductResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetProductResponse parses an HTTP response from a GetProductWithResponse call
+func ParseGetProductResponse(rsp *http.Response) (*GetProductResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetProductResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Product
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateProductResponse parses an HTTP response from a UpdateProductWithResponse call
+func ParseUpdateProductResponse(rsp *http.Response) (*UpdateProductResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateProductResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Product
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResolveMachinePortResponse parses an HTTP response from a ResolveMachinePortWithResponse call
+func ParseResolveMachinePortResponse(rsp *http.Response) (*ResolveMachinePortResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveMachinePortResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResolvedDestination
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResolveInstanceResponse parses an HTTP response from a ResolveInstanceWithResponse call
+func ParseResolveInstanceResponse(rsp *http.Response) (*ResolveInstanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveInstanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ResolvedDestination
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListServicesResponse parses an HTTP response from a ListServicesWithResponse call
+func ParseListServicesResponse(rsp *http.Response) (*ListServicesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListServicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Service `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateServiceResponse parses an HTTP response from a CreateServiceWithResponse call
+func ParseCreateServiceResponse(rsp *http.Response) (*CreateServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Service
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteServiceResponse parses an HTTP response from a DeleteServiceWithResponse call
+func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetServiceResponse parses an HTTP response from a GetServiceWithResponse call
+func ParseGetServiceResponse(rsp *http.Response) (*GetServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Service
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateServiceResponse parses an HTTP response from a UpdateServiceWithResponse call
+func ParseUpdateServiceResponse(rsp *http.Response) (*UpdateServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Service
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteServiceLogoResponse parses an HTTP response from a DeleteServiceLogoWithResponse call
+func ParseDeleteServiceLogoResponse(rsp *http.Response) (*DeleteServiceLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteServiceLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetServiceLogoResponse parses an HTTP response from a GetServiceLogoWithResponse call
+func ParseGetServiceLogoResponse(rsp *http.Response) (*GetServiceLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetServiceLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 304:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateServiceLogoResponse parses an HTTP response from a UpdateServiceLogoWithResponse call
+func ParseUpdateServiceLogoResponse(rsp *http.Response) (*UpdateServiceLogoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateServiceLogoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTopologyResponse parses an HTTP response from a GetTopologyWithResponse call
+func ParseGetTopologyResponse(rsp *http.Response) (*GetTopologyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTopologyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Topology
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1054,21 +12159,216 @@ func ParseUpdateLinkResponse(rsp *http.Response) (*UpdateLinkResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// ListLinks List short links
-	// (GET /links)
-	ListLinks(w http.ResponseWriter, r *http.Request)
-	// CreateLink Create a short link
-	// (POST /links)
-	CreateLink(w http.ResponseWriter, r *http.Request)
-	// DeleteLink Delete a short link
-	// (DELETE /links/{short})
-	DeleteLink(w http.ResponseWriter, r *http.Request, short Short)
-	// GetLink Get a short link
-	// (GET /links/{short})
-	GetLink(w http.ResponseWriter, r *http.Request, short Short)
-	// UpdateLink Replace a short link
-	// (PUT /links/{short})
-	UpdateLink(w http.ResponseWriter, r *http.Request, short Short)
+
+	// (GET /addresses)
+	ListAddresses(w http.ResponseWriter, r *http.Request)
+
+	// (POST /addresses)
+	CreateAddress(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /addresses/{publicId})
+	DeleteAddress(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /addresses/{publicId})
+	GetAddress(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /addresses/{publicId})
+	UpdateAddress(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /areas)
+	ListAreas(w http.ResponseWriter, r *http.Request)
+
+	// (POST /areas)
+	CreateArea(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /areas/{publicId})
+	DeleteArea(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /areas/{publicId})
+	GetArea(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /areas/{publicId})
+	UpdateArea(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /assets)
+	ListAssets(w http.ResponseWriter, r *http.Request)
+
+	// (POST /assets)
+	CreateAsset(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /assets/{publicId})
+	DeleteAsset(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /assets/{publicId})
+	GetAsset(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /assets/{publicId})
+	UpdateAsset(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /instance-endpoints)
+	ListInstanceEndpoints(w http.ResponseWriter, r *http.Request)
+
+	// (POST /instance-endpoints)
+	CreateInstanceEndpoint(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /instance-endpoints/{publicId})
+	DeleteInstanceEndpoint(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /instance-endpoints/{publicId})
+	GetInstanceEndpoint(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /instance-endpoints/{publicId})
+	UpdateInstanceEndpoint(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /instances)
+	ListInstances(w http.ResponseWriter, r *http.Request)
+
+	// (POST /instances)
+	CreateInstance(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /instances/{publicId})
+	DeleteInstance(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /instances/{publicId})
+	GetInstance(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /instances/{publicId})
+	UpdateInstance(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machine-providers)
+	ListMachineProviders(w http.ResponseWriter, r *http.Request)
+
+	// (POST /machine-providers)
+	CreateMachineProvider(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /machine-providers/{publicId})
+	DeleteMachineProvider(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machine-providers/{publicId})
+	GetMachineProvider(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /machine-providers/{publicId})
+	UpdateMachineProvider(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (DELETE /machine-providers/{publicId}/logo)
+	DeleteMachineProviderLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machine-providers/{publicId}/logo)
+	GetMachineProviderLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /machine-providers/{publicId}/logo)
+	UpdateMachineProviderLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machine-users)
+	ListMachineUsers(w http.ResponseWriter, r *http.Request)
+
+	// (POST /machine-users)
+	CreateMachineUser(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /machine-users/{publicId})
+	DeleteMachineUser(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machine-users/{publicId})
+	GetMachineUser(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /machine-users/{publicId})
+	UpdateMachineUser(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machines)
+	ListMachines(w http.ResponseWriter, r *http.Request)
+
+	// (POST /machines)
+	CreateMachine(w http.ResponseWriter, r *http.Request)
+
+	// (GET /machines/{machine}/instances)
+	ListMachineInstances(w http.ResponseWriter, r *http.Request, machine MachineSlug)
+
+	// (DELETE /machines/{publicId})
+	DeleteMachine(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /machines/{publicId})
+	GetMachine(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /machines/{publicId})
+	UpdateMachine(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /manufacturers)
+	ListManufacturers(w http.ResponseWriter, r *http.Request)
+
+	// (POST /manufacturers)
+	CreateManufacturer(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /manufacturers/{publicId})
+	DeleteManufacturer(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /manufacturers/{publicId})
+	GetManufacturer(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /manufacturers/{publicId})
+	UpdateManufacturer(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /networks)
+	ListNetworks(w http.ResponseWriter, r *http.Request)
+
+	// (POST /networks)
+	CreateNetwork(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /networks/{publicId})
+	DeleteNetwork(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /networks/{publicId})
+	GetNetwork(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /networks/{publicId})
+	UpdateNetwork(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /products)
+	ListProducts(w http.ResponseWriter, r *http.Request)
+
+	// (POST /products)
+	CreateProduct(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /products/{publicId})
+	DeleteProduct(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /products/{publicId})
+	GetProduct(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /products/{publicId})
+	UpdateProduct(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /resolve/{machine}/{port})
+	ResolveMachinePort(w http.ResponseWriter, r *http.Request, machine MachineSlug, port int, params ResolveMachinePortParams)
+
+	// (GET /resolve/{machine}/{service}/{instance})
+	ResolveInstance(w http.ResponseWriter, r *http.Request, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params ResolveInstanceParams)
+
+	// (GET /services)
+	ListServices(w http.ResponseWriter, r *http.Request)
+
+	// (POST /services)
+	CreateService(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /services/{publicId})
+	DeleteService(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /services/{publicId})
+	GetService(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /services/{publicId})
+	UpdateService(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (DELETE /services/{publicId}/logo)
+	DeleteServiceLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /services/{publicId}/logo)
+	GetServiceLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /services/{publicId}/logo)
+	UpdateServiceLogo(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /topology)
+	GetTopology(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1080,11 +12380,11 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-// ListLinks operation middleware
-func (siw *ServerInterfaceWrapper) ListLinks(w http.ResponseWriter, r *http.Request) {
+// ListAddresses operation middleware
+func (siw *ServerInterfaceWrapper) ListAddresses(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListLinks(w, r)
+		siw.Handler.ListAddresses(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1094,11 +12394,11 @@ func (siw *ServerInterfaceWrapper) ListLinks(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// CreateLink operation middleware
-func (siw *ServerInterfaceWrapper) CreateLink(w http.ResponseWriter, r *http.Request) {
+// CreateAddress operation middleware
+func (siw *ServerInterfaceWrapper) CreateAddress(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateLink(w, r)
+		siw.Handler.CreateAddress(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1108,23 +12408,23 @@ func (siw *ServerInterfaceWrapper) CreateLink(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// DeleteLink operation middleware
-func (siw *ServerInterfaceWrapper) DeleteLink(w http.ResponseWriter, r *http.Request) {
+// DeleteAddress operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAddress(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "short" -------------
-	var short Short
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "short", r.PathValue("short"), &short, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "short", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteLink(w, r, short)
+		siw.Handler.DeleteAddress(w, r, publicId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1134,23 +12434,23 @@ func (siw *ServerInterfaceWrapper) DeleteLink(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// GetLink operation middleware
-func (siw *ServerInterfaceWrapper) GetLink(w http.ResponseWriter, r *http.Request) {
+// GetAddress operation middleware
+func (siw *ServerInterfaceWrapper) GetAddress(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "short" -------------
-	var short Short
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "short", r.PathValue("short"), &short, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "short", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetLink(w, r, short)
+		siw.Handler.GetAddress(w, r, publicId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1160,23 +12460,1509 @@ func (siw *ServerInterfaceWrapper) GetLink(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
-// UpdateLink operation middleware
-func (siw *ServerInterfaceWrapper) UpdateLink(w http.ResponseWriter, r *http.Request) {
+// UpdateAddress operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAddress(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
 
-	// ------------- Path parameter "short" -------------
-	var short Short
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
 
-	err = runtime.BindStyledParameterWithOptions("simple", "short", r.PathValue("short"), &short, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "short", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateLink(w, r, short)
+		siw.Handler.UpdateAddress(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAreas operation middleware
+func (siw *ServerInterfaceWrapper) ListAreas(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAreas(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateArea operation middleware
+func (siw *ServerInterfaceWrapper) CreateArea(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateArea(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteArea operation middleware
+func (siw *ServerInterfaceWrapper) DeleteArea(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteArea(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArea operation middleware
+func (siw *ServerInterfaceWrapper) GetArea(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArea(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateArea operation middleware
+func (siw *ServerInterfaceWrapper) UpdateArea(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateArea(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAssets operation middleware
+func (siw *ServerInterfaceWrapper) ListAssets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAssets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAsset operation middleware
+func (siw *ServerInterfaceWrapper) CreateAsset(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAsset(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAsset operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAsset(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAsset operation middleware
+func (siw *ServerInterfaceWrapper) GetAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAsset(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAsset operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAsset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAsset(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceEndpoints operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceEndpoints(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceEndpoints(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceEndpoint(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteInstanceEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) DeleteInstanceEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteInstanceEndpoint(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetInstanceEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) GetInstanceEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInstanceEndpoint(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateInstanceEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) UpdateInstanceEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateInstanceEndpoint(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstances operation middleware
+func (siw *ServerInterfaceWrapper) ListInstances(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstances(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstance operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstance(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstance(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteInstance operation middleware
+func (siw *ServerInterfaceWrapper) DeleteInstance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteInstance(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetInstance operation middleware
+func (siw *ServerInterfaceWrapper) GetInstance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInstance(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateInstance operation middleware
+func (siw *ServerInterfaceWrapper) UpdateInstance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateInstance(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMachineProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListMachineProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMachineProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMachineProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateMachineProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMachineProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMachineProvider operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMachineProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMachineProvider(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMachineProvider operation middleware
+func (siw *ServerInterfaceWrapper) GetMachineProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMachineProvider(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMachineProvider operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMachineProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMachineProvider(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMachineProviderLogo operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMachineProviderLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMachineProviderLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMachineProviderLogo operation middleware
+func (siw *ServerInterfaceWrapper) GetMachineProviderLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMachineProviderLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMachineProviderLogo operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMachineProviderLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMachineProviderLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMachineUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListMachineUsers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMachineUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMachineUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateMachineUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMachineUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMachineUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMachineUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMachineUser(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMachineUser operation middleware
+func (siw *ServerInterfaceWrapper) GetMachineUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMachineUser(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMachineUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMachineUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMachineUser(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMachines operation middleware
+func (siw *ServerInterfaceWrapper) ListMachines(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMachines(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMachine operation middleware
+func (siw *ServerInterfaceWrapper) CreateMachine(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMachine(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMachineInstances operation middleware
+func (siw *ServerInterfaceWrapper) ListMachineInstances(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "machine" -------------
+	var machine MachineSlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "machine", r.PathValue("machine"), &machine, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "machine", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMachineInstances(w, r, machine)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMachine operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMachine(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMachine(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMachine operation middleware
+func (siw *ServerInterfaceWrapper) GetMachine(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMachine(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMachine operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMachine(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMachine(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListManufacturers operation middleware
+func (siw *ServerInterfaceWrapper) ListManufacturers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListManufacturers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateManufacturer operation middleware
+func (siw *ServerInterfaceWrapper) CreateManufacturer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateManufacturer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteManufacturer operation middleware
+func (siw *ServerInterfaceWrapper) DeleteManufacturer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteManufacturer(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetManufacturer operation middleware
+func (siw *ServerInterfaceWrapper) GetManufacturer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetManufacturer(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateManufacturer operation middleware
+func (siw *ServerInterfaceWrapper) UpdateManufacturer(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateManufacturer(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNetworks operation middleware
+func (siw *ServerInterfaceWrapper) ListNetworks(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNetworks(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateNetwork operation middleware
+func (siw *ServerInterfaceWrapper) CreateNetwork(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateNetwork(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteNetwork operation middleware
+func (siw *ServerInterfaceWrapper) DeleteNetwork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteNetwork(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNetwork operation middleware
+func (siw *ServerInterfaceWrapper) GetNetwork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNetwork(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateNetwork operation middleware
+func (siw *ServerInterfaceWrapper) UpdateNetwork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateNetwork(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListProducts operation middleware
+func (siw *ServerInterfaceWrapper) ListProducts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListProducts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateProduct operation middleware
+func (siw *ServerInterfaceWrapper) CreateProduct(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateProduct(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteProduct operation middleware
+func (siw *ServerInterfaceWrapper) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteProduct(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProduct operation middleware
+func (siw *ServerInterfaceWrapper) GetProduct(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProduct(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateProduct operation middleware
+func (siw *ServerInterfaceWrapper) UpdateProduct(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateProduct(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveMachinePort operation middleware
+func (siw *ServerInterfaceWrapper) ResolveMachinePort(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "machine" -------------
+	var machine MachineSlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "machine", r.PathValue("machine"), &machine, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "machine", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "port" -------------
+	var port int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "port", r.PathValue("port"), &port, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "port", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveMachinePortParams
+
+	// ------------- Optional query parameter "via" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "via", r.URL.Query(), &params.Via, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "via"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "via", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "scheme" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scheme", r.URL.Query(), &params.Scheme, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "scheme"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "scheme", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveMachinePort(w, r, machine, port, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveInstance operation middleware
+func (siw *ServerInterfaceWrapper) ResolveInstance(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "machine" -------------
+	var machine MachineSlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "machine", r.PathValue("machine"), &machine, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "machine", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "service" -------------
+	var service ServiceSlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "service", r.PathValue("service"), &service, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "service", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "instance" -------------
+	var instance InstanceSlug
+
+	err = runtime.BindStyledParameterWithOptions("simple", "instance", r.PathValue("instance"), &instance, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "instance", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResolveInstanceParams
+
+	// ------------- Optional query parameter "via" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "via", r.URL.Query(), &params.Via, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "via"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "via", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveInstance(w, r, machine, service, instance, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListServices operation middleware
+func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListServices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateService operation middleware
+func (siw *ServerInterfaceWrapper) CreateService(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateService(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteService operation middleware
+func (siw *ServerInterfaceWrapper) DeleteService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteService(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetService operation middleware
+func (siw *ServerInterfaceWrapper) GetService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetService(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateService operation middleware
+func (siw *ServerInterfaceWrapper) UpdateService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateService(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteServiceLogo operation middleware
+func (siw *ServerInterfaceWrapper) DeleteServiceLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteServiceLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServiceLogo operation middleware
+func (siw *ServerInterfaceWrapper) GetServiceLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServiceLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateServiceLogo operation middleware
+func (siw *ServerInterfaceWrapper) UpdateServiceLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateServiceLogo(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTopology operation middleware
+func (siw *ServerInterfaceWrapper) GetTopology(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTopology(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1306,11 +14092,76 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/links", wrapper.ListLinks)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/links", wrapper.CreateLink)
-	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/links/{short}", wrapper.DeleteLink)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/links/{short}", wrapper.GetLink)
-	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/links/{short}", wrapper.UpdateLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/topology", wrapper.GetTopology)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machine-providers", wrapper.ListMachineProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/machine-providers", wrapper.CreateMachineProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/machine-providers/{publicId}", wrapper.DeleteMachineProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machine-providers/{publicId}", wrapper.GetMachineProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/machine-providers/{publicId}", wrapper.UpdateMachineProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/machine-providers/{publicId}/logo", wrapper.DeleteMachineProviderLogo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machine-providers/{publicId}/logo", wrapper.GetMachineProviderLogo)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/machine-providers/{publicId}/logo", wrapper.UpdateMachineProviderLogo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/areas", wrapper.ListAreas)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/areas", wrapper.CreateArea)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/areas/{publicId}", wrapper.DeleteArea)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/areas/{publicId}", wrapper.GetArea)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/areas/{publicId}", wrapper.UpdateArea)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/manufacturers", wrapper.ListManufacturers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/manufacturers", wrapper.CreateManufacturer)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/manufacturers/{publicId}", wrapper.DeleteManufacturer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/manufacturers/{publicId}", wrapper.GetManufacturer)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/manufacturers/{publicId}", wrapper.UpdateManufacturer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/products", wrapper.ListProducts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/products", wrapper.CreateProduct)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/products/{publicId}", wrapper.DeleteProduct)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/products/{publicId}", wrapper.GetProduct)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/products/{publicId}", wrapper.UpdateProduct)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/assets", wrapper.ListAssets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/assets", wrapper.CreateAsset)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/assets/{publicId}", wrapper.DeleteAsset)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/assets/{publicId}", wrapper.GetAsset)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/assets/{publicId}", wrapper.UpdateAsset)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machines", wrapper.ListMachines)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/machines", wrapper.CreateMachine)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/machines/{publicId}", wrapper.DeleteMachine)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machines/{publicId}", wrapper.GetMachine)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/machines/{publicId}", wrapper.UpdateMachine)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machine-users", wrapper.ListMachineUsers)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/machine-users", wrapper.CreateMachineUser)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/machine-users/{publicId}", wrapper.DeleteMachineUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machine-users/{publicId}", wrapper.GetMachineUser)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/machine-users/{publicId}", wrapper.UpdateMachineUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/networks", wrapper.ListNetworks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/networks", wrapper.CreateNetwork)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/networks/{publicId}", wrapper.DeleteNetwork)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/networks/{publicId}", wrapper.GetNetwork)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/networks/{publicId}", wrapper.UpdateNetwork)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/addresses", wrapper.ListAddresses)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/addresses", wrapper.CreateAddress)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/addresses/{publicId}", wrapper.DeleteAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/addresses/{publicId}", wrapper.GetAddress)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/addresses/{publicId}", wrapper.UpdateAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/services", wrapper.ListServices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/services", wrapper.CreateService)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/services/{publicId}", wrapper.DeleteService)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/services/{publicId}", wrapper.GetService)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/services/{publicId}", wrapper.UpdateService)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/services/{publicId}/logo", wrapper.DeleteServiceLogo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/services/{publicId}/logo", wrapper.GetServiceLogo)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/services/{publicId}/logo", wrapper.UpdateServiceLogo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instances", wrapper.ListInstances)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/instances", wrapper.CreateInstance)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/instances/{publicId}", wrapper.DeleteInstance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instances/{publicId}", wrapper.GetInstance)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/instances/{publicId}", wrapper.UpdateInstance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-endpoints", wrapper.ListInstanceEndpoints)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/instance-endpoints", wrapper.CreateInstanceEndpoint)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.DeleteInstanceEndpoint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.GetInstanceEndpoint)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.UpdateInstanceEndpoint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machines/{machine}/instances", wrapper.ListMachineInstances)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/{machine}/{service}/{instance}", wrapper.ResolveInstance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/{machine}/{port}", wrapper.ResolveMachinePort)
 
 	return m
 }

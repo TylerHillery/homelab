@@ -2,142 +2,786 @@ openapi: 3.0.3
 info:
   title: HLIMS API
   version: 0.1.0
-  description: API for homelab inventory, services, and short links.
+  description: API for homelab inventory and redirect resolution.
 servers:
-  - url: http://go/.api/v1
+  - url: /api/v1
+tags:
+  - {name: Topology, description: Inventory organized for topology consumers}
+  - {name: Machine Providers, description: Infrastructure provider inventory and branding}
+  - {name: Areas, description: Physical sites and provider regions}
+  - {name: Manufacturers, description: Hardware manufacturers}
+  - {name: Products, description: Hardware product catalog}
+  - {name: Assets, description: Physical asset inventory and placement}
+  - {name: Machines, description: Bare-metal and virtual machines}
+  - {name: Machine Users, description: SSH login users assigned to Machines}
+  - {name: Networks, description: LAN, Tailnet, cloud, and public networks}
+  - {name: Addresses, description: Machine and Area network addresses}
+  - {name: Services, description: Service definitions and branding}
+  - {name: Instances, description: Service workloads running on Machines}
+  - {name: Instance Endpoints, description: Network routes to service Instances}
+  - {name: Resolver, description: Inventory-backed destination resolution}
 paths:
-  /links:
+  /topology:
     get:
-      operationId: listLinks
-      summary: List short links
+      tags: [Topology]
+      operationId: getTopology
       responses:
-        "200":
-          description: Short links
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Link"
-        default:
-          $ref: "#/components/responses/Error"
+        "200": {description: Complete inventory topology, content: {application/json: {schema: {$ref: "#/components/schemas/Topology"}}}}
+        default: {$ref: "#/components/responses/Error"}
+  /machine-providers:
+    get:
+      tags: [Machine Providers]
+      operationId: listMachineProviders
+      responses:
+        "200": {description: Machine providers, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/MachineProvider"}}}}}}}
+        default: {$ref: "#/components/responses/Error"}
     post:
-      operationId: createLink
-      summary: Create a short link
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateLink"
+      tags: [Machine Providers]
+      operationId: createMachineProvider
+      requestBody: {$ref: "#/components/requestBodies/MachineProviderWrite"}
       responses:
-        "201":
-          description: Link created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Link"
-        default:
-          $ref: "#/components/responses/Error"
-  /links/{short}:
-    parameters:
-      - $ref: "#/components/parameters/Short"
+        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/MachineProvider"}}}}
+        default: {$ref: "#/components/responses/Error"}
+  /machine-providers/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
     get:
-      operationId: getLink
-      summary: Get a short link
+      tags: [Machine Providers]
+      operationId: getMachineProvider
+      responses:
+        "200": {description: Machine provider, content: {application/json: {schema: {$ref: "#/components/schemas/MachineProvider"}}}}
+        default: {$ref: "#/components/responses/Error"}
+    put:
+      tags: [Machine Providers]
+      operationId: updateMachineProvider
+      requestBody: {$ref: "#/components/requestBodies/MachineProviderWrite"}
+      responses:
+        "200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/MachineProvider"}}}}
+        default: {$ref: "#/components/responses/Error"}
+    delete:
+      tags: [Machine Providers]
+      operationId: deleteMachineProvider
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /machine-providers/{publicId}/logo:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Machine Providers]
+      operationId: getMachineProviderLogo
       responses:
         "200":
-          description: Short link
+          description: Machine provider logo
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Link"
-        default:
-          $ref: "#/components/responses/Error"
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/webp: {schema: {type: string, format: binary}}
+        "304": {description: Not modified}
+        default: {$ref: "#/components/responses/Error"}
     put:
-      operationId: updateLink
-      summary: Replace a short link
+      tags: [Machine Providers]
+      operationId: updateMachineProviderLogo
       requestBody:
         required: true
         content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateLink"
+          image/png: {schema: {type: string, format: binary}}
+          image/jpeg: {schema: {type: string, format: binary}}
+          image/webp: {schema: {type: string, format: binary}}
+      responses: {"204": {description: Logo stored}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Machine Providers]
+      operationId: deleteMachineProviderLogo
+      responses: {"204": {description: Logo deleted}, default: {$ref: "#/components/responses/Error"}}
+  /areas:
+    get:
+      tags: [Areas]
+      operationId: listAreas
+      responses:
+        "200": {description: Areas, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Area"}}}}}}}
+        default: {$ref: "#/components/responses/Error"}
+    post:
+      tags: [Areas]
+      operationId: createArea
+      requestBody: {$ref: "#/components/requestBodies/AreaWrite"}
+      responses:
+        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Area"}}}}
+        default: {$ref: "#/components/responses/Error"}
+  /areas/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Areas]
+      operationId: getArea
+      responses: {"200": {description: Area, content: {application/json: {schema: {$ref: "#/components/schemas/Area"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Areas]
+      operationId: updateArea
+      requestBody: {$ref: "#/components/requestBodies/AreaWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Area"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Areas]
+      operationId: deleteArea
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /manufacturers:
+    get:
+      tags: [Manufacturers]
+      operationId: listManufacturers
+      responses: {"200": {description: Manufacturers, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Manufacturer"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Manufacturers]
+      operationId: createManufacturer
+      requestBody: {$ref: "#/components/requestBodies/ManufacturerWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Manufacturer"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /manufacturers/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Manufacturers]
+      operationId: getManufacturer
+      responses: {"200": {description: Manufacturer, content: {application/json: {schema: {$ref: "#/components/schemas/Manufacturer"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Manufacturers]
+      operationId: updateManufacturer
+      requestBody: {$ref: "#/components/requestBodies/ManufacturerWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Manufacturer"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Manufacturers]
+      operationId: deleteManufacturer
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      responses: {"200": {description: Products, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Product"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Products]
+      operationId: createProduct
+      requestBody: {$ref: "#/components/requestBodies/ProductWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /products/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Products]
+      operationId: getProduct
+      responses: {"200": {description: Product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      requestBody: {$ref: "#/components/requestBodies/ProductWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Products]
+      operationId: deleteProduct
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /assets:
+    get:
+      tags: [Assets]
+      operationId: listAssets
+      responses: {"200": {description: Assets, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Asset"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Assets]
+      operationId: createAsset
+      requestBody: {$ref: "#/components/requestBodies/AssetWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Asset"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /assets/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Assets]
+      operationId: getAsset
+      responses: {"200": {description: Asset, content: {application/json: {schema: {$ref: "#/components/schemas/Asset"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Assets]
+      operationId: updateAsset
+      requestBody: {$ref: "#/components/requestBodies/AssetWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Asset"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Assets]
+      operationId: deleteAsset
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /machines:
+    get:
+      tags: [Machines]
+      operationId: listMachines
+      responses: {"200": {description: Machines, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Machine"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Machines]
+      operationId: createMachine
+      requestBody: {$ref: "#/components/requestBodies/MachineWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Machine"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /machines/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Machines]
+      operationId: getMachine
+      responses: {"200": {description: Machine, content: {application/json: {schema: {$ref: "#/components/schemas/Machine"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Machines]
+      operationId: updateMachine
+      requestBody: {$ref: "#/components/requestBodies/MachineWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Machine"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Machines]
+      operationId: deleteMachine
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /machine-users:
+    get:
+      tags: [Machine Users]
+      operationId: listMachineUsers
+      responses: {"200": {description: Machine users, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/MachineUser"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Machine Users]
+      operationId: createMachineUser
+      requestBody: {$ref: "#/components/requestBodies/MachineUserWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUser"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /machine-users/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Machine Users]
+      operationId: getMachineUser
+      responses: {"200": {description: Machine user, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUser"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Machine Users]
+      operationId: updateMachineUser
+      requestBody: {$ref: "#/components/requestBodies/MachineUserWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUser"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Machine Users]
+      operationId: deleteMachineUser
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /networks:
+    get:
+      tags: [Networks]
+      operationId: listNetworks
+      responses: {"200": {description: Networks, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Network"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Networks]
+      operationId: createNetwork
+      requestBody: {$ref: "#/components/requestBodies/NetworkWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /networks/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Networks]
+      operationId: getNetwork
+      responses: {"200": {description: Network, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Networks]
+      operationId: updateNetwork
+      requestBody: {$ref: "#/components/requestBodies/NetworkWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Network"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Networks]
+      operationId: deleteNetwork
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /addresses:
+    get:
+      tags: [Addresses]
+      operationId: listAddresses
+      responses: {"200": {description: Addresses, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Address"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Addresses]
+      operationId: createAddress
+      requestBody: {$ref: "#/components/requestBodies/AddressWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /addresses/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Addresses]
+      operationId: getAddress
+      responses: {"200": {description: Address, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Addresses]
+      operationId: updateAddress
+      requestBody: {$ref: "#/components/requestBodies/AddressWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Address"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Addresses]
+      operationId: deleteAddress
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /services:
+    get:
+      tags: [Services]
+      operationId: listServices
+      responses: {"200": {description: Services, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Service"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Services]
+      operationId: createService
+      requestBody: {$ref: "#/components/requestBodies/ServiceWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Service"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /services/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Services]
+      operationId: getService
+      responses: {"200": {description: Service, content: {application/json: {schema: {$ref: "#/components/schemas/Service"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Services]
+      operationId: updateService
+      requestBody: {$ref: "#/components/requestBodies/ServiceWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Service"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Services]
+      operationId: deleteService
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /services/{publicId}/logo:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Services]
+      operationId: getServiceLogo
       responses:
         "200":
-          description: Link updated
+          description: Service logo
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Link"
-        default:
-          $ref: "#/components/responses/Error"
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/webp: {schema: {type: string, format: binary}}
+        "304": {description: Not modified}
+        default: {$ref: "#/components/responses/Error"}
+    put:
+      tags: [Services]
+      operationId: updateServiceLogo
+      requestBody:
+        required: true
+        content:
+          image/png: {schema: {type: string, format: binary}}
+          image/jpeg: {schema: {type: string, format: binary}}
+          image/webp: {schema: {type: string, format: binary}}
+      responses: {"204": {description: Logo stored}, default: {$ref: "#/components/responses/Error"}}
     delete:
-      operationId: deleteLink
-      summary: Delete a short link
-      responses:
-        "204":
-          description: Link deleted
-        default:
-          $ref: "#/components/responses/Error"
+      tags: [Services]
+      operationId: deleteServiceLogo
+      responses: {"204": {description: Logo deleted}, default: {$ref: "#/components/responses/Error"}}
+  /instances:
+    get:
+      tags: [Instances]
+      operationId: listInstances
+      responses: {"200": {description: Instances, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Instance"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Instances]
+      operationId: createInstance
+      requestBody: {$ref: "#/components/requestBodies/InstanceWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Instance"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /instances/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Instances]
+      operationId: getInstance
+      responses: {"200": {description: Instance, content: {application/json: {schema: {$ref: "#/components/schemas/Instance"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Instances]
+      operationId: updateInstance
+      requestBody: {$ref: "#/components/requestBodies/InstanceWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Instance"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Instances]
+      operationId: deleteInstance
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /instance-endpoints:
+    get:
+      tags: [Instance Endpoints]
+      operationId: listInstanceEndpoints
+      responses: {"200": {description: Instance endpoints, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/InstanceEndpoint"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Instance Endpoints]
+      operationId: createInstanceEndpoint
+      requestBody: {$ref: "#/components/requestBodies/InstanceEndpointWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpoint"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /instance-endpoints/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Instance Endpoints]
+      operationId: getInstanceEndpoint
+      responses: {"200": {description: Instance endpoint, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpoint"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Instance Endpoints]
+      operationId: updateInstanceEndpoint
+      requestBody: {$ref: "#/components/requestBodies/InstanceEndpointWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpoint"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Instance Endpoints]
+      operationId: deleteInstanceEndpoint
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /machines/{machine}/instances:
+    parameters: [{$ref: "#/components/parameters/MachineSlug"}]
+    get:
+      tags: [Machines]
+      operationId: listMachineInstances
+      responses: {"200": {description: Service instances, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/MachineInstance"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+  /resolve/{machine}/{service}/{instance}:
+    parameters: [{$ref: "#/components/parameters/MachineSlug"}, {$ref: "#/components/parameters/ServiceSlug"}, {$ref: "#/components/parameters/InstanceSlug"}, {$ref: "#/components/parameters/Via"}]
+    get:
+      tags: [Resolver]
+      operationId: resolveInstance
+      responses: {"200": {description: Resolved destination, content: {application/json: {schema: {$ref: "#/components/schemas/ResolvedDestination"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /resolve/{machine}/{port}:
+    parameters:
+      - {$ref: "#/components/parameters/MachineSlug"}
+      - {name: port, in: path, required: true, schema: {type: integer, minimum: 1, maximum: 65535}}
+      - {$ref: "#/components/parameters/Via"}
+      - {name: scheme, in: query, schema: {$ref: "#/components/schemas/Scheme"}}
+    get:
+      tags: [Resolver]
+      operationId: resolveMachinePort
+      responses: {"200": {description: Resolved destination, content: {application/json: {schema: {$ref: "#/components/schemas/ResolvedDestination"}}}}, default: {$ref: "#/components/responses/Error"}}
 components:
   parameters:
-    Short:
-      name: short
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^\w[\w\-.]*$'
+    PublicId: {name: publicId, in: path, required: true, schema: {$ref: "#/components/schemas/PublicId"}}
+    MachineSlug: {name: machine, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
+    ServiceSlug: {name: service, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
+    InstanceSlug: {name: instance, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
+    Via: {name: via, in: query, schema: {$ref: "#/components/schemas/Via"}}
+  requestBodies:
+    MachineProviderWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineProviderWrite"}}}}
+    AreaWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AreaWrite"}}}}
+    ManufacturerWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ManufacturerWrite"}}}}
+    ProductWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ProductWrite"}}}}
+    AssetWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AssetWrite"}}}}
+    MachineWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineWrite"}}}}
+    MachineUserWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUserWrite"}}}}
+    NetworkWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NetworkWrite"}}}}
+    AddressWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AddressWrite"}}}}
+    ServiceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ServiceWrite"}}}}
+    InstanceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceWrite"}}}}
+    InstanceEndpointWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpointWrite"}}}}
   responses:
-    Error:
-      description: Error response
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
+    Error: {description: Error response, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
   schemas:
-    Link:
-      type: object
-      required: [short, url, owner, createdAt, updatedAt]
-      properties:
-        short:
-          type: string
-        url:
-          type: string
-        owner:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-    CreateLink:
+    PublicId: {type: string, pattern: "^[a-z0-9]{12}$"}
+    Slug: {type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    Via: {type: string, enum: [lan, tailnet]}
+    Scheme: {type: string, enum: [http, https]}
+    MachineKind: {type: string, enum: [bare_metal, virtual_machine]}
+    NetworkKind: {type: string, enum: [lan, tailnet, cloud_vpc, public]}
+    ProductKind: {type: string, enum: [system, processor, memory, drive]}
+    AssetPlacementType: {type: string, enum: [area, asset, unplaced]}
+    CpuAllocation: {type: string, enum: [shared, dedicated]}
+    StorageMediaKind: {type: string, enum: [hdd, ssd]}
+    StorageInterfaceKind: {type: string, enum: [sata, sas, nvme, usb, scsi, virtio, virtual]}
+    Topology:
       type: object
       additionalProperties: false
-      required: [short, url]
+      required: [providers]
       properties:
-        short:
-          type: string
-        url:
-          type: string
-    UpdateLink:
+        providers:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyProvider"}
+    TopologyProvider:
       type: object
       additionalProperties: false
-      required: [url]
+      required: [publicId, name, slug, hasLogo, areas]
       properties:
-        url:
-          type: string
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        hasLogo: {type: boolean}
+        areas:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyArea"}
+    TopologyArea:
+      type: object
+      additionalProperties: false
+      required: [publicId, name, slug, machines]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        machines:
+          type: array
+          description: Root machines in the area. Descendants are recursively nested in children.
+          items: {$ref: "#/components/schemas/TopologyMachine"}
+    TopologyMachine:
+      type: object
+      additionalProperties: false
+      required: [publicId, name, slug, kind, isFavorite, users, addresses, children, services]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        kind: {$ref: "#/components/schemas/MachineKind"}
+        isFavorite: {type: boolean}
+        hostname: {type: string, nullable: true}
+        operatingSystem: {type: string, nullable: true}
+        operatingSystemVersion: {type: string, nullable: true}
+        kernel: {type: string, nullable: true}
+        architecture: {type: string, nullable: true}
+        cpuCount: {type: integer, minimum: 1, nullable: true}
+        cpuAllocation:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/CpuAllocation"}]
+        cpuVendor: {type: string, nullable: true}
+        memoryBytes: {type: integer, format: int64, minimum: 1, nullable: true}
+        storageBytes: {type: integer, format: int64, minimum: 1, nullable: true}
+        storageMediaKind:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/StorageMediaKind"}]
+        storageInterfaceKind:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/StorageInterfaceKind"}]
+        virtualizationPlatform: {type: string, nullable: true}
+        users:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyMachineUser"}
+        addresses:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyMachineAddress"}
+        children:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyMachine"}
+        services:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyService"}
+    TopologyMachineUser:
+      type: object
+      additionalProperties: false
+      required: [publicId, username, isPreferred]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        username: {$ref: "#/components/schemas/MachineUsername"}
+        isPreferred: {type: boolean}
+        notes: {type: string, nullable: true}
+    TopologyMachineAddress:
+      type: object
+      additionalProperties: false
+      required: [publicId, networkPublicId, networkKind, address, isPrimary]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        networkPublicId: {$ref: "#/components/schemas/PublicId"}
+        networkKind: {$ref: "#/components/schemas/NetworkKind"}
+        name: {type: string, nullable: true}
+        address: {type: string}
+        dnsName: {type: string, nullable: true}
+        interfaceName: {type: string, nullable: true}
+        isPrimary: {type: boolean}
+    TopologyService:
+      type: object
+      additionalProperties: false
+      required: [publicId, name, slug, hasLogo, instances]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        description: {type: string, nullable: true}
+        hasLogo: {type: boolean}
+        instances:
+          type: array
+          items: {$ref: "#/components/schemas/TopologyInstance"}
+    TopologyInstance:
+      type: object
+      additionalProperties: false
+      required: [publicId, name, slug, port, resolverPath, availableVia]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        port: {type: integer, minimum: 1, maximum: 65535}
+        resolverPath: {type: string, description: Canonical root-relative redirect resolver path suitable for links.}
+        availableVia:
+          type: array
+          description: Network routes that can be selected by adding the via query parameter to resolverPath.
+          items: {$ref: "#/components/schemas/Via"}
+    MachineProviderWrite:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: {name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}
+    MachineProvider:
+      allOf: [{$ref: "#/components/schemas/MachineProviderWrite"}, {type: object, required: [publicId, slug, hasLogo], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, hasLogo: {type: boolean}}}]
+    AreaWrite:
+      type: object
+      additionalProperties: false
+      required: [machineProviderPublicId, name]
+      properties: {machineProviderPublicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, providerCode: {type: string, nullable: true}, notes: {type: string, nullable: true}}
+    Area:
+      allOf: [{$ref: "#/components/schemas/AreaWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
+    ManufacturerWrite:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: {name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}
+    Manufacturer:
+      allOf: [{$ref: "#/components/schemas/ManufacturerWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
+    ProcessorSpec:
+      type: object
+      additionalProperties: false
+      required: [coreCount, threadCount]
+      properties:
+        coreCount: {type: integer, minimum: 1}
+        threadCount: {type: integer, minimum: 1, description: Must be greater than or equal to coreCount.}
+        baseClockMhz: {type: integer, minimum: 1, nullable: true}
+        virtualization: {type: string, nullable: true}
+    MemorySpec:
+      type: object
+      additionalProperties: false
+      required: [capacityBytes, memoryType]
+      properties:
+        capacityBytes: {type: integer, format: int64, minimum: 1}
+        memoryType: {type: string}
+        formFactor: {type: string, nullable: true}
+        speedMts: {type: integer, minimum: 1, nullable: true}
+    DriveSpec:
+      type: object
+      additionalProperties: false
+      required: [capacityBytes, mediaKind]
+      properties:
+        capacityBytes: {type: integer, format: int64, minimum: 1}
+        mediaKind: {$ref: "#/components/schemas/StorageMediaKind"}
+        interfaceKind:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/StorageInterfaceKind"}]
+    ProductWrite:
+      type: object
+      additionalProperties: false
+      description: The product kind determines which single spec is allowed and required; system products have no spec.
+      required: [manufacturerPublicId, kind, name]
+      properties:
+        manufacturerPublicId: {$ref: "#/components/schemas/PublicId"}
+        kind: {$ref: "#/components/schemas/ProductKind"}
+        name: {type: string}
+        partNumber: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+        processorSpec: {$ref: "#/components/schemas/ProcessorSpec"}
+        memorySpec: {$ref: "#/components/schemas/MemorySpec"}
+        driveSpec: {$ref: "#/components/schemas/DriveSpec"}
+    Product:
+      allOf:
+        - {$ref: "#/components/schemas/ProductWrite"}
+        - type: object
+          required: [publicId]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
+    AssetPlacement:
+      type: object
+      additionalProperties: false
+      description: Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
+      required: [type]
+      properties:
+        type: {$ref: "#/components/schemas/AssetPlacementType"}
+        areaPublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+        parentAssetPublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+    AssetWrite:
+      type: object
+      additionalProperties: false
+      required: [productPublicId, placement]
+      properties:
+        productPublicId: {$ref: "#/components/schemas/PublicId"}
+        placement: {$ref: "#/components/schemas/AssetPlacement"}
+        name: {type: string, nullable: true}
+        serialNumber: {type: string, nullable: true}
+        systemUuid: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+    Asset:
+      allOf:
+        - {$ref: "#/components/schemas/AssetWrite"}
+        - type: object
+          required: [publicId]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
+            effectiveAreaPublicId:
+              nullable: true
+              allOf: [{$ref: "#/components/schemas/PublicId"}]
+    MachineWrite:
+      type: object
+      additionalProperties: false
+      required: [machineProviderPublicId, areaPublicId, name, kind]
+      properties:
+        machineProviderPublicId: {$ref: "#/components/schemas/PublicId"}
+        areaPublicId: {$ref: "#/components/schemas/PublicId"}
+        assetPublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+        parentMachinePublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        kind: {$ref: "#/components/schemas/MachineKind"}
+        isFavorite: {type: boolean, default: false}
+        virtualizationPlatform: {type: string, nullable: true}
+        hostname: {type: string, nullable: true}
+        osMachineId: {type: string, nullable: true}
+        operatingSystem: {type: string, nullable: true}
+        operatingSystemVersion: {type: string, nullable: true}
+        kernel: {type: string, nullable: true}
+        architecture: {type: string, nullable: true}
+        cpuCount: {type: integer, minimum: 1, nullable: true}
+        cpuAllocation:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/CpuAllocation"}]
+        cpuVendor: {type: string, nullable: true}
+        memoryBytes: {type: integer, format: int64, minimum: 1, nullable: true}
+        storageBytes: {type: integer, format: int64, minimum: 1, nullable: true}
+        storageMediaKind:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/StorageMediaKind"}]
+        storageInterfaceKind:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/StorageInterfaceKind"}]
+        estimatedMonthlyCostCents: {type: integer, format: int64, minimum: 0, nullable: true}
+        costCurrency: {type: string, minLength: 3, maxLength: 3, nullable: true}
+        notes: {type: string, nullable: true}
+    Machine:
+      allOf: [{$ref: "#/components/schemas/MachineWrite"}, {type: object, required: [publicId, slug, isFavorite], properties: {publicId: {$ref: "#/components/schemas/PublicId"}, slug: {$ref: "#/components/schemas/Slug"}, isFavorite: {type: boolean}}}]
+    MachineUsername: {type: string, minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9._][A-Za-z0-9._-]{0,63}$"}
+    MachineUserWrite:
+      type: object
+      additionalProperties: false
+      required: [machinePublicId, username]
+      properties:
+        machinePublicId: {$ref: "#/components/schemas/PublicId"}
+        username: {$ref: "#/components/schemas/MachineUsername"}
+        isPreferred: {type: boolean, default: false}
+        notes: {type: string, nullable: true}
+    MachineUser:
+      allOf:
+        - {$ref: "#/components/schemas/MachineUserWrite"}
+        - type: object
+          required: [publicId, isPreferred]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
+            isPreferred: {type: boolean}
+    NetworkWrite:
+      type: object
+      additionalProperties: false
+      required: [name, kind]
+      properties: {areaPublicId: {type: string, nullable: true}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, kind: {$ref: "#/components/schemas/NetworkKind"}, cidr: {type: string, nullable: true}, notes: {type: string, nullable: true}}
+    Network:
+      allOf: [{$ref: "#/components/schemas/NetworkWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
+    AddressWrite:
+      type: object
+      additionalProperties: false
+      required: [networkPublicId, address]
+      properties: {networkPublicId: {type: string}, machinePublicId: {type: string, nullable: true}, areaPublicId: {type: string, nullable: true}, name: {type: string, nullable: true}, address: {type: string}, dnsName: {type: string, nullable: true}, interfaceName: {type: string, nullable: true}, isPrimary: {type: boolean, default: false}}
+    Address:
+      allOf: [{$ref: "#/components/schemas/AddressWrite"}, {type: object, required: [publicId, isPrimary], properties: {publicId: {type: string}, isPrimary: {type: boolean}}}]
+    ServiceWrite:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: {name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, description: {type: string, nullable: true}}
+    Service:
+      allOf: [{$ref: "#/components/schemas/ServiceWrite"}, {type: object, required: [publicId, slug, hasLogo], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, hasLogo: {type: boolean}}}]
+    InstanceWrite:
+      type: object
+      additionalProperties: false
+      required: [servicePublicId, machinePublicId, name, port]
+      properties: {servicePublicId: {type: string}, machinePublicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, port: {type: integer, minimum: 1, maximum: 65535}, notes: {type: string, nullable: true}}
+    Instance:
+      allOf: [{$ref: "#/components/schemas/InstanceWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
+    InstanceEndpointWrite:
+      type: object
+      additionalProperties: false
+      required: [instancePublicId, addressPublicId, name, scheme, port]
+      properties: {instancePublicId: {type: string}, addressPublicId: {type: string}, name: {type: string}, scheme: {$ref: "#/components/schemas/Scheme"}, port: {type: integer, minimum: 1, maximum: 65535}, basePath: {type: string, default: ""}, isPreferred: {type: boolean, default: false}, notes: {type: string, nullable: true}}
+    InstanceEndpoint:
+      allOf: [{$ref: "#/components/schemas/InstanceEndpointWrite"}, {type: object, required: [publicId, basePath, isPreferred], properties: {publicId: {type: string}, basePath: {type: string}, isPreferred: {type: boolean}}}]
+    MachineInstance:
+      type: object
+      required: [publicId, name, slug, port, servicePublicId, serviceName, serviceSlug]
+      properties: {publicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, port: {type: integer}, servicePublicId: {type: string}, serviceName: {type: string}, serviceSlug: {$ref: "#/components/schemas/Slug"}}
+    ResolvedDestination:
+      type: object
+      required: [url, via]
+      properties: {url: {type: string, format: uri}, via: {$ref: "#/components/schemas/Via"}}
     Error:
       type: object
       required: [code, message]
-      properties:
-        code:
-          type: string
-        message:
-          type: string
+      properties: {code: {type: string}, message: {type: string}}

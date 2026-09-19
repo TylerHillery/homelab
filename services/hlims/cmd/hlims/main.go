@@ -1,14 +1,20 @@
-// The hlims command runs the Home Lab Information Management System server.
+// The hlims command provides CLI and TUI clients for the HLIMS API.
 package main
 
 import (
-	"log"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
 
-	golink "github.com/TylerHillery/homelab/services/hlims"
+	"github.com/TylerHillery/homelab/services/hlims/internal/cli"
 )
 
 func main() {
-	if err := golink.Run(); err != nil {
-		log.Fatal(err)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := cli.Execute(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }

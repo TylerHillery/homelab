@@ -1,0 +1,8 @@
+- [] add tests for down migrations to ensure they work
+- [] investigate WSL/Tailscale DNS ownership warning and whether `tailscale set --accept-dns=false` is the appropriate fix
+- [] create a separate ZTP project for PXE discovery, OS installation, Tailscale enrollment, HLIMS registration, and mise bootstrap handoff
+- [] adopt fnox with separate age identities for OpenTofu, mise bootstrap, CI, provisioning, applications, and recovery
+- [] pilot mise bootstrap as the Machine converger on one non-critical host before replacing Ansible
+- [] evaluate an authenticated browser terminal backed by Tailscale SSH and ghostty-web, including session brokering, authorization, auditing, WASM asset delivery, and terminal lifecycle
+- [] create a centralized observability project using host OpenTelemetry Collectors, a durable gateway, ClickHouse, Grafana, and wide structured events, with HyperDX and DuckLake evaluated as optional layers
+- [] build an isolated home-network project around a dedicated lab router behind Deco, including firewall policy, trusted Tailscale access, router selection, an Omicron address reservation, VLAN growth, and staged HLIMS network-model changes

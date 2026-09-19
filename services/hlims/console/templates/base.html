@@ -1,0 +1,36 @@
+{{define "page"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="htmx-config" content='{"defaultSwap":"innerHTML","defaultTimeout":15000,"history":true}'>
+  <title>HLIMS / Home Lab Information Management System</title>
+  <link rel="icon" href="/console/static/favicon.svg?v=2" type="image/svg+xml">
+  <link rel="stylesheet" href="/console/static/console.css">
+  <script defer src="/console/static/theme.js"></script>
+  <script defer src="/console/static/htmx-4.0.0.min.js"></script>
+  <script defer src="/console/static/reachability.js"></script>
+  <script defer src="/console/static/copy-actions.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to topology</a>
+  <div class="console-shell">
+    <header class="masthead">
+      <a class="wordmark" href="/console/" hx-get="/console/topology?navigation=1" hx-target="#workspace" hx-push-url="/console/">
+        <span class="wordmark-mark" aria-hidden="true"><img src="/console/static/favicon.svg?v=2" alt=""></span>
+        <span><strong>HLIMS</strong><small class="wordmark-expansion"><b>H</b>ome <b>L</b>ab <b>I</b>nformation <b>M</b>anagement <b>S</b>ystem</small></span>
+      </a>
+      <div class="system-state"><span class="state-light"></span>Inventory online</div>
+      {{template "topology-toolbar" .}}
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+        <span aria-hidden="true">◐</span><span class="theme-toggle-label">Theme</span>
+      </button>
+      <a class="api-link" href="/api-docs/" target="_blank" rel="noopener">API / V1</a>
+    </header>
+    <main id="workspace" class="workspace">
+      {{template "workspace" .}}
+    </main>
+  </div>
+</body>
+</html>{{end}}

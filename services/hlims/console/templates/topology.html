@@ -1,0 +1,174 @@
+{{define "topology-toolbar"}}
+<nav class="topology-toolbar" aria-label="Topology controls">
+  <div class="icon-toolbar" role="group" aria-label="Topology expansion">
+    <button class="icon-button" type="button" aria-label="Expand all" title="Expand all" data-tooltip="Expand all"
+            hx-get="/console/topology?expansion=all{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
+            hx-target="#workspace" hx-swap="innerHTML" hx-sync="#workspace:replace">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+    </button>
+    <button class="icon-button" type="button" aria-label="Collapse all" title="Collapse all" data-tooltip="Collapse all"
+            hx-get="/console/topology?expansion=none{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
+            hx-target="#workspace" hx-swap="innerHTML" hx-sync="#workspace:replace">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>
+    </button>
+    <button class="icon-button refresh-button" type="button" aria-label="Refresh topology" title="Refresh topology" data-tooltip="Refresh"
+            hx-get="/console/topology{{if .ActiveProvider}}?provider={{.ActiveProvider}}{{end}}"
+            hx-target="#workspace" hx-swap="innerHTML" hx-indicator="#topology-progress">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.35 5.65M20 4v7h-7"/></svg>
+      <span id="topology-progress" class="refresh-indicator htmx-indicator"></span>
+    </button>
+  </div>
+</nav>
+{{end}}
+
+{{define "workspace"}}
+<div class="topology" aria-live="polite">
+{{if not .Providers}}
+  <div class="empty-state"><span>00</span><h2>No infrastructure recorded</h2><p>Create a provider, area, and machine through the API or CLI.</p></div>
+{{end}}
+{{if .Favorites}}
+  <details class="favorite-group" {{if ne $.Expansion "none"}}open{{end}}>
+    <summary class="group-header">
+      <span class="collapse-caret" aria-hidden="true"></span>
+      <span class="favorite-logo" aria-hidden="true">★</span>
+      <span><small class="group-index">Pinned / Quick access</small><strong>Favorites</strong></span>
+      <span class="group-count">{{len .Favorites}} machines</span>
+    </summary>
+    <div class="favorite-content">
+      <div class="favorite-machines">{{range favoriteMachineViews .Favorites}}{{template "machine-card" .}}{{end}}</div>
+    </div>
+  </details>
+{{end}}
+{{range .Providers}}
+  {{$provider := .}}
+  <details class="provider-group" {{if ne $.Expansion "none"}}open{{end}}>
+    <summary class="group-header" id="provider-{{.PublicId}}">
+      <span class="collapse-caret" aria-hidden="true"></span>
+      <span class="provider-logo" aria-hidden="true">{{if .HasLogo}}<img src="/api/v1/machine-providers/{{.PublicId}}/logo" alt="">{{else}}{{initials .Name}}{{end}}</span>
+      <span><small class="group-index">Provider / {{.Slug}}</small><strong>{{.Name}}</strong></span>
+      <span class="group-count">{{providerMachines .}} machines</span>
+    </summary>
+    <div class="provider-content">
+    {{if not .Areas}}<p class="empty-inline">No areas configured for this provider.</p>{{end}}
+    {{range .Areas}}
+    <section class="area-group" aria-labelledby="area-{{.PublicId}}">
+      <header class="area-header">
+        <div><span class="area-marker"></span><h3 id="area-{{.PublicId}}">{{.Name}}</h3></div>
+        <code>{{.Slug}}</code>
+      </header>
+      {{if .Machines}}
+      <div class="root-machines">
+        {{range machineViews .Machines (eq $.Expansion "all")}}{{template "machine-card" .}}{{end}}
+      </div>
+      {{else}}<p class="empty-inline">No machines placed in this area.</p>{{end}}
+    </section>
+    {{end}}
+    </div>
+  </details>
+{{end}}
+</div>
+{{end}}
+
+{{define "machine-card"}}
+<article class="machine-card{{if .ParentName}} is-nested{{end}}">
+  {{if .ParentName}}<div class="parent-context"><span aria-hidden="true">└</span> Hosted on <strong>{{.ParentName}}</strong></div>{{end}}
+  <header class="machine-header">
+    <div class="machine-identity">
+      <span class="machine-kind">{{kindLabel .Kind}}</span>
+      <h4>{{.Name}}</h4>
+      {{if .Hostname}}<code>{{.Hostname}}</code>{{end}}
+    </div>
+    <div class="machine-actions">
+    {{if .SSH}}
+      {{$sshUser := index .SSH.Users 0}}{{$sshTarget := index .SSH.Targets 0}}{{$sshCommand := printf "ssh %s@%s" $sshUser.Username $sshTarget.Host}}
+      <div class="ssh-command" data-ssh-control data-ssh-user="{{$sshUser.Username}}" data-ssh-host="{{$sshTarget.Host}}">
+        <span class="ssh-command-prefix"><i aria-hidden="true">$_</i> ssh</span>
+        <details class="ssh-token-picker ssh-user-picker" name="ssh-{{.PublicId}}">
+          <summary data-ssh-user-label aria-label="Choose SSH user for {{.Name}}" title="Choose SSH user">{{$sshUser.Username}}</summary>
+          <div class="ssh-option-menu" aria-label="SSH users for {{.Name}}">
+            {{range $userIndex, $user := .SSH.Users}}<button type="button" data-ssh-user-option="{{$user.Username}}" aria-pressed="{{eq $userIndex 0}}">{{$user.Username}}</button>{{end}}
+          </div>
+        </details>
+        <span class="ssh-command-at" aria-hidden="true">@</span>
+        <details class="ssh-token-picker ssh-host-picker" name="ssh-{{.PublicId}}">
+          <summary data-ssh-host-label aria-label="Choose SSH host for {{.Name}}" title="Choose SSH host">{{$sshTarget.Host}}</summary>
+          <div class="ssh-option-menu" aria-label="SSH hosts for {{.Name}}">
+            {{range $targetIndex, $target := .SSH.Targets}}<button type="button" data-ssh-host-option="{{$target.Host}}" aria-pressed="{{eq $targetIndex 0}}"><span>{{$target.Label}}</span><code>{{$target.Host}}</code></button>{{end}}
+          </div>
+        </details>
+        <button class="ssh-command-copy" type="button" data-ssh-copy data-copy-value="{{$sshCommand}}" aria-label="Copy {{$sshCommand}}" title="Copy SSH command"><span data-copy-label>Copy</span></button>
+      </div>
+    {{end}}
+    <button class="favorite-toggle" type="button" aria-pressed="{{.IsFavorite}}"
+            aria-label="{{if .IsFavorite}}Remove {{.Name}} from favorites{{else}}Add {{.Name}} to favorites{{end}}"
+            title="{{if .IsFavorite}}Remove from favorites{{else}}Add to favorites{{end}}"
+            hx-put="/console/machines/{{.PublicId}}/favorite?value={{if .IsFavorite}}false{{else}}true{{end}}{{if or .ExpandAll .ParentName}}&expansion=all{{end}}"
+            hx-target="#workspace" hx-swap="innerHTML" hx-sync="#workspace:replace" hx-indicator="this"
+            hx-status:4xx="swap:none" hx-status:5xx="swap:none">
+      <span aria-hidden="true">{{if .IsFavorite}}★{{else}}☆{{end}}</span>
+    </button>
+    </div>
+  </header>
+  <div class="machine-facts">
+    {{if osLabel .TopologyMachine}}<span><b>OS</b>{{osLabel .TopologyMachine}}</span>{{end}}
+    {{if .CpuCount}}<span><b>CPU</b>{{.CpuCount}} {{if .CpuVendor}}{{.CpuVendor}}{{end}}</span>{{end}}
+    {{if .MemoryBytes}}<span><b>Memory</b>{{byteSize .MemoryBytes}}</span>{{end}}
+    {{if .StorageBytes}}<span><b>Storage</b>{{byteSize .StorageBytes}}</span>{{end}}
+    {{if .VirtualizationPlatform}}<span><b>Platform</b>{{.VirtualizationPlatform}}</span>{{end}}
+  </div>
+  {{if .Services}}
+  <section class="service-deck" aria-label="Services on {{.Name}}">
+    <span class="section-label">Running here / {{len .Services}}</span>
+    <div class="service-grid">{{range .Services}}{{template "service-card" .}}{{end}}</div>
+  </section>
+  {{end}}
+  {{if and .ShowChildren .Children}}
+  <details class="hosted-environments" {{if .ExpandAll}}open{{else}}hx-get="/console/machines/{{.PublicId}}/children"
+           hx-trigger="toggle once" hx-target="find .machine-children" hx-swap="innerHTML"{{end}}>
+    <summary title="Virtual Machines whose parent is {{.Name}}"><span>Virtual machines</span><b>{{len .Children}}</b><i class="collapse-caret" aria-hidden="true"></i></summary>
+    <div class="machine-children">{{if .ExpandAll}}{{range nestedMachineViews .Children true .Name}}{{template "machine-card" .}}{{end}}{{else}}<div class="subtree-loading htmx-indicator">Loading environments...</div>{{end}}</div>
+  </details>
+  {{end}}
+</article>
+{{end}}
+
+{{define "machine-children"}}
+{{range nestedMachineViews .Machines false .ParentName}}{{template "machine-card" .}}{{end}}
+{{end}}
+
+{{define "service-card"}}
+<article class="service-card">
+  <div class="service-brand">
+    <span class="service-logo">
+      {{if .HasLogo}}<img src="/api/v1/services/{{.PublicId}}/logo" alt="">{{else}}{{initials .Name}}{{end}}
+    </span>
+    <div><h5>{{.Name}}</h5><span>{{len .Instances}} {{if eq (len .Instances) 1}}instance{{else}}instances{{end}}</span></div>
+  </div>
+  <div class="instance-list">
+    {{range .Instances}}
+    {{$instance := .}}
+    <div class="instance-row">
+      <a class="instance-primary" href="{{.ResolverPath}}" title="Open {{$.Name}} / {{.Name}} using its preferred route">
+        <span class="instance-label">{{template "reachability-badge" (reachabilityBadge "instance" .PublicId "" .Name .ResolverPath)}}{{.Name}}</span><code>:{{.Port}}</code><b aria-hidden="true">↗</b>
+      </a>
+      {{if .AvailableVia}}
+      <details class="route-picker">
+        <summary aria-label="Choose route for {{.Name}}" title="Choose network route"><span aria-hidden="true">⌄</span></summary>
+        <div class="route-menu">
+          {{range .AvailableVia}}<a href="{{viaPath $instance.ResolverPath .}}"><span>{{template "reachability-badge" (reachabilityBadge "route" $instance.PublicId . (printf "%s route" (viaLabel .)) (viaPath $instance.ResolverPath .))}}{{viaLabel .}}</span><small>via {{.}}</small></a>{{end}}
+        </div>
+      </details>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</article>
+{{end}}
+
+{{define "reachability-badge"}}<span class="reachability-badge is-unknown" data-reachability-kind="{{.Kind}}" data-reachability-id="{{.ID}}"{{if .URL}} data-reachability-url="{{.URL}}"{{end}} aria-label="{{.Name}}: not checked">
+  <span class="reachability-dot" aria-hidden="true"></span><span class="visually-hidden" data-reachability-a11y>Not checked</span>
+  <span class="reachability-tooltip" aria-hidden="true">
+    <span class="reachability-tooltip-head"><span class="reachability-tooltip-dot"></span><strong>{{.Name}}</strong><b data-reachability-status>NOT CHECKED</b></span>
+    <span class="reachability-tooltip-detail" data-reachability-detail>{{if .URL}}Waiting for this browser to test the route{{else}}Waiting for workload checks in this browser{{end}}</span>
+  </span>
+</span>{{end}}

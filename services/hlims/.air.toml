@@ -2,8 +2,8 @@ root = "."
 tmp_dir = ".air"
 
 [build]
-cmd = "go build -o ./.air/hlims ./cmd/hlims"
-entrypoint = ["./.air/hlims", "-dev-listen", "127.0.0.1:8080"]
+cmd = "go build -o ./.air/hlimsd ./cmd/hlimsd"
+entrypoint = ["./.air/hlimsd", "-listen", "127.0.0.1:8080", "-sqlitedb", ":memory:", "-demo"]
 include_ext = ["go", "html", "css", "js"]
 exclude_dir = [".air", ".git"]
 exclude_regex = ["_test\\.go"]

@@ -8,17 +8,206 @@ import (
 	"database/sql"
 )
 
-type Link struct {
-	ID       string `json:"id"`
-	Short    string `json:"short"`
-	Long     string `json:"long"`
-	Created  int64  `json:"created"`
-	Lastedit int64  `json:"lastedit"`
-	Owner    string `json:"owner"`
+type Address struct {
+	ID            string         `json:"id"`
+	PublicID      string         `json:"public_id"`
+	NetworkID     string         `json:"network_id"`
+	MachineID     sql.NullString `json:"machine_id"`
+	AreaID        sql.NullString `json:"area_id"`
+	Name          sql.NullString `json:"name"`
+	Address       string         `json:"address"`
+	DnsName       sql.NullString `json:"dns_name"`
+	InterfaceName sql.NullString `json:"interface_name"`
+	IsPrimary     int64          `json:"is_primary"`
+	CreatedAt     int64          `json:"created_at"`
+	UpdatedAt     int64          `json:"updated_at"`
 }
 
-type Stat struct {
-	ID      string        `json:"id"`
-	Created int64         `json:"created"`
-	Clicks  sql.NullInt64 `json:"clicks"`
+type Area struct {
+	ID                string         `json:"id"`
+	PublicID          string         `json:"public_id"`
+	MachineProviderID string         `json:"machine_provider_id"`
+	Name              string         `json:"name"`
+	Slug              string         `json:"slug"`
+	ProviderCode      sql.NullString `json:"provider_code"`
+	Notes             sql.NullString `json:"notes"`
+	CreatedAt         int64          `json:"created_at"`
+	UpdatedAt         int64          `json:"updated_at"`
+}
+
+type Asset struct {
+	ID            string         `json:"id"`
+	PublicID      string         `json:"public_id"`
+	ProductID     string         `json:"product_id"`
+	ParentAssetID sql.NullString `json:"parent_asset_id"`
+	AreaID        sql.NullString `json:"area_id"`
+	Name          sql.NullString `json:"name"`
+	SerialNumber  sql.NullString `json:"serial_number"`
+	SystemUuid    sql.NullString `json:"system_uuid"`
+	Notes         sql.NullString `json:"notes"`
+	CreatedAt     int64          `json:"created_at"`
+	UpdatedAt     int64          `json:"updated_at"`
+}
+
+type DriveSpec struct {
+	ProductID     string         `json:"product_id"`
+	CapacityBytes int64          `json:"capacity_bytes"`
+	MediaKind     string         `json:"media_kind"`
+	InterfaceKind sql.NullString `json:"interface_kind"`
+}
+
+type Instance struct {
+	ID        string         `json:"id"`
+	PublicID  string         `json:"public_id"`
+	ServiceID string         `json:"service_id"`
+	MachineID string         `json:"machine_id"`
+	Name      string         `json:"name"`
+	Slug      string         `json:"slug"`
+	Port      int64          `json:"port"`
+	Notes     sql.NullString `json:"notes"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type InstanceEndpoint struct {
+	ID          string         `json:"id"`
+	PublicID    string         `json:"public_id"`
+	InstanceID  string         `json:"instance_id"`
+	AddressID   string         `json:"address_id"`
+	Name        string         `json:"name"`
+	Scheme      string         `json:"scheme"`
+	Port        int64          `json:"port"`
+	BasePath    string         `json:"base_path"`
+	IsPreferred int64          `json:"is_preferred"`
+	Notes       sql.NullString `json:"notes"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type Machine struct {
+	ID                        string         `json:"id"`
+	PublicID                  string         `json:"public_id"`
+	AssetID                   sql.NullString `json:"asset_id"`
+	ParentMachineID           sql.NullString `json:"parent_machine_id"`
+	MachineProviderID         string         `json:"machine_provider_id"`
+	AreaID                    string         `json:"area_id"`
+	Name                      string         `json:"name"`
+	Slug                      string         `json:"slug"`
+	Kind                      string         `json:"kind"`
+	IsFavorite                bool           `json:"is_favorite"`
+	VirtualizationPlatform    sql.NullString `json:"virtualization_platform"`
+	Hostname                  sql.NullString `json:"hostname"`
+	OsMachineID               sql.NullString `json:"os_machine_id"`
+	OperatingSystem           sql.NullString `json:"operating_system"`
+	OperatingSystemVersion    sql.NullString `json:"operating_system_version"`
+	Kernel                    sql.NullString `json:"kernel"`
+	Architecture              sql.NullString `json:"architecture"`
+	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuAllocation             sql.NullString `json:"cpu_allocation"`
+	CpuVendor                 sql.NullString `json:"cpu_vendor"`
+	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
+	StorageBytes              sql.NullInt64  `json:"storage_bytes"`
+	StorageMediaKind          sql.NullString `json:"storage_media_kind"`
+	StorageInterfaceKind      sql.NullString `json:"storage_interface_kind"`
+	EstimatedMonthlyCostCents sql.NullInt64  `json:"estimated_monthly_cost_cents"`
+	CostCurrency              sql.NullString `json:"cost_currency"`
+	Notes                     sql.NullString `json:"notes"`
+	CreatedAt                 int64          `json:"created_at"`
+	UpdatedAt                 int64          `json:"updated_at"`
+}
+
+type MachineProvider struct {
+	ID        string `json:"id"`
+	PublicID  string `json:"public_id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type MachineProviderLogo struct {
+	MachineProviderID string `json:"machine_provider_id"`
+	ContentType       string `json:"content_type"`
+	ImageData         []byte `json:"image_data"`
+	CreatedAt         int64  `json:"created_at"`
+	UpdatedAt         int64  `json:"updated_at"`
+}
+
+type MachineUser struct {
+	ID          string         `json:"id"`
+	PublicID    string         `json:"public_id"`
+	MachineID   string         `json:"machine_id"`
+	Username    string         `json:"username"`
+	IsPreferred int64          `json:"is_preferred"`
+	Notes       sql.NullString `json:"notes"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type Manufacturer struct {
+	ID        string `json:"id"`
+	PublicID  string `json:"public_id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type MemorySpec struct {
+	ProductID     string         `json:"product_id"`
+	CapacityBytes int64          `json:"capacity_bytes"`
+	MemoryType    string         `json:"memory_type"`
+	FormFactor    sql.NullString `json:"form_factor"`
+	SpeedMts      sql.NullInt64  `json:"speed_mts"`
+}
+
+type Network struct {
+	ID        string         `json:"id"`
+	PublicID  string         `json:"public_id"`
+	AreaID    sql.NullString `json:"area_id"`
+	Name      string         `json:"name"`
+	Slug      string         `json:"slug"`
+	Kind      string         `json:"kind"`
+	Cidr      sql.NullString `json:"cidr"`
+	Notes     sql.NullString `json:"notes"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
+type ProcessorSpec struct {
+	ProductID      string         `json:"product_id"`
+	CoreCount      int64          `json:"core_count"`
+	ThreadCount    int64          `json:"thread_count"`
+	BaseClockMhz   sql.NullInt64  `json:"base_clock_mhz"`
+	Virtualization sql.NullString `json:"virtualization"`
+}
+
+type Product struct {
+	ID             string         `json:"id"`
+	PublicID       string         `json:"public_id"`
+	ManufacturerID string         `json:"manufacturer_id"`
+	Kind           string         `json:"kind"`
+	Name           string         `json:"name"`
+	PartNumber     sql.NullString `json:"part_number"`
+	Notes          sql.NullString `json:"notes"`
+	CreatedAt      int64          `json:"created_at"`
+	UpdatedAt      int64          `json:"updated_at"`
+}
+
+type Service struct {
+	ID          string         `json:"id"`
+	PublicID    string         `json:"public_id"`
+	Name        string         `json:"name"`
+	Slug        string         `json:"slug"`
+	Description sql.NullString `json:"description"`
+	CreatedAt   int64          `json:"created_at"`
+	UpdatedAt   int64          `json:"updated_at"`
+}
+
+type ServiceLogo struct {
+	ServiceID   string `json:"service_id"`
+	ContentType string `json:"content_type"`
+	ImageData   []byte `json:"image_data"`
+	CreatedAt   int64  `json:"created_at"`
+	UpdatedAt   int64  `json:"updated_at"`
 }
