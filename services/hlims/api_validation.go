@@ -141,6 +141,15 @@ func normalizeBasePath(value *string) (string, error) {
 	return path, nil
 }
 
+func normalizeInventoryURL(value string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Hostname() == "" || parsed.User != nil || parsed.Fragment != "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return "", errors.New("url must be an absolute HTTP or HTTPS URL without credentials or a fragment")
+	}
+	return parsed.String(), nil
+}
+
 func nullString(value *string, trim bool) sql.NullString {
 	if value == nil {
 		return sql.NullString{}

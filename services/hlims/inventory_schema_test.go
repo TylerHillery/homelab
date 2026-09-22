@@ -346,6 +346,98 @@ func TestInventorySchema(t *testing.T) {
 	}
 }
 
+func TestEquipmentInventorySchema(t *testing.T) {
+	store, err := NewSQLiteDB(filepath.Join(t.TempDir(), "equipment.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	providerID, providerPublicID := testIdentifiers(t)
+	areaID, areaPublicID := testIdentifiers(t)
+	manufacturerID, manufacturerPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into machine_providers (id, public_id, name, slug) values (?, ?, 'Local', 'local')`, providerID, providerPublicID)
+	execInventorySQL(t, store, `insert into areas (id, public_id, machine_provider_id, name, slug) values (?, ?, ?, 'Home', 'home')`, areaID, areaPublicID, providerID)
+	execInventorySQL(t, store, `insert into manufacturers (id, public_id, name, slug) values (?, ?, 'Equipment Co', 'equipment-co')`, manufacturerID, manufacturerPublicID)
+
+	rackProductID, rackProductPublicID := testIdentifiers(t)
+	switchProductID, switchProductPublicID := testIdentifiers(t)
+	systemProductID, systemProductPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into products (id, public_id, manufacturer_id, kind, name) values (?, ?, ?, 'rack', 'Four Unit Rack')`, rackProductID, rackProductPublicID, manufacturerID)
+	execInventorySQL(t, store, `insert into rack_specs (product_id, rack_units, mounting_standard) values (?, 4, '10-inch')`, rackProductID)
+	execInventorySQL(t, store, `insert into products (id, public_id, manufacturer_id, kind, name) values (?, ?, ?, 'switch', 'Five Port Switch')`, switchProductID, switchProductPublicID, manufacturerID)
+	execInventorySQL(t, store, `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 0, 5, 'RJ45', 1000)`, switchProductID)
+	execInventorySQL(t, store, `insert into product_links (product_id, position, kind, url) values (?, 0, 'manufacturer', 'https://example.com/switch')`, switchProductID)
+	execInventorySQL(t, store, `insert into products (id, public_id, manufacturer_id, kind, name) values (?, ?, ?, 'system', 'Server')`, systemProductID, systemProductPublicID, manufacturerID)
+
+	rackAssetID, rackAssetPublicID := testIdentifiers(t)
+	switchAssetID, switchAssetPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id, area_id, name) values (?, ?, ?, ?, 'Rack')`, rackAssetID, rackAssetPublicID, rackProductID, areaID)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id, parent_asset_id, name) values (?, ?, ?, ?, 'Switch')`, switchAssetID, switchAssetPublicID, switchProductID, rackAssetID)
+	execInventorySQL(t, store, `insert into asset_links (asset_id, position, kind, url) values (?, 0, 'receipt', 'https://example.com/receipt')`, switchAssetID)
+
+	switchAsset, err := store.queries.GetAssetByPublicID(context.Background(), switchAssetPublicID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !switchAsset.EffectiveAreaPublicID.Valid || switchAsset.EffectiveAreaPublicID.String != areaPublicID {
+		t.Fatalf("switch effective area = %v; want %q", switchAsset.EffectiveAreaPublicID, areaPublicID)
+	}
+
+	networkID, networkPublicID := testIdentifiers(t)
+	addressID, addressPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into networks (id, public_id, area_id, name, slug, kind, cidr) values (?, ?, ?, 'Home LAN', 'home-lan', 'lan', '192.168.1.0/24')`, networkID, networkPublicID, areaID)
+	execInventorySQL(t, store, `insert into addresses (id, public_id, network_id, asset_id, address) values (?, ?, ?, ?, '192.168.1.2')`, addressID, addressPublicID, networkID, switchAssetID)
+
+	invalidID, invalidPublicID := testIdentifiers(t)
+	assertInventorySQLFails(t, store, "assigned an address to a rack", `insert into addresses (id, public_id, network_id, asset_id, address) values (?, ?, ?, ?, '192.168.1.3')`, invalidID, invalidPublicID, networkID, rackAssetID)
+	invalidID, invalidPublicID = testIdentifiers(t)
+	assertInventorySQLFails(t, store, "assigned an address to multiple owners", `insert into addresses (id, public_id, network_id, area_id, asset_id, address) values (?, ?, ?, ?, ?, '192.168.1.4')`, invalidID, invalidPublicID, networkID, areaID, switchAssetID)
+	assertInventorySQLFails(t, store, "changed an addressed network product kind", `update products set kind = 'system' where id = ?`, switchProductID)
+	assertInventorySQLFails(t, store, "changed a containing rack product kind", `update products set kind = 'system' where id = ?`, rackProductID)
+	assertInventorySQLFails(t, store, "changed an addressed asset to a system product", `update assets set product_id = ? where id = ?`, systemProductID, switchAssetID)
+	assertInventorySQLFails(t, store, "changed a containing asset to a switch product", `update assets set product_id = ? where id = ?`, switchProductID, rackAssetID)
+	assertInventorySQLFails(t, store, "moved an address to a rack asset", `update addresses set asset_id = ? where id = ?`, rackAssetID, addressID)
+	assertInventorySQLFails(t, store, "backed a machine with a rack", `insert into machines (id, public_id, asset_id, machine_provider_id, area_id, name, slug, kind) values (?, ?, ?, ?, ?, 'Rack Machine', 'rack-machine', 'bare_metal')`, invalidID, invalidPublicID, rackAssetID, providerID, areaID)
+
+	otherAreaID, otherAreaPublicID := testIdentifiers(t)
+	systemChildID, systemChildPublicID := testIdentifiers(t)
+	backedMachineID, backedMachinePublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into areas (id, public_id, machine_provider_id, name, slug) values (?, ?, ?, 'Other Room', 'other-room')`, otherAreaID, otherAreaPublicID, providerID)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id, parent_asset_id, name) values (?, ?, ?, ?, 'Rack server')`, systemChildID, systemChildPublicID, systemProductID, rackAssetID)
+	execInventorySQL(t, store, `insert into machines (id, public_id, asset_id, machine_provider_id, area_id, name, slug, kind) values (?, ?, ?, ?, ?, 'Rack Server', 'rack-server', 'bare_metal')`, backedMachineID, backedMachinePublicID, systemChildID, providerID, areaID)
+	assertInventorySQLFails(t, store, "unplaced a Machine backing Asset", `update assets set parent_asset_id = null where id = ?`, systemChildID)
+	assertInventorySQLFails(t, store, "unplaced a rack containing a Machine backing Asset", `update assets set area_id = null where id = ?`, rackAssetID)
+	assertInventorySQLFails(t, store, "moved a rack away from a descendant Machine", `update assets set area_id = ? where id = ?`, otherAreaID, rackAssetID)
+	assertInventorySQLFails(t, store, "moved a Machine away from its backing Asset", `update machines set area_id = ? where id = ?`, otherAreaID, backedMachineID)
+	unplacedSystemID, unplacedSystemPublicID := testIdentifiers(t)
+	invalidMachineID, invalidMachinePublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id) values (?, ?, ?)`, unplacedSystemID, unplacedSystemPublicID, systemProductID)
+	assertInventorySQLFails(t, store, "backed a Machine with an unplaced Asset", `insert into machines (id, public_id, asset_id, machine_provider_id, area_id, name, slug, kind) values (?, ?, ?, ?, ?, 'Unplaced', 'unplaced', 'bare_metal')`, invalidMachineID, invalidMachinePublicID, unplacedSystemID, providerID, areaID)
+
+	assertInventorySQLFails(t, store, "attached ports to a system product", `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 0, 1, 'RJ45', 1000)`, systemProductID)
+	assertInventorySQLFails(t, store, "created an invalid port profile", `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 1, 0, 'RJ45', 1000)`, switchProductID)
+	assertInventorySQLFails(t, store, "created a duplicate product link URL", `insert into product_links (product_id, position, kind, url) values (?, 1, 'support', 'https://example.com/switch')`, switchProductID)
+
+	adapterProductID, adapterProductPublicID := testIdentifiers(t)
+	computerAssetID, computerAssetPublicID := testIdentifiers(t)
+	adapterAssetID, adapterAssetPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into products (id, public_id, manufacturer_id, kind, name) values (?, ?, ?, 'network_adapter', 'Dual Port NIC')`, adapterProductID, adapterProductPublicID, manufacturerID)
+	execInventorySQL(t, store, `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 0, 2, 'RJ45', 1000)`, adapterProductID)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id, area_id) values (?, ?, ?, ?)`, computerAssetID, computerAssetPublicID, systemProductID, areaID)
+	execInventorySQL(t, store, `insert into assets (id, public_id, product_id, parent_asset_id, parent_slot) values (?, ?, ?, ?, 'PCIe x16')`, adapterAssetID, adapterAssetPublicID, adapterProductID, computerAssetID)
+	assertInventorySQLFails(t, store, "stored a slot without a parent Asset", `update assets set parent_slot = 'PCIe x4' where id = ?`, rackAssetID)
+	computerPurchaseID, computerPurchasePublicID := testIdentifiers(t)
+	nicPurchaseID, nicPurchasePublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into purchases (id, public_id, primary_asset_id, total_price_cents, currency, purchased_on, source) values (?, ?, ?, 3500, 'USD', '2026-09-19', 'Facebook Marketplace')`, computerPurchaseID, computerPurchasePublicID, computerAssetID)
+	execInventorySQL(t, store, `insert into purchases (id, public_id, primary_asset_id, total_price_cents, currency) values (?, ?, ?, 1500, 'USD')`, nicPurchaseID, nicPurchasePublicID, adapterAssetID)
+	assertInventorySQLFails(t, store, "assigned an Asset to two Purchases", `insert into purchase_assets (purchase_id, asset_id) values (?, ?)`, computerPurchaseID, adapterAssetID)
+	invalidID, invalidPublicID = testIdentifiers(t)
+	assertInventorySQLFails(t, store, "stored an invalid purchase currency", `insert into purchases (id, public_id, primary_asset_id, total_price_cents, currency) values (?, ?, ?, 1000, 'usd')`, invalidID, invalidPublicID, rackAssetID)
+	invalidID, invalidPublicID = testIdentifiers(t)
+	assertInventorySQLFails(t, store, "stored an invalid purchase date", `insert into purchases (id, public_id, primary_asset_id, total_price_cents, currency, purchased_on) values (?, ?, ?, 1000, 'USD', '2026-13-40')`, invalidID, invalidPublicID, rackAssetID)
+}
+
 func TestMachineProviderLogoSchemaAndCascade(t *testing.T) {
 	store, err := NewSQLiteDB(filepath.Join(t.TempDir(), "provider-logo.db"))
 	if err != nil {

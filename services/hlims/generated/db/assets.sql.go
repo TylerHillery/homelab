@@ -16,14 +16,15 @@ insert into assets (
     public_id,
     product_id,
     parent_asset_id,
+    parent_slot,
     area_id,
     name,
     serial_number,
     system_uuid,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-returning id, public_id, product_id, parent_asset_id, area_id, name, serial_number, system_uuid, notes, created_at, updated_at
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+returning id, public_id, product_id, parent_asset_id, parent_slot, area_id, name, serial_number, system_uuid, notes, created_at, updated_at
 `
 
 type CreateAssetParams struct {
@@ -31,6 +32,7 @@ type CreateAssetParams struct {
 	PublicID      string         `json:"public_id"`
 	ProductID     string         `json:"product_id"`
 	ParentAssetID sql.NullString `json:"parent_asset_id"`
+	ParentSlot    sql.NullString `json:"parent_slot"`
 	AreaID        sql.NullString `json:"area_id"`
 	Name          sql.NullString `json:"name"`
 	SerialNumber  sql.NullString `json:"serial_number"`
@@ -44,6 +46,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		arg.PublicID,
 		arg.ProductID,
 		arg.ParentAssetID,
+		arg.ParentSlot,
 		arg.AreaID,
 		arg.Name,
 		arg.SerialNumber,
@@ -56,6 +59,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 		&i.PublicID,
 		&i.ProductID,
 		&i.ParentAssetID,
+		&i.ParentSlot,
 		&i.AreaID,
 		&i.Name,
 		&i.SerialNumber,
@@ -67,6 +71,39 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset
 	return i, err
 }
 
+const createAssetLink = `-- name: CreateAssetLink :one
+insert into asset_links (asset_id, position, kind, label, url)
+values (?, ?, ?, ?, ?)
+returning asset_id, position, kind, label, url
+`
+
+type CreateAssetLinkParams struct {
+	AssetID  string         `json:"asset_id"`
+	Position int64          `json:"position"`
+	Kind     string         `json:"kind"`
+	Label    sql.NullString `json:"label"`
+	Url      string         `json:"url"`
+}
+
+func (q *Queries) CreateAssetLink(ctx context.Context, arg CreateAssetLinkParams) (AssetLink, error) {
+	row := q.db.QueryRowContext(ctx, createAssetLink,
+		arg.AssetID,
+		arg.Position,
+		arg.Kind,
+		arg.Label,
+		arg.Url,
+	)
+	var i AssetLink
+	err := row.Scan(
+		&i.AssetID,
+		&i.Position,
+		&i.Kind,
+		&i.Label,
+		&i.Url,
+	)
+	return i, err
+}
+
 const deleteAsset = `-- name: DeleteAsset :execrows
 delete from assets
 where public_id = ?
@@ -74,6 +111,19 @@ where public_id = ?
 
 func (q *Queries) DeleteAsset(ctx context.Context, publicID string) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteAsset, publicID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteAssetLinks = `-- name: DeleteAssetLinks :execrows
+delete from asset_links
+where asset_id = ?
+`
+
+func (q *Queries) DeleteAssetLinks(ctx context.Context, assetID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAssetLinks, assetID)
 	if err != nil {
 		return 0, err
 	}
@@ -114,6 +164,18 @@ effective_placements as (
         area_id
     from asset_placement
     where area_id is not null
+),
+
+asset_purchase_owners as (
+    select
+        purchases.id               as purchase_id,
+        purchases.primary_asset_id as asset_id
+    from purchases
+    union all
+    select
+        purchase_assets.purchase_id,
+        purchase_assets.asset_id
+    from purchase_assets
 )
 
 select
@@ -121,6 +183,7 @@ select
     assets.public_id,
     assets.product_id,
     assets.parent_asset_id,
+    assets.parent_slot,
     assets.area_id,
     assets.name,
     assets.serial_number,
@@ -128,16 +191,19 @@ select
     assets.notes,
     assets.created_at,
     assets.updated_at,
-    products.public_id       as product_public_id,
-    parent.public_id         as parent_asset_public_id,
-    placement.public_id      as area_public_id,
-    effective_area.public_id as effective_area_public_id
+    products.public_id        as product_public_id,
+    parent.public_id          as parent_asset_public_id,
+    placement.public_id       as area_public_id,
+    effective_area.public_id  as effective_area_public_id,
+    purchase_record.public_id as purchase_public_id
 from assets
 inner join products on assets.product_id = products.id
 left join asset_identifiers as parent on assets.parent_asset_id = parent.id
 left join areas as placement on assets.area_id = placement.id
 left join effective_placements on assets.id = effective_placements.origin_id
 left join areas as effective_area on effective_placements.area_id = effective_area.id
+left join asset_purchase_owners on assets.id = asset_purchase_owners.asset_id
+left join purchases as purchase_record on asset_purchase_owners.purchase_id = purchase_record.id
 where assets.public_id = ?
 `
 
@@ -146,6 +212,7 @@ type GetAssetByPublicIDRow struct {
 	PublicID              string         `json:"public_id"`
 	ProductID             string         `json:"product_id"`
 	ParentAssetID         sql.NullString `json:"parent_asset_id"`
+	ParentSlot            sql.NullString `json:"parent_slot"`
 	AreaID                sql.NullString `json:"area_id"`
 	Name                  sql.NullString `json:"name"`
 	SerialNumber          sql.NullString `json:"serial_number"`
@@ -157,6 +224,7 @@ type GetAssetByPublicIDRow struct {
 	ParentAssetPublicID   sql.NullString `json:"parent_asset_public_id"`
 	AreaPublicID          sql.NullString `json:"area_public_id"`
 	EffectiveAreaPublicID sql.NullString `json:"effective_area_public_id"`
+	PurchasePublicID      sql.NullString `json:"purchase_public_id"`
 }
 
 func (q *Queries) GetAssetByPublicID(ctx context.Context, publicID string) (GetAssetByPublicIDRow, error) {
@@ -167,6 +235,7 @@ func (q *Queries) GetAssetByPublicID(ctx context.Context, publicID string) (GetA
 		&i.PublicID,
 		&i.ProductID,
 		&i.ParentAssetID,
+		&i.ParentSlot,
 		&i.AreaID,
 		&i.Name,
 		&i.SerialNumber,
@@ -178,6 +247,7 @@ func (q *Queries) GetAssetByPublicID(ctx context.Context, publicID string) (GetA
 		&i.ParentAssetPublicID,
 		&i.AreaPublicID,
 		&i.EffectiveAreaPublicID,
+		&i.PurchasePublicID,
 	)
 	return i, err
 }
@@ -216,6 +286,18 @@ effective_placements as (
         area_id
     from asset_placement
     where area_id is not null
+),
+
+asset_purchase_owners as (
+    select
+        purchases.id               as purchase_id,
+        purchases.primary_asset_id as asset_id
+    from purchases
+    union all
+    select
+        purchase_assets.purchase_id,
+        purchase_assets.asset_id
+    from purchase_assets
 )
 
 select
@@ -223,6 +305,7 @@ select
     assets.public_id,
     assets.product_id,
     assets.parent_asset_id,
+    assets.parent_slot,
     assets.area_id,
     assets.name,
     assets.serial_number,
@@ -230,16 +313,19 @@ select
     assets.notes,
     assets.created_at,
     assets.updated_at,
-    products.public_id       as product_public_id,
-    parent.public_id         as parent_asset_public_id,
-    placement.public_id      as area_public_id,
-    effective_area.public_id as effective_area_public_id
+    products.public_id        as product_public_id,
+    parent.public_id          as parent_asset_public_id,
+    placement.public_id       as area_public_id,
+    effective_area.public_id  as effective_area_public_id,
+    purchase_record.public_id as purchase_public_id
 from assets
 inner join products on assets.product_id = products.id
 left join asset_identifiers as parent on assets.parent_asset_id = parent.id
 left join areas as placement on assets.area_id = placement.id
 left join effective_placements on assets.id = effective_placements.origin_id
 left join areas as effective_area on effective_placements.area_id = effective_area.id
+left join asset_purchase_owners on assets.id = asset_purchase_owners.asset_id
+left join purchases as purchase_record on asset_purchase_owners.purchase_id = purchase_record.id
 order by coalesce(assets.name, assets.serial_number, assets.public_id)
 `
 
@@ -248,6 +334,7 @@ type ListAssetDetailsRow struct {
 	PublicID              string         `json:"public_id"`
 	ProductID             string         `json:"product_id"`
 	ParentAssetID         sql.NullString `json:"parent_asset_id"`
+	ParentSlot            sql.NullString `json:"parent_slot"`
 	AreaID                sql.NullString `json:"area_id"`
 	Name                  sql.NullString `json:"name"`
 	SerialNumber          sql.NullString `json:"serial_number"`
@@ -259,6 +346,7 @@ type ListAssetDetailsRow struct {
 	ParentAssetPublicID   sql.NullString `json:"parent_asset_public_id"`
 	AreaPublicID          sql.NullString `json:"area_public_id"`
 	EffectiveAreaPublicID sql.NullString `json:"effective_area_public_id"`
+	PurchasePublicID      sql.NullString `json:"purchase_public_id"`
 }
 
 func (q *Queries) ListAssetDetails(ctx context.Context) ([]ListAssetDetailsRow, error) {
@@ -275,6 +363,7 @@ func (q *Queries) ListAssetDetails(ctx context.Context) ([]ListAssetDetailsRow, 
 			&i.PublicID,
 			&i.ProductID,
 			&i.ParentAssetID,
+			&i.ParentSlot,
 			&i.AreaID,
 			&i.Name,
 			&i.SerialNumber,
@@ -286,6 +375,88 @@ func (q *Queries) ListAssetDetails(ctx context.Context) ([]ListAssetDetailsRow, 
 			&i.ParentAssetPublicID,
 			&i.AreaPublicID,
 			&i.EffectiveAreaPublicID,
+			&i.PurchasePublicID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAssetLinks = `-- name: ListAssetLinks :many
+select
+    asset_id,
+    position,
+    kind,
+    label,
+    url
+from asset_links
+order by asset_id, position
+`
+
+func (q *Queries) ListAssetLinks(ctx context.Context) ([]AssetLink, error) {
+	rows, err := q.db.QueryContext(ctx, listAssetLinks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AssetLink{}
+	for rows.Next() {
+		var i AssetLink
+		if err := rows.Scan(
+			&i.AssetID,
+			&i.Position,
+			&i.Kind,
+			&i.Label,
+			&i.Url,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAssetLinksByAssetID = `-- name: ListAssetLinksByAssetID :many
+select
+    asset_id,
+    position,
+    kind,
+    label,
+    url
+from asset_links
+where asset_id = ?
+order by position
+`
+
+func (q *Queries) ListAssetLinksByAssetID(ctx context.Context, assetID string) ([]AssetLink, error) {
+	rows, err := q.db.QueryContext(ctx, listAssetLinksByAssetID, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AssetLink{}
+	for rows.Next() {
+		var i AssetLink
+		if err := rows.Scan(
+			&i.AssetID,
+			&i.Position,
+			&i.Kind,
+			&i.Label,
+			&i.Url,
 		); err != nil {
 			return nil, err
 		}
@@ -305,6 +476,7 @@ update assets
 set
     product_id = ?,
     parent_asset_id = ?,
+    parent_slot = ?,
     area_id = ?,
     name = ?,
     serial_number = ?,
@@ -312,12 +484,13 @@ set
     notes = ?,
     updated_at = strftime('%s', 'now')
 where public_id = ?
-returning id, public_id, product_id, parent_asset_id, area_id, name, serial_number, system_uuid, notes, created_at, updated_at
+returning id, public_id, product_id, parent_asset_id, parent_slot, area_id, name, serial_number, system_uuid, notes, created_at, updated_at
 `
 
 type UpdateAssetParams struct {
 	ProductID     string         `json:"product_id"`
 	ParentAssetID sql.NullString `json:"parent_asset_id"`
+	ParentSlot    sql.NullString `json:"parent_slot"`
 	AreaID        sql.NullString `json:"area_id"`
 	Name          sql.NullString `json:"name"`
 	SerialNumber  sql.NullString `json:"serial_number"`
@@ -330,6 +503,7 @@ func (q *Queries) UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset
 	row := q.db.QueryRowContext(ctx, updateAsset,
 		arg.ProductID,
 		arg.ParentAssetID,
+		arg.ParentSlot,
 		arg.AreaID,
 		arg.Name,
 		arg.SerialNumber,
@@ -343,6 +517,7 @@ func (q *Queries) UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset
 		&i.PublicID,
 		&i.ProductID,
 		&i.ParentAssetID,
+		&i.ParentSlot,
 		&i.AreaID,
 		&i.Name,
 		&i.SerialNumber,

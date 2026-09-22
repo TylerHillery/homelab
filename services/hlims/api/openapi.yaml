@@ -12,10 +12,11 @@ tags:
   - {name: Manufacturers, description: Hardware manufacturers}
   - {name: Products, description: Hardware product catalog}
   - {name: Assets, description: Physical asset inventory and placement}
+  - {name: Purchases, description: Equipment purchase transactions and bundled Assets}
   - {name: Machines, description: Bare-metal and virtual machines}
   - {name: Machine Users, description: SSH login users assigned to Machines}
   - {name: Networks, description: LAN, Tailnet, cloud, and public networks}
-  - {name: Addresses, description: Machine and Area network addresses}
+  - {name: Addresses, description: Machine, Area, and equipment network addresses}
   - {name: Services, description: Service definitions and branding}
   - {name: Instances, description: Service workloads running on Machines}
   - {name: Instance Endpoints, description: Network routes to service Instances}
@@ -192,6 +193,42 @@ paths:
     delete:
       tags: [Assets]
       operationId: deleteAsset
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /purchase-summary:
+    get:
+      tags: [Purchases]
+      operationId: getPurchaseSummary
+      responses:
+        "200":
+          description: Recorded Asset purchase totals grouped by currency
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/PurchaseSummary"}
+        default: {$ref: "#/components/responses/Error"}
+  /purchases:
+    get:
+      tags: [Purchases]
+      operationId: listPurchases
+      responses: {"200": {description: Purchases, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Purchase"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Purchases]
+      operationId: createPurchase
+      requestBody: {$ref: "#/components/requestBodies/PurchaseWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Purchase"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /purchases/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Purchases]
+      operationId: getPurchase
+      responses: {"200": {description: Purchase, content: {application/json: {schema: {$ref: "#/components/schemas/Purchase"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Purchases]
+      operationId: updatePurchase
+      requestBody: {$ref: "#/components/requestBodies/PurchaseWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Purchase"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Purchases]
+      operationId: deletePurchase
       responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
   /machines:
     get:
@@ -431,6 +468,7 @@ components:
     ManufacturerWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ManufacturerWrite"}}}}
     ProductWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ProductWrite"}}}}
     AssetWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AssetWrite"}}}}
+    PurchaseWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/PurchaseWrite"}}}}
     MachineWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineWrite"}}}}
     MachineUserWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUserWrite"}}}}
     NetworkWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NetworkWrite"}}}}
@@ -447,7 +485,10 @@ components:
     Scheme: {type: string, enum: [http, https]}
     MachineKind: {type: string, enum: [bare_metal, virtual_machine]}
     NetworkKind: {type: string, enum: [lan, tailnet, cloud_vpc, public]}
-    ProductKind: {type: string, enum: [system, processor, memory, drive]}
+    ProductKind: {type: string, enum: [system, processor, memory, drive, rack, router, switch, access_point, network_adapter]}
+    ProductLinkKind: {type: string, enum: [manufacturer, retailer, manual, datasheet, support]}
+    AssetLinkKind: {type: string, enum: [receipt, warranty, management, other]}
+    PurchaseLinkKind: {type: string, enum: [receipt, listing, other]}
     AssetPlacementType: {type: string, enum: [area, asset, unplaced]}
     CpuAllocation: {type: string, enum: [shared, dedicated]}
     StorageMediaKind: {type: string, enum: [hdd, ssd]}
@@ -623,10 +664,50 @@ components:
         interfaceKind:
           nullable: true
           allOf: [{$ref: "#/components/schemas/StorageInterfaceKind"}]
+    RackSpec:
+      type: object
+      additionalProperties: false
+      required: [rackUnits, mountingStandard]
+      properties:
+        rackUnits: {type: integer, minimum: 1}
+        mountingStandard: {type: string, minLength: 1, example: 10-inch}
+    PortProfile:
+      type: object
+      additionalProperties: false
+      required: [portCount, connector, speedMbps]
+      properties:
+        name: {type: string, nullable: true}
+        portCount: {type: integer, minimum: 1}
+        connector: {type: string, minLength: 1, example: RJ45}
+        speedMbps: {type: integer, minimum: 1}
+    ProductLink:
+      type: object
+      additionalProperties: false
+      required: [kind, url]
+      properties:
+        kind: {$ref: "#/components/schemas/ProductLinkKind"}
+        label: {type: string, nullable: true}
+        url:
+          type: string
+          format: uri
+          pattern: "^https?://"
+          description: Absolute HTTP or HTTPS URL without credentials or a fragment.
+    AssetLink:
+      type: object
+      additionalProperties: false
+      required: [kind, url]
+      properties:
+        kind: {$ref: "#/components/schemas/AssetLinkKind"}
+        label: {type: string, nullable: true}
+        url:
+          type: string
+          format: uri
+          pattern: "^https?://"
+          description: Absolute HTTP or HTTPS URL without credentials or a fragment.
     ProductWrite:
       type: object
       additionalProperties: false
-      description: The product kind determines which single spec is allowed and required; system products have no spec.
+      description: The product kind determines which single spec is allowed and required. System and network products have no scalar spec; port profiles are allowed only on router, switch, access_point, and network_adapter products.
       required: [manufacturerPublicId, kind, name]
       properties:
         manufacturerPublicId: {$ref: "#/components/schemas/PublicId"}
@@ -637,6 +718,13 @@ components:
         processorSpec: {$ref: "#/components/schemas/ProcessorSpec"}
         memorySpec: {$ref: "#/components/schemas/MemorySpec"}
         driveSpec: {$ref: "#/components/schemas/DriveSpec"}
+        rackSpec: {$ref: "#/components/schemas/RackSpec"}
+        portProfiles:
+          type: array
+          items: {$ref: "#/components/schemas/PortProfile"}
+        links:
+          type: array
+          items: {$ref: "#/components/schemas/ProductLink"}
     Product:
       allOf:
         - {$ref: "#/components/schemas/ProductWrite"}
@@ -657,6 +745,65 @@ components:
         parentAssetPublicId:
           nullable: true
           allOf: [{$ref: "#/components/schemas/PublicId"}]
+        slot:
+          type: string
+          nullable: true
+          description: Descriptive slot within the parent Asset, such as PCIe x16.
+    PurchaseLink:
+      type: object
+      additionalProperties: false
+      required: [kind, url]
+      properties:
+        kind: {$ref: "#/components/schemas/PurchaseLinkKind"}
+        label: {type: string, nullable: true}
+        url:
+          type: string
+          format: uri
+          pattern: "^https?://"
+          description: Absolute HTTP or HTTPS URL without credentials or a fragment.
+    PurchaseWrite:
+      type: object
+      additionalProperties: false
+      required: [assetPublicIds, totalPriceCents, currency]
+      properties:
+        assetPublicIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {$ref: "#/components/schemas/PublicId"}
+        totalPriceCents: {type: integer, format: int64, minimum: 0}
+        currency: {type: string, minLength: 3, maxLength: 3, pattern: "^[A-Za-z]{3}$"}
+        purchasedOn: {type: string, format: date, nullable: true}
+        source: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+        links:
+          type: array
+          items: {$ref: "#/components/schemas/PurchaseLink"}
+    Purchase:
+      allOf:
+        - {$ref: "#/components/schemas/PurchaseWrite"}
+        - type: object
+          required: [publicId]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
+    PurchaseTotal:
+      type: object
+      additionalProperties: false
+      required: [currency, totalPriceCents, purchaseCount, assetCount]
+      properties:
+        currency: {type: string, minLength: 3, maxLength: 3}
+        totalPriceCents: {type: integer, format: int64, minimum: 0}
+        purchaseCount: {type: integer, format: int64, minimum: 1}
+        assetCount: {type: integer, format: int64, minimum: 1}
+    PurchaseSummary:
+      type: object
+      additionalProperties: false
+      required: [totals]
+      properties:
+        totals:
+          type: array
+          description: Totals are separate per currency and count each Purchase once, regardless of bundled Asset count.
+          items: {$ref: "#/components/schemas/PurchaseTotal"}
     AssetWrite:
       type: object
       additionalProperties: false
@@ -668,6 +815,9 @@ components:
         serialNumber: {type: string, nullable: true}
         systemUuid: {type: string, nullable: true}
         notes: {type: string, nullable: true}
+        links:
+          type: array
+          items: {$ref: "#/components/schemas/AssetLink"}
     Asset:
       allOf:
         - {$ref: "#/components/schemas/AssetWrite"}
@@ -676,6 +826,9 @@ components:
           properties:
             publicId: {$ref: "#/components/schemas/PublicId"}
             effectiveAreaPublicId:
+              nullable: true
+              allOf: [{$ref: "#/components/schemas/PublicId"}]
+            purchasePublicId:
               nullable: true
               allOf: [{$ref: "#/components/schemas/PublicId"}]
     MachineWrite:
@@ -749,7 +902,17 @@ components:
       type: object
       additionalProperties: false
       required: [networkPublicId, address]
-      properties: {networkPublicId: {type: string}, machinePublicId: {type: string, nullable: true}, areaPublicId: {type: string, nullable: true}, name: {type: string, nullable: true}, address: {type: string}, dnsName: {type: string, nullable: true}, interfaceName: {type: string, nullable: true}, isPrimary: {type: boolean, default: false}}
+      description: Exactly one of machinePublicId, areaPublicId, or assetPublicId is required.
+      properties:
+        networkPublicId: {$ref: "#/components/schemas/PublicId"}
+        machinePublicId: {type: string, nullable: true}
+        areaPublicId: {type: string, nullable: true}
+        assetPublicId: {type: string, nullable: true}
+        name: {type: string, nullable: true}
+        address: {type: string}
+        dnsName: {type: string, nullable: true}
+        interfaceName: {type: string, nullable: true}
+        isPrimary: {type: boolean, default: false}
     Address:
       allOf: [{$ref: "#/components/schemas/AddressWrite"}, {type: object, required: [publicId, isPrimary], properties: {publicId: {type: string}, isPrimary: {type: boolean}}}]
     ServiceWrite:

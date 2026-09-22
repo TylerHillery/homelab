@@ -135,7 +135,7 @@ func (s apiServer) ListAddresses(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]api.Address, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, addressResponse(row.PublicID, row.NetworkPublicID, row.MachinePublicID, row.AreaPublicID, row.Name, row.Address, row.DnsName, row.InterfaceName, row.IsPrimary))
+		items = append(items, addressResponse(row.PublicID, row.NetworkPublicID, row.MachinePublicID, row.AreaPublicID, row.AssetPublicID, row.Name, row.Address, row.DnsName, row.InterfaceName, row.IsPrimary))
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Items []api.Address `json:"items"`
@@ -162,7 +162,7 @@ func (s apiServer) CreateAddress(w http.ResponseWriter, r *http.Request) {
 		writeDatabaseError(w, err)
 		return
 	}
-	_, err = s.queries.CreateAddress(r.Context(), database.CreateAddressParams{ID: id, PublicID: publicID, NetworkID: params.networkID, MachineID: params.machineID, AreaID: params.areaID, Name: params.name, Address: params.address, DnsName: params.dnsName, InterfaceName: params.interfaceName, IsPrimary: params.isPrimary})
+	_, err = s.queries.CreateAddress(r.Context(), database.CreateAddressParams{ID: id, PublicID: publicID, NetworkID: params.networkID, MachineID: params.machineID, AreaID: params.areaID, AssetID: params.assetID, Name: params.name, Address: params.address, DnsName: params.dnsName, InterfaceName: params.interfaceName, IsPrimary: params.isPrimary})
 	if err != nil {
 		writeDatabaseError(w, err)
 		return
@@ -170,17 +170,23 @@ func (s apiServer) CreateAddress(w http.ResponseWriter, r *http.Request) {
 	s.writeAddress(w, r, publicID, http.StatusCreated)
 }
 
-var errInvalidAddressOwner = errors.New("address must reference exactly one machine or area")
+var errInvalidAddressOwner = errors.New("address must reference exactly one machine, area, or asset")
 
 type normalizedAddress struct {
 	networkID, address           string
-	machineID, areaID            sql.NullString
+	machineID, areaID, assetID   sql.NullString
 	name, dnsName, interfaceName sql.NullString
 	isPrimary                    int64
 }
 
 func (s apiServer) addressParams(r *http.Request, body api.AddressWrite) (normalizedAddress, error) {
-	if (body.MachinePublicId == nil) == (body.AreaPublicId == nil) {
+	ownerCount := 0
+	for _, owner := range []*string{body.MachinePublicId, body.AreaPublicId, body.AssetPublicId} {
+		if owner != nil {
+			ownerCount++
+		}
+	}
+	if ownerCount != 1 {
 		return normalizedAddress{}, errInvalidAddressOwner
 	}
 	network, err := s.queries.GetNetworkByPublicID(r.Context(), body.NetworkPublicId)
@@ -194,12 +200,26 @@ func (s apiServer) addressParams(r *http.Request, body api.AddressWrite) (normal
 			return normalizedAddress{}, err
 		}
 		result.machineID = sql.NullString{String: machine.ID, Valid: true}
-	} else {
+	} else if body.AreaPublicId != nil {
 		area, err := s.queries.GetAreaByPublicID(r.Context(), *body.AreaPublicId)
 		if err != nil {
 			return normalizedAddress{}, err
 		}
 		result.areaID = sql.NullString{String: area.ID, Valid: true}
+	} else {
+		asset, err := s.queries.GetAssetByPublicID(r.Context(), *body.AssetPublicId)
+		if err != nil {
+			return normalizedAddress{}, err
+		}
+		product, err := s.queries.GetProductByPublicID(r.Context(), asset.ProductPublicID)
+		if err != nil {
+			return normalizedAddress{}, err
+		}
+		kind := api.ProductKind(product.Kind)
+		if kind != api.Router && kind != api.Switch && kind != api.AccessPoint {
+			return normalizedAddress{}, errInvalidAddressOwnerWrap(errors.New("asset address requires a router, switch, or access_point product"))
+		}
+		result.assetID = sql.NullString{String: asset.ID, Valid: true}
 	}
 	result.address, err = normalizeIP(body.Address)
 	if err != nil {
@@ -226,11 +246,11 @@ func (s apiServer) writeAddress(w http.ResponseWriter, r *http.Request, publicID
 		writeDatabaseError(w, err)
 		return
 	}
-	writeJSON(w, status, addressResponse(row.PublicID, row.NetworkPublicID, row.MachinePublicID, row.AreaPublicID, row.Name, row.Address, row.DnsName, row.InterfaceName, row.IsPrimary))
+	writeJSON(w, status, addressResponse(row.PublicID, row.NetworkPublicID, row.MachinePublicID, row.AreaPublicID, row.AssetPublicID, row.Name, row.Address, row.DnsName, row.InterfaceName, row.IsPrimary))
 }
 
-func addressResponse(publicID, networkPublicID string, machinePublicID, areaPublicID, name sql.NullString, address string, dnsName, interfaceName sql.NullString, isPrimary int64) api.Address {
-	return api.Address{PublicId: publicID, NetworkPublicId: networkPublicID, MachinePublicId: stringPointer(machinePublicID), AreaPublicId: stringPointer(areaPublicID), Name: stringPointer(name), Address: address, DnsName: stringPointer(dnsName), InterfaceName: stringPointer(interfaceName), IsPrimary: isPrimary == 1}
+func addressResponse(publicID, networkPublicID string, machinePublicID, areaPublicID, assetPublicID, name sql.NullString, address string, dnsName, interfaceName sql.NullString, isPrimary int64) api.Address {
+	return api.Address{PublicId: publicID, NetworkPublicId: networkPublicID, MachinePublicId: stringPointer(machinePublicID), AreaPublicId: stringPointer(areaPublicID), AssetPublicId: stringPointer(assetPublicID), Name: stringPointer(name), Address: address, DnsName: stringPointer(dnsName), InterfaceName: stringPointer(interfaceName), IsPrimary: isPrimary == 1}
 }
 
 func (s apiServer) UpdateAddress(w http.ResponseWriter, r *http.Request, publicID api.PublicId) {
@@ -252,7 +272,7 @@ func (s apiServer) UpdateAddress(w http.ResponseWriter, r *http.Request, publicI
 		}
 		return
 	}
-	_, err = s.queries.UpdateAddress(r.Context(), database.UpdateAddressParams{NetworkID: params.networkID, MachineID: params.machineID, AreaID: params.areaID, Name: params.name, Address: params.address, DnsName: params.dnsName, InterfaceName: params.interfaceName, IsPrimary: params.isPrimary, PublicID: publicID})
+	_, err = s.queries.UpdateAddress(r.Context(), database.UpdateAddressParams{NetworkID: params.networkID, MachineID: params.machineID, AreaID: params.areaID, AssetID: params.assetID, Name: params.name, Address: params.address, DnsName: params.dnsName, InterfaceName: params.interfaceName, IsPrimary: params.isPrimary, PublicID: publicID})
 	if err != nil {
 		writeDatabaseError(w, err)
 		return

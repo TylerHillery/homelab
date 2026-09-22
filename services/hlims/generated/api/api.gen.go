@@ -17,7 +17,32 @@ import (
 	"strings"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AssetLinkKind.
+const (
+	AssetLinkKindManagement AssetLinkKind = "management"
+	AssetLinkKindOther      AssetLinkKind = "other"
+	AssetLinkKindReceipt    AssetLinkKind = "receipt"
+	AssetLinkKindWarranty   AssetLinkKind = "warranty"
+)
+
+// Valid indicates whether the value is a known member of the AssetLinkKind enum.
+func (e AssetLinkKind) Valid() bool {
+	switch e {
+	case AssetLinkKindManagement:
+		return true
+	case AssetLinkKindOther:
+		return true
+	case AssetLinkKindReceipt:
+		return true
+	case AssetLinkKindWarranty:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for AssetPlacementType.
 const (
@@ -102,22 +127,85 @@ func (e NetworkKind) Valid() bool {
 
 // Defines values for ProductKind.
 const (
-	Drive     ProductKind = "drive"
-	Memory    ProductKind = "memory"
-	Processor ProductKind = "processor"
-	System    ProductKind = "system"
+	AccessPoint    ProductKind = "access_point"
+	Drive          ProductKind = "drive"
+	Memory         ProductKind = "memory"
+	NetworkAdapter ProductKind = "network_adapter"
+	Processor      ProductKind = "processor"
+	Rack           ProductKind = "rack"
+	Router         ProductKind = "router"
+	Switch         ProductKind = "switch"
+	System         ProductKind = "system"
 )
 
 // Valid indicates whether the value is a known member of the ProductKind enum.
 func (e ProductKind) Valid() bool {
 	switch e {
+	case AccessPoint:
+		return true
 	case Drive:
 		return true
 	case Memory:
 		return true
+	case NetworkAdapter:
+		return true
 	case Processor:
 		return true
+	case Rack:
+		return true
+	case Router:
+		return true
+	case Switch:
+		return true
 	case System:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProductLinkKind.
+const (
+	ProductLinkKindDatasheet    ProductLinkKind = "datasheet"
+	ProductLinkKindManual       ProductLinkKind = "manual"
+	ProductLinkKindManufacturer ProductLinkKind = "manufacturer"
+	ProductLinkKindRetailer     ProductLinkKind = "retailer"
+	ProductLinkKindSupport      ProductLinkKind = "support"
+)
+
+// Valid indicates whether the value is a known member of the ProductLinkKind enum.
+func (e ProductLinkKind) Valid() bool {
+	switch e {
+	case ProductLinkKindDatasheet:
+		return true
+	case ProductLinkKindManual:
+		return true
+	case ProductLinkKindManufacturer:
+		return true
+	case ProductLinkKindRetailer:
+		return true
+	case ProductLinkKindSupport:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PurchaseLinkKind.
+const (
+	PurchaseLinkKindListing PurchaseLinkKind = "listing"
+	PurchaseLinkKindOther   PurchaseLinkKind = "other"
+	PurchaseLinkKindReceipt PurchaseLinkKind = "receipt"
+)
+
+// Valid indicates whether the value is a known member of the PurchaseLinkKind enum.
+func (e PurchaseLinkKind) Valid() bool {
+	switch e {
+	case PurchaseLinkKindListing:
+		return true
+	case PurchaseLinkKindOther:
+		return true
+	case PurchaseLinkKindReceipt:
 		return true
 	default:
 		return false
@@ -213,27 +301,29 @@ func (e Via) Valid() bool {
 
 // Address defines model for Address.
 type Address struct {
-	Address         string  `json:"address"`
-	AreaPublicId    *string `json:"areaPublicId,omitempty"`
-	DnsName         *string `json:"dnsName,omitempty"`
-	InterfaceName   *string `json:"interfaceName,omitempty"`
-	IsPrimary       bool    `json:"isPrimary"`
-	MachinePublicId *string `json:"machinePublicId,omitempty"`
-	Name            *string `json:"name,omitempty"`
-	NetworkPublicId string  `json:"networkPublicId"`
-	PublicId        string  `json:"publicId"`
+	Address         string   `json:"address"`
+	AreaPublicId    *string  `json:"areaPublicId,omitempty"`
+	AssetPublicId   *string  `json:"assetPublicId,omitempty"`
+	DnsName         *string  `json:"dnsName,omitempty"`
+	InterfaceName   *string  `json:"interfaceName,omitempty"`
+	IsPrimary       bool     `json:"isPrimary"`
+	MachinePublicId *string  `json:"machinePublicId,omitempty"`
+	Name            *string  `json:"name,omitempty"`
+	NetworkPublicId PublicId `json:"networkPublicId"`
+	PublicId        string   `json:"publicId"`
 }
 
-// AddressWrite defines model for AddressWrite.
+// AddressWrite Exactly one of machinePublicId, areaPublicId, or assetPublicId is required.
 type AddressWrite struct {
-	Address         string  `json:"address"`
-	AreaPublicId    *string `json:"areaPublicId,omitempty"`
-	DnsName         *string `json:"dnsName,omitempty"`
-	InterfaceName   *string `json:"interfaceName,omitempty"`
-	IsPrimary       *bool   `json:"isPrimary,omitempty"`
-	MachinePublicId *string `json:"machinePublicId,omitempty"`
-	Name            *string `json:"name,omitempty"`
-	NetworkPublicId string  `json:"networkPublicId"`
+	Address         string   `json:"address"`
+	AreaPublicId    *string  `json:"areaPublicId,omitempty"`
+	AssetPublicId   *string  `json:"assetPublicId,omitempty"`
+	DnsName         *string  `json:"dnsName,omitempty"`
+	InterfaceName   *string  `json:"interfaceName,omitempty"`
+	IsPrimary       *bool    `json:"isPrimary,omitempty"`
+	MachinePublicId *string  `json:"machinePublicId,omitempty"`
+	Name            *string  `json:"name,omitempty"`
+	NetworkPublicId PublicId `json:"networkPublicId"`
 }
 
 // Area defines model for Area.
@@ -257,23 +347,40 @@ type AreaWrite struct {
 
 // Asset defines model for Asset.
 type Asset struct {
-	EffectiveAreaPublicId *PublicId `json:"effectiveAreaPublicId,omitempty"`
-	Name                  *string   `json:"name,omitempty"`
-	Notes                 *string   `json:"notes,omitempty"`
+	EffectiveAreaPublicId *PublicId    `json:"effectiveAreaPublicId,omitempty"`
+	Links                 *[]AssetLink `json:"links,omitempty"`
+	Name                  *string      `json:"name,omitempty"`
+	Notes                 *string      `json:"notes,omitempty"`
 
 	// Placement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
-	Placement       AssetPlacement `json:"placement"`
-	ProductPublicId PublicId       `json:"productPublicId"`
-	PublicId        PublicId       `json:"publicId"`
-	SerialNumber    *string        `json:"serialNumber,omitempty"`
-	SystemUuid      *string        `json:"systemUuid,omitempty"`
+	Placement        AssetPlacement `json:"placement"`
+	ProductPublicId  PublicId       `json:"productPublicId"`
+	PublicId         PublicId       `json:"publicId"`
+	PurchasePublicId *PublicId      `json:"purchasePublicId,omitempty"`
+	SerialNumber     *string        `json:"serialNumber,omitempty"`
+	SystemUuid       *string        `json:"systemUuid,omitempty"`
 }
+
+// AssetLink defines model for AssetLink.
+type AssetLink struct {
+	Kind  AssetLinkKind `json:"kind"`
+	Label *string       `json:"label,omitempty"`
+
+	// Url Absolute HTTP or HTTPS URL without credentials or a fragment.
+	Url string `json:"url"`
+}
+
+// AssetLinkKind defines model for AssetLinkKind.
+type AssetLinkKind string
 
 // AssetPlacement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
 type AssetPlacement struct {
-	AreaPublicId        *PublicId          `json:"areaPublicId,omitempty"`
-	ParentAssetPublicId *PublicId          `json:"parentAssetPublicId,omitempty"`
-	Type                AssetPlacementType `json:"type"`
+	AreaPublicId        *PublicId `json:"areaPublicId,omitempty"`
+	ParentAssetPublicId *PublicId `json:"parentAssetPublicId,omitempty"`
+
+	// Slot Descriptive slot within the parent Asset, such as PCIe x16.
+	Slot *string            `json:"slot,omitempty"`
+	Type AssetPlacementType `json:"type"`
 }
 
 // AssetPlacementType defines model for AssetPlacementType.
@@ -281,8 +388,9 @@ type AssetPlacementType string
 
 // AssetWrite defines model for AssetWrite.
 type AssetWrite struct {
-	Name  *string `json:"name,omitempty"`
-	Notes *string `json:"notes,omitempty"`
+	Links *[]AssetLink `json:"links,omitempty"`
+	Name  *string      `json:"name,omitempty"`
+	Notes *string      `json:"notes,omitempty"`
 
 	// Placement Area placements require areaPublicId, asset placements require parentAssetPublicId, and unplaced placements require neither.
 	Placement       AssetPlacement `json:"placement"`
@@ -505,6 +613,15 @@ type NetworkWrite struct {
 	Slug         *Slug       `json:"slug,omitempty"`
 }
 
+// PortProfile defines model for PortProfile.
+type PortProfile struct {
+	// Connector Example: RJ45
+	Connector string  `json:"connector"`
+	Name      *string `json:"name,omitempty"`
+	PortCount int     `json:"portCount"`
+	SpeedMbps int     `json:"speedMbps"`
+}
+
 // ProcessorSpec defines model for ProcessorSpec.
 type ProcessorSpec struct {
 	BaseClockMhz *int `json:"baseClockMhz,omitempty"`
@@ -519,32 +636,106 @@ type ProcessorSpec struct {
 type Product struct {
 	DriveSpec            *DriveSpec     `json:"driveSpec,omitempty"`
 	Kind                 ProductKind    `json:"kind"`
+	Links                *[]ProductLink `json:"links,omitempty"`
 	ManufacturerPublicId PublicId       `json:"manufacturerPublicId"`
 	MemorySpec           *MemorySpec    `json:"memorySpec,omitempty"`
 	Name                 string         `json:"name"`
 	Notes                *string        `json:"notes,omitempty"`
 	PartNumber           *string        `json:"partNumber,omitempty"`
+	PortProfiles         *[]PortProfile `json:"portProfiles,omitempty"`
 	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
 	PublicId             PublicId       `json:"publicId"`
+	RackSpec             *RackSpec      `json:"rackSpec,omitempty"`
 }
 
 // ProductKind defines model for ProductKind.
 type ProductKind string
 
-// ProductWrite The product kind determines which single spec is allowed and required; system products have no spec.
+// ProductLink defines model for ProductLink.
+type ProductLink struct {
+	Kind  ProductLinkKind `json:"kind"`
+	Label *string         `json:"label,omitempty"`
+
+	// Url Absolute HTTP or HTTPS URL without credentials or a fragment.
+	Url string `json:"url"`
+}
+
+// ProductLinkKind defines model for ProductLinkKind.
+type ProductLinkKind string
+
+// ProductWrite The product kind determines which single spec is allowed and required. System and network products have no scalar spec; port profiles are allowed only on router, switch, access_point, and network_adapter products.
 type ProductWrite struct {
 	DriveSpec            *DriveSpec     `json:"driveSpec,omitempty"`
 	Kind                 ProductKind    `json:"kind"`
+	Links                *[]ProductLink `json:"links,omitempty"`
 	ManufacturerPublicId PublicId       `json:"manufacturerPublicId"`
 	MemorySpec           *MemorySpec    `json:"memorySpec,omitempty"`
 	Name                 string         `json:"name"`
 	Notes                *string        `json:"notes,omitempty"`
 	PartNumber           *string        `json:"partNumber,omitempty"`
+	PortProfiles         *[]PortProfile `json:"portProfiles,omitempty"`
 	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
+	RackSpec             *RackSpec      `json:"rackSpec,omitempty"`
 }
 
 // PublicId defines model for PublicId.
 type PublicId = string
+
+// Purchase defines model for Purchase.
+type Purchase struct {
+	AssetPublicIds  []PublicId          `json:"assetPublicIds"`
+	Currency        string              `json:"currency"`
+	Links           *[]PurchaseLink     `json:"links,omitempty"`
+	Notes           *string             `json:"notes,omitempty"`
+	PublicId        PublicId            `json:"publicId"`
+	PurchasedOn     *openapi_types.Date `json:"purchasedOn,omitempty"`
+	Source          *string             `json:"source,omitempty"`
+	TotalPriceCents int64               `json:"totalPriceCents"`
+}
+
+// PurchaseLink defines model for PurchaseLink.
+type PurchaseLink struct {
+	Kind  PurchaseLinkKind `json:"kind"`
+	Label *string          `json:"label,omitempty"`
+
+	// Url Absolute HTTP or HTTPS URL without credentials or a fragment.
+	Url string `json:"url"`
+}
+
+// PurchaseLinkKind defines model for PurchaseLinkKind.
+type PurchaseLinkKind string
+
+// PurchaseSummary defines model for PurchaseSummary.
+type PurchaseSummary struct {
+	// Totals Totals are separate per currency and count each Purchase once, regardless of bundled Asset count.
+	Totals []PurchaseTotal `json:"totals"`
+}
+
+// PurchaseTotal defines model for PurchaseTotal.
+type PurchaseTotal struct {
+	AssetCount      int64  `json:"assetCount"`
+	Currency        string `json:"currency"`
+	PurchaseCount   int64  `json:"purchaseCount"`
+	TotalPriceCents int64  `json:"totalPriceCents"`
+}
+
+// PurchaseWrite defines model for PurchaseWrite.
+type PurchaseWrite struct {
+	AssetPublicIds  []PublicId          `json:"assetPublicIds"`
+	Currency        string              `json:"currency"`
+	Links           *[]PurchaseLink     `json:"links,omitempty"`
+	Notes           *string             `json:"notes,omitempty"`
+	PurchasedOn     *openapi_types.Date `json:"purchasedOn,omitempty"`
+	Source          *string             `json:"source,omitempty"`
+	TotalPriceCents int64               `json:"totalPriceCents"`
+}
+
+// RackSpec defines model for RackSpec.
+type RackSpec struct {
+	// MountingStandard Example: 10-inch
+	MountingStandard string `json:"mountingStandard"`
+	RackUnits        int    `json:"rackUnits"`
+}
 
 // ResolvedDestination defines model for ResolvedDestination.
 type ResolvedDestination struct {
@@ -760,6 +951,12 @@ type CreateProductJSONRequestBody = ProductWrite
 
 // UpdateProductJSONRequestBody defines body for UpdateProduct for application/json ContentType.
 type UpdateProductJSONRequestBody = ProductWrite
+
+// CreatePurchaseJSONRequestBody defines body for CreatePurchase for application/json ContentType.
+type CreatePurchaseJSONRequestBody = PurchaseWrite
+
+// UpdatePurchaseJSONRequestBody defines body for UpdatePurchase for application/json ContentType.
+type UpdatePurchaseJSONRequestBody = PurchaseWrite
 
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = ServiceWrite
@@ -1128,6 +1325,34 @@ type ClientInterface interface {
 	// UpdateProduct performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
 	// Takes a body of the `application/json` content type.
 	UpdateProduct(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPurchaseSummary performs a GET /purchase-summary (the `GetPurchaseSummary` operationId) request.
+	GetPurchaseSummary(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPurchases performs a GET /purchases (the `ListPurchases` operationId) request.
+	ListPurchases(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePurchaseWithBody performs a POST /purchases (the `CreatePurchase` operationId) request,
+	// with any type of body and a specified content type.
+	CreatePurchaseWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePurchase performs a POST /purchases (the `CreatePurchase` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreatePurchase(ctx context.Context, body CreatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePurchase performs a DELETE /purchases/{publicId} (the `DeletePurchase` operationId) request.
+	DeletePurchase(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPurchase performs a GET /purchases/{publicId} (the `GetPurchase` operationId) request.
+	GetPurchase(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePurchaseWithBody performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request,
+	// with any type of body and a specified content type.
+	UpdatePurchaseWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePurchase performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdatePurchase(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResolveMachinePort performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 	ResolveMachinePort(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2262,6 +2487,114 @@ func (c *Client) UpdateProductWithBody(ctx context.Context, publicId PublicId, c
 // Takes a body of the `application/json` content type.
 func (c *Client) UpdateProduct(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateProductRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPurchaseSummary performs a GET /purchase-summary (the `GetPurchaseSummary` operationId) request.
+func (c *Client) GetPurchaseSummary(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPurchaseSummaryRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPurchases performs a GET /purchases (the `ListPurchases` operationId) request.
+func (c *Client) ListPurchases(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPurchasesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePurchaseWithBody performs a POST /purchases (the `CreatePurchase` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreatePurchaseWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePurchaseRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePurchase performs a POST /purchases (the `CreatePurchase` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreatePurchase(ctx context.Context, body CreatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePurchaseRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePurchase performs a DELETE /purchases/{publicId} (the `DeletePurchase` operationId) request.
+func (c *Client) DeletePurchase(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePurchaseRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPurchase performs a GET /purchases/{publicId} (the `GetPurchase` operationId) request.
+func (c *Client) GetPurchase(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPurchaseRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePurchaseWithBody performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdatePurchaseWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePurchaseRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePurchase performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdatePurchase(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePurchaseRequest(c.Server, publicId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -4586,6 +4919,215 @@ func NewUpdateProductRequestWithBody(server string, publicId PublicId, contentTy
 	return req, nil
 }
 
+// NewGetPurchaseSummaryRequest constructs an http.Request for the GetPurchaseSummary method
+func NewGetPurchaseSummaryRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchase-summary")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListPurchasesRequest constructs an http.Request for the ListPurchases method
+func NewListPurchasesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchases")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePurchaseRequest calls the generic CreatePurchase builder with application/json body
+func NewCreatePurchaseRequest(server string, body CreatePurchaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePurchaseRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreatePurchaseRequestWithBody constructs an http.Request for the CreatePurchase method, with any body, and a specified content type
+func NewCreatePurchaseRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchases")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePurchaseRequest constructs an http.Request for the DeletePurchase method
+func NewDeletePurchaseRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPurchaseRequest constructs an http.Request for the GetPurchase method
+func NewGetPurchaseRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdatePurchaseRequest calls the generic UpdatePurchase builder with application/json body
+func NewUpdatePurchaseRequest(server string, publicId PublicId, body UpdatePurchaseJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdatePurchaseRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdatePurchaseRequestWithBody constructs an http.Request for the UpdatePurchase method, with any body, and a specified content type
+func NewUpdatePurchaseRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/purchases/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewResolveMachinePortRequest constructs an http.Request for the ResolveMachinePort method
 func NewResolveMachinePortRequest(server string, machine MachineSlug, port int, params *ResolveMachinePortParams) (*http.Request, error) {
 	var err error
@@ -5503,6 +6045,46 @@ type ClientWithResponsesInterface interface {
 	// UpdateProductWithResponse performs a PUT /products/{publicId} (the `UpdateProduct` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	UpdateProductWithResponse(ctx context.Context, publicId PublicId, body UpdateProductJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateProductResponse, error)
+
+	// GetPurchaseSummaryWithResponse performs a GET /purchase-summary (the `GetPurchaseSummary` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetPurchaseSummaryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPurchaseSummaryResponse, error)
+
+	// ListPurchasesWithResponse performs a GET /purchases (the `ListPurchases` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListPurchasesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPurchasesResponse, error)
+
+	// CreatePurchaseWithBodyWithResponse performs a POST /purchases (the `CreatePurchase` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreatePurchaseWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePurchaseResponse, error)
+
+	// CreatePurchaseWithResponse performs a POST /purchases (the `CreatePurchase` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreatePurchaseWithResponse(ctx context.Context, body CreatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePurchaseResponse, error)
+
+	// DeletePurchaseWithResponse performs a DELETE /purchases/{publicId} (the `DeletePurchase` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeletePurchaseWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeletePurchaseResponse, error)
+
+	// GetPurchaseWithResponse performs a GET /purchases/{publicId} (the `GetPurchase` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetPurchaseWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetPurchaseResponse, error)
+
+	// UpdatePurchaseWithBodyWithResponse performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdatePurchaseWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePurchaseResponse, error)
+
+	// UpdatePurchaseWithResponse performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdatePurchaseWithResponse(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePurchaseResponse, error)
 
 	// ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 	//
@@ -8353,6 +8935,291 @@ func (r UpdateProductResponse) ContentType() string {
 	return ""
 }
 
+type GetPurchaseSummaryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PurchaseSummary
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPurchaseSummaryResponse) GetJSON200() *PurchaseSummary {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetPurchaseSummaryResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPurchaseSummaryResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPurchaseSummaryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPurchaseSummaryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPurchaseSummaryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPurchasesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Purchase `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPurchasesResponse) GetJSON200() *struct {
+	Items []Purchase `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListPurchasesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPurchasesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPurchasesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPurchasesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPurchasesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePurchaseResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Purchase
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePurchaseResponse) GetJSON201() *Purchase {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreatePurchaseResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePurchaseResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePurchaseResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePurchaseResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePurchaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePurchaseResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeletePurchaseResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePurchaseResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePurchaseResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePurchaseResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePurchaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetPurchaseResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Purchase
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPurchaseResponse) GetJSON200() *Purchase {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetPurchaseResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPurchaseResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPurchaseResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPurchaseResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPurchaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdatePurchaseResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Purchase
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdatePurchaseResponse) GetJSON200() *Purchase {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdatePurchaseResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdatePurchaseResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdatePurchaseResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdatePurchaseResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdatePurchaseResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveMachinePortResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -9747,6 +10614,94 @@ func (c *ClientWithResponses) UpdateProductWithResponse(ctx context.Context, pub
 		return nil, err
 	}
 	return ParseUpdateProductResponse(rsp)
+}
+
+// GetPurchaseSummaryWithResponse performs a GET /purchase-summary (the `GetPurchaseSummary` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetPurchaseSummaryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPurchaseSummaryResponse, error) {
+	rsp, err := c.GetPurchaseSummary(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPurchaseSummaryResponse(rsp)
+}
+
+// ListPurchasesWithResponse performs a GET /purchases (the `ListPurchases` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListPurchasesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPurchasesResponse, error) {
+	rsp, err := c.ListPurchases(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPurchasesResponse(rsp)
+}
+
+// CreatePurchaseWithBodyWithResponse performs a POST /purchases (the `CreatePurchase` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreatePurchaseWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePurchaseResponse, error) {
+	rsp, err := c.CreatePurchaseWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePurchaseResponse(rsp)
+}
+
+// CreatePurchaseWithResponse performs a POST /purchases (the `CreatePurchase` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreatePurchaseWithResponse(ctx context.Context, body CreatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePurchaseResponse, error) {
+	rsp, err := c.CreatePurchase(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePurchaseResponse(rsp)
+}
+
+// DeletePurchaseWithResponse performs a DELETE /purchases/{publicId} (the `DeletePurchase` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeletePurchaseWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeletePurchaseResponse, error) {
+	rsp, err := c.DeletePurchase(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePurchaseResponse(rsp)
+}
+
+// GetPurchaseWithResponse performs a GET /purchases/{publicId} (the `GetPurchase` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetPurchaseWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetPurchaseResponse, error) {
+	rsp, err := c.GetPurchase(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPurchaseResponse(rsp)
+}
+
+// UpdatePurchaseWithBodyWithResponse performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdatePurchaseWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePurchaseResponse, error) {
+	rsp, err := c.UpdatePurchaseWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePurchaseResponse(rsp)
+}
+
+// UpdatePurchaseWithResponse performs a PUT /purchases/{publicId} (the `UpdatePurchase` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdatePurchaseWithResponse(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePurchaseResponse, error) {
+	rsp, err := c.UpdatePurchase(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePurchaseResponse(rsp)
 }
 
 // ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
@@ -11808,6 +12763,202 @@ func ParseUpdateProductResponse(rsp *http.Response) (*UpdateProductResponse, err
 	return response, nil
 }
 
+// ParseGetPurchaseSummaryResponse parses an HTTP response from a GetPurchaseSummaryWithResponse call
+func ParseGetPurchaseSummaryResponse(rsp *http.Response) (*GetPurchaseSummaryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPurchaseSummaryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PurchaseSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPurchasesResponse parses an HTTP response from a ListPurchasesWithResponse call
+func ParseListPurchasesResponse(rsp *http.Response) (*ListPurchasesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPurchasesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Purchase `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePurchaseResponse parses an HTTP response from a CreatePurchaseWithResponse call
+func ParseCreatePurchaseResponse(rsp *http.Response) (*CreatePurchaseResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePurchaseResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Purchase
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePurchaseResponse parses an HTTP response from a DeletePurchaseWithResponse call
+func ParseDeletePurchaseResponse(rsp *http.Response) (*DeletePurchaseResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePurchaseResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPurchaseResponse parses an HTTP response from a GetPurchaseWithResponse call
+func ParseGetPurchaseResponse(rsp *http.Response) (*GetPurchaseResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPurchaseResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Purchase
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdatePurchaseResponse parses an HTTP response from a UpdatePurchaseWithResponse call
+func ParseUpdatePurchaseResponse(rsp *http.Response) (*UpdatePurchaseResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdatePurchaseResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Purchase
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseResolveMachinePortResponse parses an HTTP response from a ResolveMachinePortWithResponse call
 func ParseResolveMachinePortResponse(rsp *http.Response) (*ResolveMachinePortResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -12336,6 +13487,24 @@ type ServerInterface interface {
 
 	// (PUT /products/{publicId})
 	UpdateProduct(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /purchase-summary)
+	GetPurchaseSummary(w http.ResponseWriter, r *http.Request)
+
+	// (GET /purchases)
+	ListPurchases(w http.ResponseWriter, r *http.Request)
+
+	// (POST /purchases)
+	CreatePurchase(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /purchases/{publicId})
+	DeletePurchase(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /purchases/{publicId})
+	GetPurchase(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /purchases/{publicId})
+	UpdatePurchase(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
 	// (GET /resolve/{machine}/{port})
 	ResolveMachinePort(w http.ResponseWriter, r *http.Request, machine MachineSlug, port int, params ResolveMachinePortParams)
@@ -13650,6 +14819,126 @@ func (siw *ServerInterfaceWrapper) UpdateProduct(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetPurchaseSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetPurchaseSummary(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPurchaseSummary(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPurchases operation middleware
+func (siw *ServerInterfaceWrapper) ListPurchases(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPurchases(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePurchase operation middleware
+func (siw *ServerInterfaceWrapper) CreatePurchase(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePurchase(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePurchase operation middleware
+func (siw *ServerInterfaceWrapper) DeletePurchase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePurchase(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPurchase operation middleware
+func (siw *ServerInterfaceWrapper) GetPurchase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPurchase(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePurchase operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePurchase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePurchase(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveMachinePort operation middleware
 func (siw *ServerInterfaceWrapper) ResolveMachinePort(w http.ResponseWriter, r *http.Request) {
 
@@ -14121,6 +15410,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/assets/{publicId}", wrapper.DeleteAsset)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/assets/{publicId}", wrapper.GetAsset)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/assets/{publicId}", wrapper.UpdateAsset)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/purchase-summary", wrapper.GetPurchaseSummary)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/purchases", wrapper.ListPurchases)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/purchases", wrapper.CreatePurchase)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/purchases/{publicId}", wrapper.DeletePurchase)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/purchases/{publicId}", wrapper.GetPurchase)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/purchases/{publicId}", wrapper.UpdatePurchase)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machines", wrapper.ListMachines)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/machines", wrapper.CreateMachine)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/machines/{publicId}", wrapper.DeleteMachine)

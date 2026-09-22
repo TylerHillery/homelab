@@ -28,19 +28,55 @@ a name does not implicitly change an existing slug.
 A Manufacturer provides one canonical identity for names such as HP, Framework,
 and Microsoft. A Product belongs to a Manufacturer and describes a kind of
 physical item that exists in the catalog. Product kinds are `system`,
-`processor`, `memory`, and `drive`. Processor, memory, and drive specification
-tables contain fields that do not apply to other kinds. Processor specifications
+`processor`, `memory`, `drive`, `rack`, `router`, `switch`, `access_point`, and
+`network_adapter`. Processor, memory, drive, and rack specification tables
+contain fields that do not apply to other kinds. Processor specifications
 include cores, threads, base clock, and virtualization. Drive media kinds are
 `hdd` and `ssd`; interface kinds are `sata`, `sas`, `nvme`, `usb`, `scsi`,
-`virtio`, and `virtual`.
+`virtio`, and `virtual`. Rack specifications record `rackUnits` and
+`mountingStandard`.
+
+Router, switch, access-point, and network-adapter Products may own ordered port
+profiles. Each profile groups a positive count of equivalent ports by connector
+and speed in Mbps and may have a name. These profiles inventory a model's
+advertised port groups; they do not represent individual physical ports,
+current links, or cabling.
+
+Products may have ordered URL links of kind `manufacturer`, `retailer`,
+`manual`, `datasheet`, or `support`. These are references to external resources,
+not uploaded files.
 
 ### Asset
 
 An Asset is one physical instance of a Product that is owned or managed. Asset
-placement is explicit: directly in an Area, contained by a system Asset, or
-unplaced. Contained Assets derive their effective Area from their ancestors.
-Installation history, slots, and lifecycle states will be added only if a real
-workflow requires them.
+placement is explicit: directly in an Area, contained by a system or rack
+Asset, or unplaced. Only system and rack Assets can contain children. Contained
+Assets derive their effective Area from their ancestors. A child placement may
+include a descriptive slot such as `PCIe x16`; this is an inventory label, not a
+separate slot resource. Installation history and lifecycle states will be added
+only if a real workflow requires them.
+
+Assets may have ordered URL links of kind `receipt`, `warranty`, `management`,
+or `other`. Links do not store files or model purchase orders.
+
+### Purchase
+
+A Purchase is a standalone CRUD aggregate for one transaction. It records a
+non-negative `totalPriceCents` and three-letter currency, with optional
+`purchasedOn`, `source`, and `notes`. Its ordered URL links are typed as
+`receipt`, `listing`, or `other` and remain external references rather than
+uploaded files.
+
+Every Purchase is associated with one or more Assets through
+`assetPublicIds`, while an Asset belongs to at most one Purchase and exposes
+that relationship as `purchasePublicId`. A bundle is one Purchase associated
+with multiple Assets, not a purchase copied onto each Asset. For example, a
+mini-PC bundle associates each physical mini-PC Asset with the same Purchase.
+
+`GET /api/v1/purchase-summary` groups totals by currency, adds each Purchase's
+total exactly once, and reports both Purchase and associated Asset counts. A
+zero total means the transaction was explicitly free; unknown prices are not
+represented as zero.
 
 ### Machine Provider
 
@@ -62,9 +98,9 @@ kinds and subdivisions are deferred until they are needed.
 
 A Machine is a runnable compute environment and is the primary catalog
 resource. Machine kinds are `bare_metal` and `virtual_machine`.
-A bare-metal Machine may reference a system Asset. A locally hosted virtual
-Machine references its parent Machine. A provider-hosted Machine has no known
-parent or physical Asset.
+A bare-metal Machine may reference a system Asset. No other Product kind can
+back a Machine. A locally hosted virtual Machine references its parent Machine.
+A provider-hosted Machine has no known parent or physical Asset.
 
 Machines can be marked as favorites to identify the most useful entries for
 navigation and other inventory clients. The flag is presentation-neutral and is
@@ -96,13 +132,16 @@ A Network defines an address scope. Network kinds are `lan`, `tailnet`,
 
 ### Address
 
-An Address belongs to a Network and is assigned to either a Machine or an Area.
-Area addresses support facts such as a home's public ISP address when no router
-Machine is cataloged.
+An Address belongs to a Network and targets exactly one Machine, Area, or
+network-equipment Asset. Network-equipment targets are Assets whose Product is
+a router, switch, or access point. A network-adapter Asset may describe grouped
+port profiles but cannot own a management Address. Area addresses support facts
+such as a home's public ISP address when no router Asset is cataloged.
 
 This is currently an address inventory rather than a routed-topology model. The
-staged plan for multiple LANs, router interfaces, prefixes, VLAN attachments,
-and typed Network relationships is documented in
+model deliberately defers individual ports, cabling, VLAN attachments, routing,
+and live link state. The staged plan for multiple LANs, interfaces, prefixes,
+VLAN attachments, and typed Network relationships is documented in
 [Home Network](home-network.md#hlims-impact).
 
 ## Navigation
@@ -135,8 +174,14 @@ erDiagram
     PRODUCT ||--o| PROCESSOR_SPEC : has
     PRODUCT ||--o| MEMORY_SPEC : has
     PRODUCT ||--o| DRIVE_SPEC : has
+    PRODUCT ||--o| RACK_SPEC : has
+    PRODUCT ||--o{ PORT_PROFILE : describes
+    PRODUCT ||--o{ PRODUCT_LINK : references
     PRODUCT ||--o{ ASSET : identifies
     ASSET o|--o{ ASSET : contains
+    ASSET ||--o{ ASSET_LINK : references
+    PURCHASE o|--|{ ASSET : includes
+    PURCHASE ||--o{ PURCHASE_LINK : references
     AREA o|--o{ ASSET : locates
     ASSET o|--o{ MACHINE : backs
     MACHINE o|--o{ MACHINE : hosts
@@ -148,6 +193,7 @@ erDiagram
     NETWORK ||--o{ ADDRESS : contains
     MACHINE o|--o{ ADDRESS : uses
     AREA o|--o{ ADDRESS : uses
+    ASSET o|--o{ ADDRESS : uses
     SERVICE ||--o{ INSTANCE : deploys
     MACHINE ||--o{ INSTANCE : hosts
     INSTANCE ||--o{ INSTANCE_ENDPOINT : exposes
@@ -156,7 +202,8 @@ erDiagram
 
 The first inventory migration establishes these records and constraints. The
 API exposes every inventory aggregate as a complete CRUD resource. Product
-writes atomically replace the Product and its kind-specific specification. Asset
+writes atomically replace the Product and its kind-specific specification.
+Purchase writes atomically replace their Asset associations and links. Asset
 writes use an explicit placement object. See
 [HLIMS Sample Data](sample-data.md) for a review fixture covering every current
 application table.

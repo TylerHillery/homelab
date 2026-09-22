@@ -155,6 +155,96 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 	return i, err
 }
 
+const createProductLink = `-- name: CreateProductLink :one
+insert into product_links (product_id, position, kind, label, url)
+values (?, ?, ?, ?, ?)
+returning product_id, position, kind, label, url
+`
+
+type CreateProductLinkParams struct {
+	ProductID string         `json:"product_id"`
+	Position  int64          `json:"position"`
+	Kind      string         `json:"kind"`
+	Label     sql.NullString `json:"label"`
+	Url       string         `json:"url"`
+}
+
+func (q *Queries) CreateProductLink(ctx context.Context, arg CreateProductLinkParams) (ProductLink, error) {
+	row := q.db.QueryRowContext(ctx, createProductLink,
+		arg.ProductID,
+		arg.Position,
+		arg.Kind,
+		arg.Label,
+		arg.Url,
+	)
+	var i ProductLink
+	err := row.Scan(
+		&i.ProductID,
+		&i.Position,
+		&i.Kind,
+		&i.Label,
+		&i.Url,
+	)
+	return i, err
+}
+
+const createProductPortProfile = `-- name: CreateProductPortProfile :one
+insert into product_port_profiles (
+    product_id, position, name, port_count, connector, speed_mbps
+)
+values (?, ?, ?, ?, ?, ?)
+returning product_id, position, name, port_count, connector, speed_mbps
+`
+
+type CreateProductPortProfileParams struct {
+	ProductID string         `json:"product_id"`
+	Position  int64          `json:"position"`
+	Name      sql.NullString `json:"name"`
+	PortCount int64          `json:"port_count"`
+	Connector string         `json:"connector"`
+	SpeedMbps int64          `json:"speed_mbps"`
+}
+
+func (q *Queries) CreateProductPortProfile(ctx context.Context, arg CreateProductPortProfileParams) (ProductPortProfile, error) {
+	row := q.db.QueryRowContext(ctx, createProductPortProfile,
+		arg.ProductID,
+		arg.Position,
+		arg.Name,
+		arg.PortCount,
+		arg.Connector,
+		arg.SpeedMbps,
+	)
+	var i ProductPortProfile
+	err := row.Scan(
+		&i.ProductID,
+		&i.Position,
+		&i.Name,
+		&i.PortCount,
+		&i.Connector,
+		&i.SpeedMbps,
+	)
+	return i, err
+}
+
+const createRackSpec = `-- name: CreateRackSpec :one
+insert into rack_specs (product_id, rack_units, mounting_standard)
+values (?, ?, ?)
+returning product_id, rack_units, mounting_standard
+`
+
+type CreateRackSpecParams struct {
+	ProductID        string `json:"product_id"`
+	RackUnits        int64  `json:"rack_units"`
+	MountingStandard string `json:"mounting_standard"`
+}
+
+func (q *Queries) CreateRackSpec(ctx context.Context, arg CreateRackSpecParams) (RackSpec, error) {
+	row := q.db.QueryRowContext(ctx, createRackSpec, arg.ProductID, arg.RackUnits, arg.MountingStandard)
+	var i RackSpec
+	err := row.Scan(&i.ProductID, &i.RackUnits, &i.MountingStandard)
+	return i, err
+}
+
 const deleteDriveSpec = `-- name: DeleteDriveSpec :execrows
 delete from drive_specs
 where product_id = ?
@@ -207,6 +297,45 @@ func (q *Queries) DeleteProduct(ctx context.Context, publicID string) (int64, er
 	return result.RowsAffected()
 }
 
+const deleteProductLinks = `-- name: DeleteProductLinks :execrows
+delete from product_links
+where product_id = ?
+`
+
+func (q *Queries) DeleteProductLinks(ctx context.Context, productID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteProductLinks, productID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteProductPortProfiles = `-- name: DeleteProductPortProfiles :execrows
+delete from product_port_profiles
+where product_id = ?
+`
+
+func (q *Queries) DeleteProductPortProfiles(ctx context.Context, productID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteProductPortProfiles, productID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteRackSpec = `-- name: DeleteRackSpec :execrows
+delete from rack_specs
+where product_id = ?
+`
+
+func (q *Queries) DeleteRackSpec(ctx context.Context, productID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteRackSpec, productID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getProductByPublicID = `-- name: GetProductByPublicID :one
 select
     products.id,
@@ -229,12 +358,15 @@ select
     memory_specs.speed_mts,
     drive_specs.capacity_bytes  as drive_capacity_bytes,
     drive_specs.media_kind,
-    drive_specs.interface_kind
+    drive_specs.interface_kind,
+    rack_specs.rack_units,
+    rack_specs.mounting_standard
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
+left join rack_specs on products.id = rack_specs.product_id
 where products.public_id = ?
 `
 
@@ -260,6 +392,8 @@ type GetProductByPublicIDRow struct {
 	DriveCapacityBytes   sql.NullInt64  `json:"drive_capacity_bytes"`
 	MediaKind            sql.NullString `json:"media_kind"`
 	InterfaceKind        sql.NullString `json:"interface_kind"`
+	RackUnits            sql.NullInt64  `json:"rack_units"`
+	MountingStandard     sql.NullString `json:"mounting_standard"`
 }
 
 func (q *Queries) GetProductByPublicID(ctx context.Context, publicID string) (GetProductByPublicIDRow, error) {
@@ -287,6 +421,8 @@ func (q *Queries) GetProductByPublicID(ctx context.Context, publicID string) (Ge
 		&i.DriveCapacityBytes,
 		&i.MediaKind,
 		&i.InterfaceKind,
+		&i.RackUnits,
+		&i.MountingStandard,
 	)
 	return i, err
 }
@@ -313,12 +449,15 @@ select
     memory_specs.speed_mts,
     drive_specs.capacity_bytes  as drive_capacity_bytes,
     drive_specs.media_kind,
-    drive_specs.interface_kind
+    drive_specs.interface_kind,
+    rack_specs.rack_units,
+    rack_specs.mounting_standard
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
+left join rack_specs on products.id = rack_specs.product_id
 order by manufacturers.name, products.name
 `
 
@@ -344,6 +483,8 @@ type ListProductDetailsRow struct {
 	DriveCapacityBytes   sql.NullInt64  `json:"drive_capacity_bytes"`
 	MediaKind            sql.NullString `json:"media_kind"`
 	InterfaceKind        sql.NullString `json:"interface_kind"`
+	RackUnits            sql.NullInt64  `json:"rack_units"`
+	MountingStandard     sql.NullString `json:"mounting_standard"`
 }
 
 func (q *Queries) ListProductDetails(ctx context.Context) ([]ListProductDetailsRow, error) {
@@ -377,6 +518,174 @@ func (q *Queries) ListProductDetails(ctx context.Context) ([]ListProductDetailsR
 			&i.DriveCapacityBytes,
 			&i.MediaKind,
 			&i.InterfaceKind,
+			&i.RackUnits,
+			&i.MountingStandard,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductLinks = `-- name: ListProductLinks :many
+select
+    product_id,
+    position,
+    kind,
+    label,
+    url
+from product_links
+order by product_id, position
+`
+
+func (q *Queries) ListProductLinks(ctx context.Context) ([]ProductLink, error) {
+	rows, err := q.db.QueryContext(ctx, listProductLinks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductLink{}
+	for rows.Next() {
+		var i ProductLink
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Position,
+			&i.Kind,
+			&i.Label,
+			&i.Url,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductLinksByProductID = `-- name: ListProductLinksByProductID :many
+select
+    product_id,
+    position,
+    kind,
+    label,
+    url
+from product_links
+where product_id = ?
+order by position
+`
+
+func (q *Queries) ListProductLinksByProductID(ctx context.Context, productID string) ([]ProductLink, error) {
+	rows, err := q.db.QueryContext(ctx, listProductLinksByProductID, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductLink{}
+	for rows.Next() {
+		var i ProductLink
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Position,
+			&i.Kind,
+			&i.Label,
+			&i.Url,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductPortProfiles = `-- name: ListProductPortProfiles :many
+select
+    product_id,
+    position,
+    name,
+    port_count,
+    connector,
+    speed_mbps
+from product_port_profiles
+order by product_id, position
+`
+
+func (q *Queries) ListProductPortProfiles(ctx context.Context) ([]ProductPortProfile, error) {
+	rows, err := q.db.QueryContext(ctx, listProductPortProfiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductPortProfile{}
+	for rows.Next() {
+		var i ProductPortProfile
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Position,
+			&i.Name,
+			&i.PortCount,
+			&i.Connector,
+			&i.SpeedMbps,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductPortProfilesByProductID = `-- name: ListProductPortProfilesByProductID :many
+select
+    product_id,
+    position,
+    name,
+    port_count,
+    connector,
+    speed_mbps
+from product_port_profiles
+where product_id = ?
+order by position
+`
+
+func (q *Queries) ListProductPortProfilesByProductID(ctx context.Context, productID string) ([]ProductPortProfile, error) {
+	rows, err := q.db.QueryContext(ctx, listProductPortProfilesByProductID, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductPortProfile{}
+	for rows.Next() {
+		var i ProductPortProfile
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Position,
+			&i.Name,
+			&i.PortCount,
+			&i.Connector,
+			&i.SpeedMbps,
 		); err != nil {
 			return nil, err
 		}

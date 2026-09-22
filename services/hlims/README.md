@@ -83,6 +83,8 @@ built with Cobra; it never imports the server or opens the SQLite database.
 go run ./cmd/hlims --help
 go run ./cmd/hlims products list
 go run ./cmd/hlims assets list
+go run ./cmd/hlims purchases list
+go run ./cmd/hlims purchase-summary
 go run ./cmd/hlims machines list
 go run ./cmd/hlims machine-users list
 go run ./cmd/hlims services create --file service.json
@@ -110,6 +112,18 @@ printf '%s\n' '{"machinePublicId":"badmach8k2q5","username":"tyler","isPreferred
 printf '%s\n' '{"name":"Grafana"}' | hlims services create
 hlims open --print 'badger/grafana/production/d/overview?refresh=30s'
 ```
+
+Purchases are standalone CRUD resources. Each records `totalPriceCents` and
+`currency`, optional `purchasedOn`, `source`, and `notes`, typed `receipt`,
+`listing`, or `other` URL links, and one or more `assetPublicIds`. An Asset can
+belong to at most one Purchase and exposes the relationship as
+`purchasePublicId`. A bundle, including a mini-PC bundle, is one Purchase
+associated with multiple Assets.
+
+`GET /api/v1/purchase-summary` and `hlims purchase-summary` group totals by
+currency, add each Purchase exactly once, and report both Purchase and
+associated Asset counts. An explicit zero total records a free transaction; it
+does not stand for an unknown price.
 
 Machine Providers and Services can have a PNG, JPEG, or WebP logo up to 1 MiB
 stored directly in SQLite. Their responses expose `hasLogo`; logo bytes use

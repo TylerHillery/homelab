@@ -27,12 +27,15 @@ select
     memory_specs.speed_mts,
     drive_specs.capacity_bytes  as drive_capacity_bytes,
     drive_specs.media_kind,
-    drive_specs.interface_kind
+    drive_specs.interface_kind,
+    rack_specs.rack_units,
+    rack_specs.mounting_standard
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
+left join rack_specs on products.id = rack_specs.product_id
 where products.public_id = ?;
 
 -- name: ListProductDetails :many
@@ -57,12 +60,15 @@ select
     memory_specs.speed_mts,
     drive_specs.capacity_bytes  as drive_capacity_bytes,
     drive_specs.media_kind,
-    drive_specs.interface_kind
+    drive_specs.interface_kind,
+    rack_specs.rack_units,
+    rack_specs.mounting_standard
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
+left join rack_specs on products.id = rack_specs.product_id
 order by manufacturers.name, products.name;
 
 -- name: UpdateProduct :one
@@ -112,4 +118,77 @@ returning *;
 
 -- name: DeleteDriveSpec :execrows
 delete from drive_specs
+where product_id = ?;
+
+-- name: CreateRackSpec :one
+insert into rack_specs (product_id, rack_units, mounting_standard)
+values (?, ?, ?)
+returning *;
+
+-- name: DeleteRackSpec :execrows
+delete from rack_specs
+where product_id = ?;
+
+-- name: CreateProductPortProfile :one
+insert into product_port_profiles (
+    product_id, position, name, port_count, connector, speed_mbps
+)
+values (?, ?, ?, ?, ?, ?)
+returning *;
+
+-- name: ListProductPortProfilesByProductID :many
+select
+    product_id,
+    position,
+    name,
+    port_count,
+    connector,
+    speed_mbps
+from product_port_profiles
+where product_id = ?
+order by position;
+
+-- name: ListProductPortProfiles :many
+select
+    product_id,
+    position,
+    name,
+    port_count,
+    connector,
+    speed_mbps
+from product_port_profiles
+order by product_id, position;
+
+-- name: DeleteProductPortProfiles :execrows
+delete from product_port_profiles
+where product_id = ?;
+
+-- name: CreateProductLink :one
+insert into product_links (product_id, position, kind, label, url)
+values (?, ?, ?, ?, ?)
+returning *;
+
+-- name: ListProductLinksByProductID :many
+select
+    product_id,
+    position,
+    kind,
+    label,
+    url
+from product_links
+where product_id = ?
+order by position;
+
+-- name: ListProductLinks :many
+select
+    product_id,
+    position,
+    kind,
+    label,
+    url
+from product_links
+order by product_id, position;
+
+-- name: DeleteProductLinks :execrows
+delete from product_links
 where product_id = ?;

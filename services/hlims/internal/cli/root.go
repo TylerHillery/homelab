@@ -84,8 +84,24 @@ compose with pipes, jq, scripts, and coding agents.`,
 	for _, resource := range apiclient.Resources() {
 		root.AddCommand(newResourceCommand(opts, resource))
 	}
-	root.AddCommand(newResolveCommand(opts), newOpenCommand(opts), newOpenAPICommand(opts), newConsoleCommand(opts))
+	root.AddCommand(newPurchaseSummaryCommand(opts), newResolveCommand(opts), newOpenCommand(opts), newOpenAPICommand(opts), newConsoleCommand(opts))
 	return root
+}
+
+func newPurchaseSummaryCommand(opts *options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "purchase-summary",
+		Short: "Show recorded equipment purchase totals by currency",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := opts.client()
+			if err != nil {
+				return err
+			}
+			response, err := client.PurchaseSummary(cmd.Context())
+			return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
+		},
+	}
 }
 
 func newResourceCommand(opts *options, resource apiclient.Resource) *cobra.Command {
@@ -349,6 +365,8 @@ func createExample(resource apiclient.Resource) string {
 		return `{"manufacturerPublicId":"framework8n4q","name":"Desktop Computer","kind":"system"}`
 	case apiclient.Assets:
 		return `{"productPublicId":"desktop8k2q5","placement":{"type":"area","areaPublicId":"home4q8m2v7k"},"name":"Badger chassis"}`
+	case apiclient.Purchases:
+		return `{"assetPublicIds":["badger8m2k5q"],"totalPriceCents":3500,"currency":"USD","source":"Facebook Marketplace"}`
 	case apiclient.Machines:
 		return `{"machineProviderPublicId":"homeprovider","areaPublicId":"home4q8m2v7k","name":"Badger","kind":"bare_metal"}`
 	case apiclient.MachineUsers:

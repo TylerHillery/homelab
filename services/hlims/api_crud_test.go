@@ -222,6 +222,176 @@ func TestProductAggregateAPI(t *testing.T) {
 	}
 }
 
+func TestEquipmentInventoryAPI(t *testing.T) {
+	handler := newAPITestHandler(t)
+	provider := createAPIResource(t, handler, "/api/v1/machine-providers", map[string]any{"name": "Local"})
+	area := createAPIResource(t, handler, "/api/v1/areas", map[string]any{
+		"machineProviderPublicId": provider["publicId"], "name": "Home",
+	})
+	deskPi := createAPIResource(t, handler, "/api/v1/manufacturers", map[string]any{"name": "DeskPi"})
+	tpLink := createAPIResource(t, handler, "/api/v1/manufacturers", map[string]any{"name": "TP-Link"})
+	invalidURL := apiRequest(t, handler, http.MethodPost, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": tpLink["publicId"], "kind": "switch", "name": "Invalid URL",
+		"links": []any{map[string]any{"kind": "support", "url": "https://:443/support"}},
+	}, "application/json")
+	assertStatus(t, invalidURL, http.StatusBadRequest)
+
+	rack := createAPIResource(t, handler, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": deskPi["publicId"], "kind": "rack", "name": "RackMate T0",
+		"rackSpec": map[string]any{"rackUnits": 4, "mountingStandard": " 10-inch "},
+		"links": []any{
+			map[string]any{"kind": "manufacturer", "url": " https://example.com/rackmate "},
+			map[string]any{"kind": "retailer", "label": "Store", "url": "https://shop.example.com/rackmate"},
+		},
+	})
+	if rack["rackSpec"].(map[string]any)["mountingStandard"] != "10-inch" || len(rack["links"].([]any)) != 2 {
+		t.Fatalf("rack product = %#v", rack)
+	}
+
+	switchProduct := createAPIResource(t, handler, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": tpLink["publicId"], "kind": "switch", "name": "TL-SG605",
+		"portProfiles": []any{map[string]any{"portCount": 5, "connector": " RJ45 ", "speedMbps": 1000}},
+		"links":        []any{map[string]any{"kind": "support", "url": "https://example.com/tl-sg605"}},
+	})
+	profiles := switchProduct["portProfiles"].([]any)
+	if len(profiles) != 1 || profiles[0].(map[string]any)["connector"] != "RJ45" {
+		t.Fatalf("switch product = %#v", switchProduct)
+	}
+
+	rackAsset := createAPIResource(t, handler, "/api/v1/assets", map[string]any{
+		"productPublicId": rack["publicId"], "name": "Homelab Rack",
+		"placement": map[string]any{"type": "area", "areaPublicId": area["publicId"]},
+	})
+	switchAsset := createAPIResource(t, handler, "/api/v1/assets", map[string]any{
+		"productPublicId": switchProduct["publicId"], "name": "Rack Switch",
+		"placement": map[string]any{"type": "asset", "parentAssetPublicId": rackAsset["publicId"]},
+		"links":     []any{map[string]any{"kind": "receipt", "label": "Original receipt", "url": "https://example.com/receipts/switch"}},
+	})
+	if switchAsset["effectiveAreaPublicId"] != area["publicId"] || len(switchAsset["links"].([]any)) != 1 {
+		t.Fatalf("switch asset = %#v", switchAsset)
+	}
+
+	network := createAPIResource(t, handler, "/api/v1/networks", map[string]any{
+		"areaPublicId": area["publicId"], "name": "Home LAN", "kind": "lan", "cidr": "192.168.68.0/24",
+	})
+	address := createAPIResource(t, handler, "/api/v1/addresses", map[string]any{
+		"networkPublicId": network["publicId"], "assetPublicId": switchAsset["publicId"],
+		"address": "192.168.68.2", "dnsName": "SWITCH.LAN.",
+	})
+	if address["assetPublicId"] != switchAsset["publicId"] || address["dnsName"] != "switch.lan" {
+		t.Fatalf("asset address = %#v", address)
+	}
+
+	invalidRackAddress := apiRequest(t, handler, http.MethodPost, "/api/v1/addresses", map[string]any{
+		"networkPublicId": network["publicId"], "assetPublicId": rackAsset["publicId"], "address": "192.168.68.3",
+	}, "application/json")
+	assertStatus(t, invalidRackAddress, http.StatusBadRequest)
+	invalidOwners := apiRequest(t, handler, http.MethodPost, "/api/v1/addresses", map[string]any{
+		"networkPublicId": network["publicId"], "assetPublicId": switchAsset["publicId"],
+		"areaPublicId": area["publicId"], "address": "192.168.68.4",
+	}, "application/json")
+	assertStatus(t, invalidOwners, http.StatusBadRequest)
+
+	updatedSwitch := apiRequest(t, handler, http.MethodPut, "/api/v1/products/"+switchProduct["publicId"].(string), map[string]any{
+		"manufacturerPublicId": tpLink["publicId"], "kind": "switch", "name": "TL-SG605",
+		"portProfiles": []any{
+			map[string]any{"name": "LAN", "portCount": 4, "connector": "RJ45", "speedMbps": 1000},
+			map[string]any{"name": "Uplink", "portCount": 1, "connector": "RJ45", "speedMbps": 2500},
+		},
+	}, "application/json")
+	assertStatus(t, updatedSwitch, http.StatusOK)
+	updated := decodeObject(t, updatedSwitch)
+	if len(updated["portProfiles"].([]any)) != 2 || len(updated["links"].([]any)) != 0 {
+		t.Fatalf("updated switch = %#v", updated)
+	}
+
+	duplicateLinks := apiRequest(t, handler, http.MethodPut, "/api/v1/assets/"+switchAsset["publicId"].(string), map[string]any{
+		"productPublicId": switchProduct["publicId"], "placement": map[string]any{"type": "asset", "parentAssetPublicId": rackAsset["publicId"]},
+		"links": []any{
+			map[string]any{"kind": "receipt", "url": "https://example.com/duplicate"},
+			map[string]any{"kind": "warranty", "url": "https://example.com/duplicate"},
+		},
+	}, "application/json")
+	assertStatus(t, duplicateLinks, http.StatusBadRequest)
+	unchangedAsset := apiRequest(t, handler, http.MethodGet, "/api/v1/assets/"+switchAsset["publicId"].(string), nil, "")
+	assertStatus(t, unchangedAsset, http.StatusOK)
+	if len(decodeObject(t, unchangedAsset)["links"].([]any)) != 1 {
+		t.Fatal("rejected Asset update changed its links")
+	}
+
+	hp := createAPIResource(t, handler, "/api/v1/manufacturers", map[string]any{"name": "HP"})
+	computerProduct := createAPIResource(t, handler, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": hp["publicId"], "kind": "system", "name": "Pro 3500",
+	})
+	computerAsset := createAPIResource(t, handler, "/api/v1/assets", map[string]any{
+		"productPublicId": computerProduct["publicId"], "name": "OPNsense appliance",
+		"placement": map[string]any{"type": "area", "areaPublicId": area["publicId"]},
+	})
+
+	nicProduct := createAPIResource(t, handler, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": tpLink["publicId"], "kind": "network_adapter", "name": "Intel I350-T2 compatible NIC",
+		"portProfiles": []any{map[string]any{"portCount": 2, "connector": "RJ45", "speedMbps": 1000}},
+	})
+	nicAsset := createAPIResource(t, handler, "/api/v1/assets", map[string]any{
+		"productPublicId": nicProduct["publicId"], "name": "OPNsense NIC",
+		"placement": map[string]any{
+			"type": "asset", "parentAssetPublicId": computerAsset["publicId"], "slot": " PCIe x16 ",
+		},
+	})
+	if nicAsset["placement"].(map[string]any)["slot"] != "PCIe x16" {
+		t.Fatalf("NIC Asset = %#v", nicAsset)
+	}
+	invalidNICAddress := apiRequest(t, handler, http.MethodPost, "/api/v1/addresses", map[string]any{
+		"networkPublicId": network["publicId"], "assetPublicId": nicAsset["publicId"], "address": "192.168.68.5",
+	}, "application/json")
+	assertStatus(t, invalidNICAddress, http.StatusBadRequest)
+
+	computerPurchase := createAPIResource(t, handler, "/api/v1/purchases", map[string]any{
+		"assetPublicIds": []any{computerAsset["publicId"]}, "totalPriceCents": 3500, "currency": "usd",
+		"purchasedOn": "2026-09-19", "source": " Facebook Marketplace, Marathon City ",
+		"links": []any{map[string]any{"kind": "listing", "url": "https://example.com/marketplace/pro-3500"}},
+	})
+	if computerPurchase["currency"] != "USD" || computerPurchase["source"] != "Facebook Marketplace, Marathon City" {
+		t.Fatalf("computer purchase = %#v", computerPurchase)
+	}
+	missingPrice := apiRequest(t, handler, http.MethodPost, "/api/v1/purchases", map[string]any{
+		"assetPublicIds": []any{nicAsset["publicId"]}, "currency": "USD",
+	}, "application/json")
+	assertStatus(t, missingPrice, http.StatusBadRequest)
+	nicPurchase := createAPIResource(t, handler, "/api/v1/purchases", map[string]any{
+		"assetPublicIds": []any{nicAsset["publicId"]}, "totalPriceCents": 1500, "currency": "USD",
+		"source": "Separate NIC purchase",
+	})
+	bundlePurchase := createAPIResource(t, handler, "/api/v1/purchases", map[string]any{
+		"assetPublicIds":  []any{rackAsset["publicId"], switchAsset["publicId"]},
+		"totalPriceCents": 8000, "currency": "USD", "source": "Bundle example",
+	})
+	if len(bundlePurchase["assetPublicIds"].([]any)) != 2 {
+		t.Fatalf("bundle purchase = %#v", bundlePurchase)
+	}
+	duplicateAssetPurchase := apiRequest(t, handler, http.MethodPost, "/api/v1/purchases", map[string]any{
+		"assetPublicIds": []any{nicAsset["publicId"]}, "totalPriceCents": 500, "currency": "USD",
+	}, "application/json")
+	assertStatus(t, duplicateAssetPurchase, http.StatusConflict)
+	nicAfterPurchase := apiRequest(t, handler, http.MethodGet, "/api/v1/assets/"+nicAsset["publicId"].(string), nil, "")
+	assertStatus(t, nicAfterPurchase, http.StatusOK)
+	if decodeObject(t, nicAfterPurchase)["purchasePublicId"] != nicPurchase["publicId"] {
+		t.Fatal("NIC did not reference its separate Purchase")
+	}
+
+	summaryResponse := apiRequest(t, handler, http.MethodGet, "/api/v1/purchase-summary", nil, "")
+	assertStatus(t, summaryResponse, http.StatusOK)
+	totals := decodeObject(t, summaryResponse)["totals"].([]any)
+	if len(totals) != 1 {
+		t.Fatalf("purchase totals = %#v", totals)
+	}
+	total := totals[0].(map[string]any)
+	if total["currency"] != "USD" || total["totalPriceCents"] != float64(13000) ||
+		total["purchaseCount"] != float64(3) || total["assetCount"] != float64(4) {
+		t.Fatalf("purchase total = %#v", total)
+	}
+}
+
 func TestMachineUserCRUDValidationAndPreference(t *testing.T) {
 	handler := newAPITestHandler(t)
 	provider := createAPIResource(t, handler, "/api/v1/machine-providers", map[string]any{"name": "Local"})

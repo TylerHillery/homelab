@@ -94,7 +94,17 @@ create table products (
     check (length(id) = 36),
     check (length(public_id) = 12),
     check (public_id not glob '*[^0-9a-z]*'),
-    check (kind in ('system', 'processor', 'memory', 'drive'))
+    check (kind in (
+        'system',
+        'processor',
+        'memory',
+        'drive',
+        'rack',
+        'router',
+        'switch',
+        'access_point',
+        'network_adapter'
+    ))
 );
 
 create index products_manufacturer_id_idx on products (manufacturer_id);
@@ -141,6 +151,46 @@ create table drive_specs (
         interface_kind is null
         or interface_kind in ('sata', 'sas', 'nvme', 'usb', 'scsi', 'virtio', 'virtual')
     )
+);
+
+create table rack_specs (
+    product_id        text    not null primary key
+        references products (id) on delete cascade,
+    rack_units        integer not null,
+    mounting_standard text    not null,
+    check (rack_units > 0),
+    check (length(trim(mounting_standard)) > 0)
+);
+
+create table product_port_profiles (
+    product_id text    not null
+        references products (id) on delete cascade,
+    position   integer not null,
+    name       text,
+    port_count integer not null,
+    connector  text    not null,
+    speed_mbps integer not null,
+    primary key (product_id, position),
+    check (position >= 0),
+    check (name is null or length(trim(name)) > 0),
+    check (port_count > 0),
+    check (length(trim(connector)) > 0),
+    check (speed_mbps > 0)
+);
+
+create table product_links (
+    product_id text    not null
+        references products (id) on delete cascade,
+    position   integer not null,
+    kind       text    not null,
+    label      text,
+    url        text    not null,
+    primary key (product_id, position),
+    unique (product_id, url),
+    check (position >= 0),
+    check (kind in ('manufacturer', 'retailer', 'manual', 'datasheet', 'support')),
+    check (label is null or length(trim(label)) > 0),
+    check (length(trim(url)) > 0)
 );
 
 -- +goose StatementBegin
@@ -215,6 +265,56 @@ begin
 end;
 -- +goose StatementEnd
 
+-- +goose StatementBegin
+create trigger rack_specs_product_kind_insert
+before insert on rack_specs
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id and products.kind = 'rack'
+)
+begin
+    select raise(abort, 'rack specifications require a rack product') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger rack_specs_product_kind_update
+before update of product_id on rack_specs
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id and products.kind = 'rack'
+)
+begin
+    select raise(abort, 'rack specifications require a rack product') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger product_port_profiles_product_kind_insert
+before insert on product_port_profiles
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id
+        and products.kind in ('router', 'switch', 'access_point', 'network_adapter')
+)
+begin
+    select raise(abort, 'port profiles require a network equipment product') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger product_port_profiles_product_kind_update
+before update of product_id on product_port_profiles
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id
+        and products.kind in ('router', 'switch', 'access_point', 'network_adapter')
+)
+begin
+    select raise(abort, 'port profiles require a network equipment product') as result;
+end;
+-- +goose StatementEnd
+
 create table assets (
     id              text    not null primary key,
     public_id       text    not null unique,
@@ -222,6 +322,7 @@ create table assets (
         references products (id) on delete restrict,
     parent_asset_id text
         references assets (id) on delete restrict,
+    parent_slot     text,
     area_id         text
         references areas (id) on delete set null,
     name            text,
@@ -234,7 +335,9 @@ create table assets (
     check (length(public_id) = 12),
     check (public_id not glob '*[^0-9a-z]*'),
     check (parent_asset_id is null or parent_asset_id != id),
-    check (parent_asset_id is null or area_id is null)
+    check (parent_asset_id is null or area_id is null),
+    check (parent_asset_id is not null or parent_slot is null),
+    check (parent_slot is null or length(trim(parent_slot)) > 0)
 );
 
 create index assets_product_id_idx on assets (product_id);
@@ -256,10 +359,10 @@ when new.parent_asset_id is not null and not exists (
     select 1 as result
     from assets as parent
     inner join products on parent.product_id = products.id
-    where parent.id = new.parent_asset_id and products.kind = 'system'
+    where parent.id = new.parent_asset_id and products.kind in ('system', 'rack')
 )
 begin
-    select raise(abort, 'parent asset must have a system product') as result;
+    select raise(abort, 'parent asset must have a system or rack product') as result;
 end;
 -- +goose StatementEnd
 
@@ -270,10 +373,10 @@ when new.parent_asset_id is not null and not exists (
     select 1 as result
     from assets as parent
     inner join products on parent.product_id = products.id
-    where parent.id = new.parent_asset_id and products.kind = 'system'
+    where parent.id = new.parent_asset_id and products.kind in ('system', 'rack')
 )
 begin
-    select raise(abort, 'parent asset must have a system product') as result;
+    select raise(abort, 'parent asset must have a system or rack product') as result;
 end;
 -- +goose StatementEnd
 
@@ -330,21 +433,207 @@ end;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
-create trigger assets_system_product_update
-before update of product_id on assets
-when (
-    exists (select 1 as result from assets as child
-where child.parent_asset_id = old.id)
-    or exists (select 1 as result from machines
-where machines.asset_id = old.id)
-) and not exists (
-    select 1 as result from products
-    where products.id = new.product_id and products.kind = 'system'
+create trigger assets_machine_location_update
+before update of parent_asset_id, area_id on assets
+when exists (
+    with recursive
+    descendants (id) as (
+        select old.id
+        union all
+        select child.id
+        from assets as child
+        inner join descendants on child.parent_asset_id = descendants.id
+    ),
+
+    new_ancestors (id, parent_asset_id, area_id, depth) as (
+        select
+            parent.id,
+            parent.parent_asset_id,
+            parent.area_id,
+            0 as depth
+        from assets as parent
+        where parent.id = new.parent_asset_id
+        union all
+        select
+            parent.id,
+            parent.parent_asset_id,
+            parent.area_id,
+            new_ancestors.depth + 1 as depth
+        from assets as parent
+        inner join new_ancestors on parent.id = new_ancestors.parent_asset_id
+    )
+
+    select 1 as result
+    from descendants
+    inner join machines on descendants.id = machines.asset_id
+    where machines.area_id != coalesce(
+        new.area_id,
+        (
+            select new_ancestors.area_id
+            from new_ancestors
+            where new_ancestors.area_id is not null
+            order by new_ancestors.depth
+            limit 1
+        ),
+        ''
+    )
 )
 begin
-    select raise(abort, 'referenced asset must have a system product') as result;
+    select raise(abort, 'machine backing asset must remain in the machine area') as result;
 end;
 -- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger assets_product_update
+before update of product_id on assets
+when not exists (
+    select 1 as result
+    from products
+    where products.id = new.product_id
+        and (
+            (
+                not exists (
+                    select 1 as result from assets as child
+                    where child.parent_asset_id = old.id
+                )
+                or products.kind in ('system', 'rack')
+            )
+            and (
+                not exists (
+                    select 1 as result from machines
+                    where machines.asset_id = old.id
+                )
+                or products.kind = 'system'
+            )
+            and (
+                not exists (
+                    select 1 as result from addresses
+                    where addresses.asset_id = old.id
+                )
+                or products.kind in ('router', 'switch', 'access_point')
+            )
+        )
+)
+begin
+    select raise(abort, 'asset product conflicts with existing references') as result;
+end;
+-- +goose StatementEnd
+
+create table asset_links (
+    asset_id text    not null
+        references assets (id) on delete cascade,
+    position integer not null,
+    kind     text    not null,
+    label    text,
+    url      text    not null,
+    primary key (asset_id, position),
+    unique (asset_id, url),
+    check (position >= 0),
+    check (kind in ('receipt', 'warranty', 'management', 'other')),
+    check (label is null or length(trim(label)) > 0),
+    check (length(trim(url)) > 0)
+);
+
+create table purchases (
+    id                text    not null primary key,
+    public_id         text    not null unique,
+    primary_asset_id  text    not null unique
+        references assets (id) on delete restrict,
+    total_price_cents integer not null,
+    currency          text    not null,
+    purchased_on      text,
+    source            text,
+    notes             text,
+    created_at        integer not null default (strftime('%s', 'now')),
+    updated_at        integer not null default (strftime('%s', 'now')),
+    check (length(id) = 36),
+    check (length(public_id) = 12),
+    check (public_id not glob '*[^0-9a-z]*'),
+    check (total_price_cents >= 0),
+    check (length(currency) = 3 and currency not glob '*[^A-Z]*'),
+    check (
+        purchased_on is null
+        or (
+            length(purchased_on) = 10
+            and date(purchased_on, '+0 days') is not null
+            and date(purchased_on, '+0 days') = purchased_on
+        )
+    ),
+    check (source is null or length(trim(source)) > 0)
+);
+
+create index purchases_currency_idx on purchases (currency);
+
+create table purchase_assets (
+    purchase_id text not null
+        references purchases (id) on delete cascade,
+    asset_id    text not null unique
+        references assets (id) on delete restrict,
+    primary key (purchase_id, asset_id)
+);
+
+-- +goose StatementBegin
+create trigger purchases_primary_asset_insert
+before insert on purchases
+when exists (
+    select 1 as result from purchase_assets
+    where purchase_assets.asset_id = new.primary_asset_id
+)
+begin
+    select raise(abort, 'asset already belongs to a purchase') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger purchases_primary_asset_update
+before update of primary_asset_id on purchases
+when exists (
+    select 1 as result from purchase_assets
+    where purchase_assets.asset_id = new.primary_asset_id
+)
+begin
+    select raise(abort, 'asset already belongs to a purchase') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger purchase_assets_asset_insert
+before insert on purchase_assets
+when exists (
+    select 1 as result from purchases
+    where purchases.primary_asset_id = new.asset_id
+)
+begin
+    select raise(abort, 'asset already belongs to a purchase') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger purchase_assets_asset_update
+before update of asset_id on purchase_assets
+when exists (
+    select 1 as result from purchases
+    where purchases.primary_asset_id = new.asset_id
+)
+begin
+    select raise(abort, 'asset already belongs to a purchase') as result;
+end;
+-- +goose StatementEnd
+
+create table purchase_links (
+    purchase_id text    not null
+        references purchases (id) on delete cascade,
+    position    integer not null,
+    kind        text    not null,
+    label       text,
+    url         text    not null,
+    primary key (purchase_id, position),
+    unique (purchase_id, url),
+    check (position >= 0),
+    check (kind in ('receipt', 'listing', 'other')),
+    check (label is null or length(trim(label)) > 0),
+    check (length(trim(url)) > 0)
+);
 
 create table machines (
     id                           text    not null primary key,
@@ -480,20 +769,34 @@ when (
         select 1 as result from drive_specs
         where drive_specs.product_id = old.id
     ))
-    or (new.kind != 'system' and exists (
+    or (new.kind != 'rack' and exists (
+        select 1 as result from rack_specs
+        where rack_specs.product_id = old.id
+    ))
+    or (new.kind not in ('router', 'switch', 'access_point', 'network_adapter') and exists (
+        select 1 as result from product_port_profiles
+        where product_port_profiles.product_id = old.id
+    ))
+    or (new.kind not in ('system', 'rack') and exists (
         select 1 as result
         from assets
         where assets.product_id = old.id
-            and (
-                exists (
-                    select 1 as result from assets as child
-                    where child.parent_asset_id = assets.id
-                )
-                or exists (
-                    select 1 as result from machines
-where machines.asset_id = assets.id
-                )
+            and exists (
+                select 1 as result from assets as child
+                where child.parent_asset_id = assets.id
             )
+    ))
+    or (new.kind != 'system' and exists (
+        select 1 as result
+        from assets
+        inner join machines on assets.id = machines.asset_id
+        where assets.product_id = old.id
+    ))
+    or (new.kind not in ('router', 'switch', 'access_point') and exists (
+        select 1 as result
+        from assets
+        inner join addresses on assets.id = addresses.asset_id
+        where assets.product_id = old.id
     ))
 )
 begin
@@ -526,6 +829,62 @@ when new.asset_id is not null and not exists (
 )
 begin
     select raise(abort, 'machine asset must have a system product') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger machines_asset_location_insert
+before insert on machines
+when new.asset_id is not null and not exists (
+    with recursive ancestors (id, parent_asset_id, area_id) as (
+        select
+assets.id,
+assets.parent_asset_id,
+assets.area_id
+        from assets
+        where assets.id = new.asset_id
+        union all
+        select
+parent.id,
+parent.parent_asset_id,
+parent.area_id
+        from assets as parent
+        inner join ancestors on parent.id = ancestors.parent_asset_id
+    )
+
+    select 1 as result from ancestors
+    where ancestors.area_id = new.area_id
+)
+begin
+    select raise(abort, 'machine backing asset must be in the machine area') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger machines_asset_location_update
+before update of asset_id, area_id on machines
+when new.asset_id is not null and not exists (
+    with recursive ancestors (id, parent_asset_id, area_id) as (
+        select
+assets.id,
+assets.parent_asset_id,
+assets.area_id
+        from assets
+        where assets.id = new.asset_id
+        union all
+        select
+parent.id,
+parent.parent_asset_id,
+parent.area_id
+        from assets as parent
+        inner join ancestors on parent.id = ancestors.parent_asset_id
+    )
+
+    select 1 as result from ancestors
+    where ancestors.area_id = new.area_id
+)
+begin
+    select raise(abort, 'machine backing asset must be in the machine area') as result;
 end;
 -- +goose StatementEnd
 
@@ -702,6 +1061,8 @@ create table addresses (
         references machines (id) on delete cascade,
     area_id        text
         references areas (id) on delete cascade,
+    asset_id       text
+        references assets (id) on delete cascade,
     name           text,
     address        text    not null,
     dns_name       text,
@@ -712,15 +1073,51 @@ create table addresses (
     check (length(id) = 36),
     check (length(public_id) = 12),
     check (public_id not glob '*[^0-9a-z]*'),
-    check ((machine_id is null) != (area_id is null)),
+    check (
+        (machine_id is not null)
+        + (area_id is not null)
+        + (asset_id is not null)
+        = 1
+    ),
     check (is_primary in (0, 1))
 );
 
 create index addresses_network_id_idx on addresses (network_id);
 create index addresses_machine_id_idx on addresses (machine_id);
 create index addresses_area_id_idx on addresses (area_id);
+create index addresses_asset_id_idx on addresses (asset_id);
 
 create unique index addresses_network_address_idx on addresses (network_id, address);
+
+-- +goose StatementBegin
+create trigger addresses_asset_kind_insert
+before insert on addresses
+when new.asset_id is not null and not exists (
+    select 1 as result
+    from assets
+    inner join products on assets.product_id = products.id
+    where assets.id = new.asset_id
+        and products.kind in ('router', 'switch', 'access_point')
+)
+begin
+    select raise(abort, 'asset address requires network equipment') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger addresses_asset_kind_update
+before update of asset_id on addresses
+when new.asset_id is not null and not exists (
+    select 1 as result
+    from assets
+    inner join products on assets.product_id = products.id
+    where assets.id = new.asset_id
+        and products.kind in ('router', 'switch', 'access_point')
+)
+begin
+    select raise(abort, 'asset address requires network equipment') as result;
+end;
+-- +goose StatementEnd
 
 create table services (
     id          text    not null primary key,
@@ -824,7 +1221,7 @@ create unique index instance_endpoints_preferred_idx
 
 -- +goose StatementBegin
 create trigger addresses_endpoint_machine_update
-before update of machine_id, area_id on addresses
+before update of machine_id, area_id, asset_id on addresses
 when exists (
     select 1 as result
     from instance_endpoints
@@ -892,7 +1289,14 @@ drop table addresses;
 drop table networks;
 drop table machine_users;
 drop table machines;
+drop table purchase_links;
+drop table purchase_assets;
+drop table purchases;
+drop table asset_links;
 drop table assets;
+drop table product_links;
+drop table product_port_profiles;
+drop table rack_specs;
 drop table drive_specs;
 drop table memory_specs;
 drop table processor_specs;

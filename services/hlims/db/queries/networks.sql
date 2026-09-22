@@ -61,19 +61,21 @@ insert into addresses (
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,
     interface_name,
     is_primary
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,
@@ -89,6 +91,7 @@ select
     addresses.network_id,
     addresses.machine_id,
     addresses.area_id,
+    addresses.asset_id,
     addresses.name,
     addresses.address,
     addresses.dns_name,
@@ -98,11 +101,13 @@ select
     addresses.updated_at,
     networks.public_id as network_public_id,
     machines.public_id as machine_public_id,
-    areas.public_id    as area_public_id
+    areas.public_id    as area_public_id,
+    assets.public_id   as asset_public_id
 from addresses
 inner join networks on addresses.network_id = networks.id
 left join machines on addresses.machine_id = machines.id
 left join areas on addresses.area_id = areas.id
+left join assets on addresses.asset_id = assets.id
 where addresses.public_id = ?;
 
 -- name: ListAddresses :many
@@ -112,6 +117,7 @@ select
     addresses.network_id,
     addresses.machine_id,
     addresses.area_id,
+    addresses.asset_id,
     addresses.name,
     addresses.address,
     addresses.dns_name,
@@ -121,11 +127,13 @@ select
     addresses.updated_at,
     networks.public_id as network_public_id,
     machines.public_id as machine_public_id,
-    areas.public_id    as area_public_id
+    areas.public_id    as area_public_id,
+    assets.public_id   as asset_public_id
 from addresses
 inner join networks on addresses.network_id = networks.id
 left join machines on addresses.machine_id = machines.id
 left join areas on addresses.area_id = areas.id
+left join assets on addresses.asset_id = assets.id
 order by networks.name, addresses.address;
 
 -- name: UpdateAddress :one
@@ -134,6 +142,7 @@ set
     network_id = ?,
     machine_id = ?,
     area_id = ?,
+    asset_id = ?,
     name = ?,
     address = ?,
     dns_name = ?,
@@ -147,6 +156,7 @@ returning
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,

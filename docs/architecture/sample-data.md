@@ -47,6 +47,9 @@ environment responsible for it; no Area kind is needed yet.
 | `019d0000-0000-7018-8000-000000000018` | `wdmanuf8p3kx` | Western Digital | `western-digital` | 1789257600 | 1789257600 |
 | `019d0000-0000-7019-8000-000000000019` | `samsung7k2qx` | Samsung | `samsung` | 1789257600 | 1789257600 |
 | `019d0000-0000-701a-8000-00000000001a` | `msmanuf4n8p2` | Microsoft | `microsoft` | 1789257600 | 1789257600 |
+| `019d0000-0000-701b-8000-00000000001b` | `deskpi7m2q9k` | DeskPi | `deskpi` | 1789257600 | 1789257600 |
+| `019d0000-0000-701c-8000-00000000001c` | `tplink8n4q2x` | TP-Link | `tp-link` | 1789257600 | 1789257600 |
+| `019d0000-0000-701d-8000-00000000001d` | `hfiber7m3q2k` | H!Fiber | `h-fiber` | 1789257600 | 1789257600 |
 
 ## Products
 
@@ -64,6 +67,11 @@ environment responsible for it; no Area kind is needed yet.
 | `019d0000-0000-7027-8000-000000000027` | `wd1tb8m3k6pq` | `drive` | Western Digital | WD_BLACK SN850X 1000GB | null | Framework drive | 1789257600 | 1789257600 |
 | `019d0000-0000-7028-8000-000000000028` | `sam250g7n2kx` | `drive` | Samsung | SSD 870, exact model pending | null | Buck drive | 1789257600 | 1789257600 |
 | `019d0000-0000-7029-8000-000000000029` | `sb3model7k2q` | `system` | Microsoft | Surface Book 3 | null | Detailed hardware pending | 1789257600 | 1789257600 |
+| `019d0000-0000-702a-8000-00000000002a` | `rackmate4u2k` | `rack` | DeskPi | RackMate T0 | `RackMate T0` | 4U 10-inch desktop rack | 1789257600 | 1789257600 |
+| `019d0000-0000-702b-8000-00000000002b` | `sg605sw8m2qx` | `switch` | TP-Link | TL-SG605 | `TL-SG605` | Five-port unmanaged switch | 1789257600 | 1789257600 |
+| `019d0000-0000-702c-8000-00000000002c` | `decobe65p3kx` | `router` | TP-Link | Deco BE65 Pro | `BE65 Pro` | Tri-band mesh router | 1789257600 | 1789257600 |
+| `019d0000-0000-702d-8000-00000000002d` | `hppro3500k2q` | `system` | Hewlett-Packard | HP Pro 3500 | null | Used Marketplace system; CPU and RAM pending discovery | 1789257600 | 1789257600 |
+| `019d0000-0000-702e-8000-00000000002e` | `i350nic7m2qx` | `network_adapter` | H!Fiber | Dual-port Intel I350-compatible NIC | null | Purchased separately from the HP Pro 3500 | 1789257600 | 1789257600 |
 
 ## Processor Specifications
 
@@ -95,28 +103,131 @@ it connects or is presented. An NVMe SSD is therefore `ssd` plus `nvme`.
 | WD_BLACK SN850X 1000GB | 1000204886016 | `ssd` | `nvme` |
 | Samsung SSD 870 | 250000000000 | `ssd` | `sata` |
 
+## Rack Specifications
+
+`rack_specs` extends Products whose kind is `rack`. `mounting_standard`
+describes the physical standard rather than a rack location.
+
+| product_id | rack_units | mounting_standard |
+|---|---:|---|
+| DeskPi RackMate T0 | 4 | 10-inch |
+
+## Product Port Profiles
+
+`product_port_profiles` is an ordered inventory of grouped capabilities for
+router, switch, access-point, and network-adapter Products. A row describes a
+count of equivalent ports, not individual ports, cables, or current connections.
+`name` is optional; `speed_mbps` records the speed of each port in the group.
+
+| product_id | position | name | port_count | connector | speed_mbps |
+|---|---:|---|---:|---|---:|
+| TP-Link TL-SG605 | 0 | null | 5 | RJ45 | 1000 |
+| TP-Link Deco BE65 Pro | 0 | 5 GbE | 2 | RJ45 | 5000 |
+| TP-Link Deco BE65 Pro | 1 | 2.5 GbE | 1 | RJ45 | 2500 |
+| H!Fiber Intel I350-compatible NIC | 0 | null | 2 | RJ45 | 1000 |
+
+## Product Links
+
+`product_links` stores ordered URLs. Link kinds classify the destination; the
+link itself is not an uploaded document.
+
+| product_id | position | kind | label | url |
+|---|---:|---|---|---|
+| DeskPi RackMate T0 | 0 | `manufacturer` | Product page | `https://products.example.invalid/deskpi/rackmate-t0` |
+| DeskPi RackMate T0 | 1 | `retailer` | Example retailer | `https://shop.example.invalid/rackmate-t0` |
+| TP-Link TL-SG605 | 0 | `manual` | Installation guide | `https://docs.example.invalid/tp-link/tl-sg605/manual` |
+| TP-Link TL-SG605 | 1 | `datasheet` | Specifications | `https://docs.example.invalid/tp-link/tl-sg605/datasheet` |
+| TP-Link Deco BE65 Pro | 0 | `support` | Support | `https://support.example.invalid/tp-link/deco-be65-pro` |
+
 ## Assets
 
 `assets` represents individual physical items. `parent_asset_id` records current
-containment without maintaining installation history or slot placement.
+containment, and `parent_slot` may describe placement within that parent.
 
-| id | public_id | product_id | parent_asset_id | area_id | name | serial_number | system_uuid | notes |
-|---|---|---|---|---|---|---|---|---|
-| `019d0000-0000-7030-8000-000000000030` | `badger8m2k5q` | HP ProDesk | null | Primary Home | Badger chassis | `SN-BADGER-EXAMPLE` | `019d1000-0000-7000-8000-000000000001` | null |
-| `019d0000-0000-7031-8000-000000000031` | `badcpu4n8p2x` | Intel i5-4590T | Badger chassis | null | null | null | null | null |
-| `019d0000-0000-7032-8000-000000000032` | `baddim3k7q2m` | Hynix `AFR8A` | Badger chassis | null | null | `RAM-BADGER-1` | null | null |
-| `019d0000-0000-7033-8000-000000000033` | `baddim1p8x4n` | Hynix `BFR8A` | Badger chassis | null | null | `RAM-BADGER-2` | null | null |
-| `019d0000-0000-7034-8000-000000000034` | `buck7m2q9k4x` | HP ProDesk | null | Primary Home | Buck chassis | `SN-BUCK-EXAMPLE` | `019d1000-0000-7000-8000-000000000002` | null |
-| `019d0000-0000-7035-8000-000000000035` | `brewer3n8p5q` | HP ProDesk | null | Primary Home | Brewer chassis | null | null | Inventory details pending |
-| `019d0000-0000-7036-8000-000000000036` | `frame7k2m9qx` | Framework Laptop | null | Primary Home | Framework 13 chassis | `SN-FRAMEWORK-EXAMPLE` | `019d1000-0000-7000-8000-000000000003` | null |
-| `019d0000-0000-7037-8000-000000000037` | `fwcpu8p3n6k2` | AMD Ryzen AI 7 350 | Framework chassis | null | null | null | null | null |
-| `019d0000-0000-7038-8000-000000000038` | `fwdim4q8m2nx` | Micron 32 GiB | Framework chassis | null | null | `RAM-FRAMEWORK-1` | null | null |
-| `019d0000-0000-7039-8000-000000000039` | `fwnvme7p2k9m` | WD_BLACK SN850X | Framework chassis | null | null | `DRIVE-FRAMEWORK-1` | null | null |
-| `019d0000-0000-703a-8000-00000000003a` | `sb3asset8m2q` | Microsoft Surface Book 3 | null | Primary Home | Surface Book 3 chassis | null | null | Hardware details pending |
+| id | public_id | product_id | parent_asset_id | parent_slot | area_id | name | serial_number | system_uuid | notes |
+|---|---|---|---|---|---|---|---|---|---|
+| `019d0000-0000-7030-8000-000000000030` | `badger8m2k5q` | HP ProDesk | null | null | Primary Home | Badger chassis | `SN-BADGER-EXAMPLE` | `019d1000-0000-7000-8000-000000000001` | null |
+| `019d0000-0000-7031-8000-000000000031` | `badcpu4n8p2x` | Intel i5-4590T | Badger chassis | null | null | null | null | null | null |
+| `019d0000-0000-7032-8000-000000000032` | `baddim3k7q2m` | Hynix `AFR8A` | Badger chassis | null | null | null | `RAM-BADGER-1` | null | null |
+| `019d0000-0000-7033-8000-000000000033` | `baddim1p8x4n` | Hynix `BFR8A` | Badger chassis | null | null | null | `RAM-BADGER-2` | null | null |
+| `019d0000-0000-7034-8000-000000000034` | `buck7m2q9k4x` | HP ProDesk | null | null | Primary Home | Buck chassis | `SN-BUCK-EXAMPLE` | `019d1000-0000-7000-8000-000000000002` | null |
+| `019d0000-0000-7035-8000-000000000035` | `brewer3n8p5q` | HP ProDesk | null | null | Primary Home | Brewer chassis | null | null | Inventory details pending |
+| `019d0000-0000-7036-8000-000000000036` | `frame7k2m9qx` | Framework Laptop | null | null | Primary Home | Framework 13 chassis | `SN-FRAMEWORK-EXAMPLE` | `019d1000-0000-7000-8000-000000000003` | null |
+| `019d0000-0000-7037-8000-000000000037` | `fwcpu8p3n6k2` | AMD Ryzen AI 7 350 | Framework chassis | null | null | null | null | null | null |
+| `019d0000-0000-7038-8000-000000000038` | `fwdim4q8m2nx` | Micron 32 GiB | Framework chassis | null | null | null | `RAM-FRAMEWORK-1` | null | null |
+| `019d0000-0000-7039-8000-000000000039` | `fwnvme7p2k9m` | WD_BLACK SN850X | Framework chassis | null | null | null | `DRIVE-FRAMEWORK-1` | null | null |
+| `019d0000-0000-703a-8000-00000000003a` | `sb3asset8m2q` | Microsoft Surface Book 3 | null | null | Primary Home | Surface Book 3 chassis | null | null | Hardware details pending |
+| `019d0000-0000-703b-8000-00000000003b` | `rackasset4u2` | DeskPi RackMate T0 | null | null | Primary Home | Lab rack | `RACK-T0-EXAMPLE` | null | null |
+| `019d0000-0000-703c-8000-00000000003c` | `switch5p2kqx` | TP-Link TL-SG605 | Lab rack | null | null | Lab switch | `SG605-EXAMPLE-01` | null | Mounted in the rack |
+| `019d0000-0000-703d-8000-00000000003d` | `decomain7k2q` | TP-Link Deco BE65 Pro | null | null | Primary Home | Main Deco | `BE65P-EXAMPLE-01` | null | Primary router |
+| `019d0000-0000-703e-8000-00000000003e` | `decoup1m8k2q` | TP-Link Deco BE65 Pro | null | null | Primary Home | Upstairs Deco | `BE65P-EXAMPLE-02` | null | Mesh unit |
+| `019d0000-0000-703f-8000-00000000003f` | `decoup2n7p3x` | TP-Link Deco BE65 Pro | null | null | Primary Home | Office Deco | `BE65P-EXAMPLE-03` | null | Mesh unit |
+| `019d0000-0000-704d-8000-00000000004d` | `pro3500m8k2q` | HP Pro 3500 | null | null | Primary Home | HP Pro 3500 Marketplace system | null | null | CPU and RAM pending discovery |
+| `019d0000-0000-704e-8000-00000000004e` | `i350asset7k2` | H!Fiber Intel I350-compatible NIC | HP Pro 3500 Marketplace system | PCIe x16 | null | Dual-port NIC | null | null | Purchased separately; price and date unknown |
 
 Assets with `parent_asset_id = null` are top-level equipment or uninstalled
 spares. Installed components normally leave `area_id` null because their Area
-is derived through the parent chassis.
+is derived through the parent system or rack Asset. Only system and rack Assets
+can contain children. The HP Pro 3500's unknown CPU and RAM are omitted pending
+discovery rather than represented by placeholder component Assets.
+
+The API derives `purchasePublicId` from the Purchase's required primary Asset
+and any additional `purchase_assets` associations; it is null when an Asset has
+no recorded Purchase. Purchase data is not embedded in `assets`.
+
+## Purchases
+
+`purchases` represents transactions independently of Assets. Every Purchase
+has a total and currency; date, source, and notes are optional. The known $35 HP
+Pro 3500 transaction has its own Purchase.
+
+| id | public_id | primary_asset_id | total_price_cents | currency | purchased_on | source | notes | created_at | updated_at |
+|---|---|---|---:|---|---|---|---|---:|---:|
+| `019d0000-0000-7080-8000-000000000080` | `pro3500buy12` | HP Pro 3500 Marketplace system | 3500 | USD | null | Facebook Marketplace, Marathon City | PC only; the installed NIC was purchased separately | 1789257600 | 1789257600 |
+
+Each Purchase has a required `primary_asset_id`. `purchase_assets` associates
+any additional physical Assets in the same transaction. Cross-table constraints
+enforce that an Asset belongs to at most one Purchase. This single-Asset fixture
+therefore has no `purchase_assets` rows.
+
+The H!Fiber NIC remains installed in the HP Pro 3500's `PCIe x16` slot, but it
+was not part of the PC transaction. It requires a separate Purchase. Its price
+and purchase date are unknown, and this fixture does not invent a total or
+misrepresent zero as unknown; because `total_price_cents` and `currency` are
+required, that incomplete transaction cannot yet be persisted as a valid row.
+
+A mini-PC bundle is represented differently: one Purchase row identifies one
+mini-PC as its primary Asset and associates the remaining mini-PC Assets through
+`purchase_assets`. Its total is counted once rather than copied to every
+mini-PC.
+
+## Purchase Links
+
+`purchase_links` stores ordered external URLs of kind `receipt`, `listing`, or
+`other` for a Purchase.
+
+| purchase_id | position | kind | label | url |
+|---|---:|---|---|---|
+| HP Pro 3500 Marketplace purchase | 0 | `listing` | Marketplace listing | `https://marketplace.example.invalid/listings/HP-PRO-3500-EXAMPLE` |
+
+`GET /api/v1/purchase-summary` groups Purchases by currency, counts each
+Purchase total once, and separately reports associated Asset counts. The
+complete Purchase in this fixture produces:
+
+| currency | total_price_cents | purchase_count | asset_count |
+|---|---:|---:|---:|
+| USD | 3500 | 1 | 1 |
+
+## Asset Links
+
+`asset_links` stores ordered URLs associated with one physical Asset. These
+links remain external URLs; HLIMS does not upload files.
+
+| asset_id | position | kind | label | url |
+|---|---:|---|---|---|
+| Main Deco | 0 | `warranty` | Warranty registration | `https://warranty.example.invalid/tp-link/BE65P-EXAMPLE-01` |
+| Main Deco | 1 | `management` | Local management | `https://192.168.68.1/` |
+| Lab switch | 0 | `other` | Inventory note | `https://inventory.example.invalid/notes/SG605-EXAMPLE-01` |
 
 ## Machines
 
@@ -195,21 +306,23 @@ would be clearer than `public`, the enum can be renamed before API work begins.
 
 ## Addresses
 
-An Address belongs to exactly one Machine or one Area. The Area option supports
-the home ISP address when a router Machine is not cataloged.
+An Address belongs to exactly one Machine, one Area, or one network-equipment
+Asset. Asset targets are limited to router, switch, and access-point Products.
+The Area option supports the home ISP address when no router Asset is cataloged.
 
-| id | public_id | network_id | machine_id | area_id | name | address | dns_name | interface_name | is_primary | created_at | updated_at |
-|---|---|---|---|---|---|---|---|---|---:|---:|---:|
-| `019d0000-0000-7060-8000-000000000060` | `badlan7m2k9qx` | Home LAN | Badger | null | LAN | `192.168.68.60` | null | `enp1s0` | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7061-8000-000000000061` | `badts4n8p2km` | Personal Tailnet | Badger | null | Tailscale | `100.64.0.10` | `badger.example.ts.net` | `tailscale0` | 0 | 1789257600 | 1789257600 |
-| `019d0000-0000-7062-8000-000000000062` | `buckts6q2m9nx` | Personal Tailnet | Buck | null | Tailscale | `100.64.0.11` | `buck.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7063-8000-000000000063` | `fwints8k3p2qm` | Personal Tailnet | Framework Windows | null | Tailscale | `100.64.0.12` | `framework13.example.ts.net` | null | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7064-8000-000000000064` | `fwslts5n9k2qx` | Personal Tailnet | Framework WSL | null | Tailscale | `100.64.0.13` | `framework13-wsl.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7065-8000-000000000065` | `pypts7m2q8kn` | Personal Tailnet | pypacktrends-prod | null | Tailscale | `100.64.0.14` | `pypacktrends-prod.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7066-8000-000000000066` | `pyppub4k9m2qx` | Public Internet | pypacktrends-prod | null | Public IPv4 | `192.0.2.44` | null | `eth0` | 0 | 1789257600 | 1789257600 |
-| `019d0000-0000-7067-8000-000000000067` | `homewan8p3n2k` | Public Internet | null | Primary Home | Home ISP | `203.0.113.10` | `home.example.net` | null | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7068-8000-000000000068` | `sb3ts8m2k4qx` | Personal Tailnet | Surface Book 3 | null | Tailscale | `100.64.0.15` | `sb3.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
-| `019d0000-0000-7069-8000-000000000069` | `pypvpc8m2k4q` | DigitalOcean SFO3 VPC | pypacktrends-prod | null | Private IPv4 | `10.124.0.2` | null | `eth0` | 0 | 1789257600 | 1789257600 |
+| id | public_id | network_id | machine_id | area_id | asset_id | name | address | dns_name | interface_name | is_primary | created_at | updated_at |
+|---|---|---|---|---|---|---|---|---|---|---:|---:|---:|
+| `019d0000-0000-7060-8000-000000000060` | `badlan7m2k9qx` | Home LAN | Badger | null | null | LAN | `192.168.68.60` | null | `enp1s0` | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7061-8000-000000000061` | `badts4n8p2km` | Personal Tailnet | Badger | null | null | Tailscale | `100.64.0.10` | `badger.example.ts.net` | `tailscale0` | 0 | 1789257600 | 1789257600 |
+| `019d0000-0000-7062-8000-000000000062` | `buckts6q2m9nx` | Personal Tailnet | Buck | null | null | Tailscale | `100.64.0.11` | `buck.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7063-8000-000000000063` | `fwints8k3p2qm` | Personal Tailnet | Framework Windows | null | null | Tailscale | `100.64.0.12` | `framework13.example.ts.net` | null | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7064-8000-000000000064` | `fwslts5n9k2qx` | Personal Tailnet | Framework WSL | null | null | Tailscale | `100.64.0.13` | `framework13-wsl.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7065-8000-000000000065` | `pypts7m2q8kn` | Personal Tailnet | pypacktrends-prod | null | null | Tailscale | `100.64.0.14` | `pypacktrends-prod.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7066-8000-000000000066` | `pyppub4k9m2qx` | Public Internet | pypacktrends-prod | null | null | Public IPv4 | `192.0.2.44` | null | `eth0` | 0 | 1789257600 | 1789257600 |
+| `019d0000-0000-7067-8000-000000000067` | `homewan8p3n2k` | Public Internet | null | Primary Home | null | Home ISP | `203.0.113.10` | `home.example.net` | null | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7068-8000-000000000068` | `sb3ts8m2k4qx` | Personal Tailnet | Surface Book 3 | null | null | Tailscale | `100.64.0.15` | `sb3.example.ts.net` | `tailscale0` | 1 | 1789257600 | 1789257600 |
+| `019d0000-0000-7069-8000-000000000069` | `pypvpc8m2k4q` | DigitalOcean SFO3 VPC | pypacktrends-prod | null | null | Private IPv4 | `10.124.0.2` | null | `eth0` | 0 | 1789257600 | 1789257600 |
+| `019d0000-0000-706a-8000-00000000006a` | `decoweb7n2kx` | Home LAN | null | null | Main Deco | Management | `192.168.68.1` | `deco.example.home` | null | 1 | 1789257600 | 1789257600 |
 
 ## Services
 
@@ -243,5 +356,7 @@ endpoint is used when a canonical route does not specify `via`.
 ## Deferred Tables
 
 Detailed storage allocation and historical Asset installation tables are
-intentionally deferred until their workflows are designed. They are not part
-of the current migration.
+intentionally deferred until their workflows are designed. Individual network
+ports, cabling, VLAN assignments, routing relationships, and live link state
+are also deferred; Product port profiles are inventory only. None are part of
+the current migration.

@@ -28,6 +28,7 @@ const (
 	Manufacturers     Resource = "manufacturers"
 	Products          Resource = "products"
 	Assets            Resource = "assets"
+	Purchases         Resource = "purchases"
 	Machines          Resource = "machines"
 	MachineUsers      Resource = "machine-users"
 	Networks          Resource = "networks"
@@ -43,6 +44,7 @@ var resources = []Resource{
 	Manufacturers,
 	Products,
 	Assets,
+	Purchases,
 	Machines,
 	MachineUsers,
 	Networks,
@@ -75,6 +77,8 @@ func (r Resource) SingularLabel() string {
 		return "product"
 	case Assets:
 		return "asset"
+	case Purchases:
+		return "purchase"
 	case Machines:
 		return "machine"
 	case MachineUsers:
@@ -178,6 +182,8 @@ func (c *Client) List(ctx context.Context, resource Resource) (*Response, error)
 		response, err = c.api.ListProducts(ctx)
 	case Assets:
 		response, err = c.api.ListAssets(ctx)
+	case Purchases:
+		response, err = c.api.ListPurchases(ctx)
 	case Machines:
 		response, err = c.api.ListMachines(ctx)
 	case MachineUsers:
@@ -212,6 +218,12 @@ func (c *Client) Topology(ctx context.Context) (*Topology, error) {
 	return &topology, nil
 }
 
+// PurchaseSummary returns recorded Asset purchase totals grouped by currency.
+func (c *Client) PurchaseSummary(ctx context.Context) (*Response, error) {
+	response, err := c.api.GetPurchaseSummary(ctx)
+	return readResponse(response, err)
+}
+
 // Get returns one inventory resource by public ID.
 func (c *Client) Get(ctx context.Context, resource Resource, publicID string) (*Response, error) {
 	var response *http.Response
@@ -227,6 +239,8 @@ func (c *Client) Get(ctx context.Context, resource Resource, publicID string) (*
 		response, err = c.api.GetProduct(ctx, publicID)
 	case Assets:
 		response, err = c.api.GetAsset(ctx, publicID)
+	case Purchases:
+		response, err = c.api.GetPurchase(ctx, publicID)
 	case Machines:
 		response, err = c.api.GetMachine(ctx, publicID)
 	case MachineUsers:
@@ -262,6 +276,8 @@ func (c *Client) Create(ctx context.Context, resource Resource, body []byte) (*R
 		response, err = c.api.CreateProductWithBody(ctx, "application/json", bytes.NewReader(body))
 	case Assets:
 		response, err = c.api.CreateAssetWithBody(ctx, "application/json", bytes.NewReader(body))
+	case Purchases:
+		response, err = c.api.CreatePurchaseWithBody(ctx, "application/json", bytes.NewReader(body))
 	case Machines:
 		response, err = c.api.CreateMachineWithBody(ctx, "application/json", bytes.NewReader(body))
 	case MachineUsers:
@@ -297,6 +313,8 @@ func (c *Client) Update(ctx context.Context, resource Resource, publicID string,
 		response, err = c.api.UpdateProductWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
 	case Assets:
 		response, err = c.api.UpdateAssetWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+	case Purchases:
+		response, err = c.api.UpdatePurchaseWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
 	case Machines:
 		response, err = c.api.UpdateMachineWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
 	case MachineUsers:
@@ -332,6 +350,8 @@ func (c *Client) Delete(ctx context.Context, resource Resource, publicID string)
 		response, err = c.api.DeleteProduct(ctx, publicID)
 	case Assets:
 		response, err = c.api.DeleteAsset(ctx, publicID)
+	case Purchases:
+		response, err = c.api.DeletePurchase(ctx, publicID)
 	case Machines:
 		response, err = c.api.DeleteMachine(ctx, publicID)
 	case MachineUsers:

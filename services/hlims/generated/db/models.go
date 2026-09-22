@@ -14,6 +14,7 @@ type Address struct {
 	NetworkID     string         `json:"network_id"`
 	MachineID     sql.NullString `json:"machine_id"`
 	AreaID        sql.NullString `json:"area_id"`
+	AssetID       sql.NullString `json:"asset_id"`
 	Name          sql.NullString `json:"name"`
 	Address       string         `json:"address"`
 	DnsName       sql.NullString `json:"dns_name"`
@@ -40,6 +41,7 @@ type Asset struct {
 	PublicID      string         `json:"public_id"`
 	ProductID     string         `json:"product_id"`
 	ParentAssetID sql.NullString `json:"parent_asset_id"`
+	ParentSlot    sql.NullString `json:"parent_slot"`
 	AreaID        sql.NullString `json:"area_id"`
 	Name          sql.NullString `json:"name"`
 	SerialNumber  sql.NullString `json:"serial_number"`
@@ -47,6 +49,14 @@ type Asset struct {
 	Notes         sql.NullString `json:"notes"`
 	CreatedAt     int64          `json:"created_at"`
 	UpdatedAt     int64          `json:"updated_at"`
+}
+
+type AssetLink struct {
+	AssetID  string         `json:"asset_id"`
+	Position int64          `json:"position"`
+	Kind     string         `json:"kind"`
+	Label    sql.NullString `json:"label"`
+	Url      string         `json:"url"`
 }
 
 type DriveSpec struct {
@@ -192,6 +202,55 @@ type Product struct {
 	Notes          sql.NullString `json:"notes"`
 	CreatedAt      int64          `json:"created_at"`
 	UpdatedAt      int64          `json:"updated_at"`
+}
+
+type ProductLink struct {
+	ProductID string         `json:"product_id"`
+	Position  int64          `json:"position"`
+	Kind      string         `json:"kind"`
+	Label     sql.NullString `json:"label"`
+	Url       string         `json:"url"`
+}
+
+type ProductPortProfile struct {
+	ProductID string         `json:"product_id"`
+	Position  int64          `json:"position"`
+	Name      sql.NullString `json:"name"`
+	PortCount int64          `json:"port_count"`
+	Connector string         `json:"connector"`
+	SpeedMbps int64          `json:"speed_mbps"`
+}
+
+type Purchase struct {
+	ID              string         `json:"id"`
+	PublicID        string         `json:"public_id"`
+	PrimaryAssetID  string         `json:"primary_asset_id"`
+	TotalPriceCents int64          `json:"total_price_cents"`
+	Currency        string         `json:"currency"`
+	PurchasedOn     sql.NullString `json:"purchased_on"`
+	Source          sql.NullString `json:"source"`
+	Notes           sql.NullString `json:"notes"`
+	CreatedAt       int64          `json:"created_at"`
+	UpdatedAt       int64          `json:"updated_at"`
+}
+
+type PurchaseAsset struct {
+	PurchaseID string `json:"purchase_id"`
+	AssetID    string `json:"asset_id"`
+}
+
+type PurchaseLink struct {
+	PurchaseID string         `json:"purchase_id"`
+	Position   int64          `json:"position"`
+	Kind       string         `json:"kind"`
+	Label      sql.NullString `json:"label"`
+	Url        string         `json:"url"`
+}
+
+type RackSpec struct {
+	ProductID        string `json:"product_id"`
+	RackUnits        int64  `json:"rack_units"`
+	MountingStandard string `json:"mounting_standard"`
 }
 
 type Service struct {

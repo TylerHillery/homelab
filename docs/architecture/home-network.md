@@ -188,9 +188,22 @@ VLAN trunks and failure modes downstream of the lab router.
 ## HLIMS Impact
 
 The current model can represent the first phase with separate household LAN,
-lab LAN, and Tailnet Network records. The lab router can be a Machine with one
-Address on each LAN. This inventories addresses but does not model interfaces,
-routing, NAT, gateways, VLAN membership, or policy.
+lab LAN, and Tailnet Network records. A dedicated router is a router Product
+and Asset with one Address on each LAN. A general-purpose x86 router host can
+instead remain a Machine backed by a system Asset; network-equipment Assets do
+not back Machines. A physical NIC is a `network_adapter` Product and Asset,
+normally contained by the system Asset with a descriptive slot such as
+`PCIe x16`. Its grouped port profiles describe connector counts and speeds, but
+the adapter Asset cannot own management Addresses or back a Machine. This
+inventories equipment and addresses but does not model individual ports,
+cabling, interfaces, routing, NAT, gateways, VLAN membership, live link state,
+or policy.
+
+The current HP Pro 3500 example follows that placement model: its H!Fiber Intel
+I350-compatible dual-port NIC remains installed in `PCIe x16`. The $35 Facebook
+Marketplace transaction in Marathon City is a Purchase associated only with the
+PC Asset. The NIC was purchased separately and must use a separate Purchase;
+its unknown price and date must not be inferred from the PC transaction.
 
 Several current abstractions become ambiguous as the network grows:
 
@@ -206,7 +219,8 @@ Several current abstractions become ambiguous as the network grows:
 - `is_primary` has no defined uniqueness scope.
 - `via=lan` cannot select correctly once household, lab, and VLAN Networks all
   have kind `lan`.
-- A router is indistinguishable from any other multi-homed Machine.
+- A router Asset is identifiable, but its routed relationships and live links
+  are not modeled.
 - Instance Endpoint requires the serving Address to belong to the workload
   Machine, which cannot describe a reverse proxy, virtual IP, or NAT exposure.
 

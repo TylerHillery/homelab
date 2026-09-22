@@ -30,6 +30,28 @@ func TestMachineListCommand(t *testing.T) {
 	}
 }
 
+func TestPurchaseSummaryCommand(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/v1/purchase-summary" {
+			t.Errorf("path = %q, want /api/v1/purchase-summary", request.URL.Path)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"totals":[{"currency":"USD","totalPriceCents":3500,"assetCount":1}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	var output bytes.Buffer
+	command := NewRootCommand(Dependencies{Output: &output, Error: &output, HTTPClient: server.Client()})
+	command.SetArgs([]string{"--api-url", server.URL + "/api/v1", "purchase-summary"})
+	if err := command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `"totalPriceCents": 3500`) {
+		t.Fatalf("output = %q", output.String())
+	}
+}
+
 func TestCreateRejectsInvalidJSONBeforeRequest(t *testing.T) {
 	t.Parallel()
 	var requested bool

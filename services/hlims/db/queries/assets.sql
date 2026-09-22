@@ -4,13 +4,14 @@ insert into assets (
     public_id,
     product_id,
     parent_asset_id,
+    parent_slot,
     area_id,
     name,
     serial_number,
     system_uuid,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning *;
 
 -- name: GetAssetByPublicID :one
@@ -47,6 +48,18 @@ effective_placements as (
         area_id
     from asset_placement
     where area_id is not null
+),
+
+asset_purchase_owners as (
+    select
+        purchases.id               as purchase_id,
+        purchases.primary_asset_id as asset_id
+    from purchases
+    union all
+    select
+        purchase_assets.purchase_id,
+        purchase_assets.asset_id
+    from purchase_assets
 )
 
 select
@@ -54,6 +67,7 @@ select
     assets.public_id,
     assets.product_id,
     assets.parent_asset_id,
+    assets.parent_slot,
     assets.area_id,
     assets.name,
     assets.serial_number,
@@ -61,16 +75,19 @@ select
     assets.notes,
     assets.created_at,
     assets.updated_at,
-    products.public_id       as product_public_id,
-    parent.public_id         as parent_asset_public_id,
-    placement.public_id      as area_public_id,
-    effective_area.public_id as effective_area_public_id
+    products.public_id        as product_public_id,
+    parent.public_id          as parent_asset_public_id,
+    placement.public_id       as area_public_id,
+    effective_area.public_id  as effective_area_public_id,
+    purchase_record.public_id as purchase_public_id
 from assets
 inner join products on assets.product_id = products.id
 left join asset_identifiers as parent on assets.parent_asset_id = parent.id
 left join areas as placement on assets.area_id = placement.id
 left join effective_placements on assets.id = effective_placements.origin_id
 left join areas as effective_area on effective_placements.area_id = effective_area.id
+left join asset_purchase_owners on assets.id = asset_purchase_owners.asset_id
+left join purchases as purchase_record on asset_purchase_owners.purchase_id = purchase_record.id
 where assets.public_id = ?;
 
 -- name: ListAssetDetails :many
@@ -107,6 +124,18 @@ effective_placements as (
         area_id
     from asset_placement
     where area_id is not null
+),
+
+asset_purchase_owners as (
+    select
+        purchases.id               as purchase_id,
+        purchases.primary_asset_id as asset_id
+    from purchases
+    union all
+    select
+        purchase_assets.purchase_id,
+        purchase_assets.asset_id
+    from purchase_assets
 )
 
 select
@@ -114,6 +143,7 @@ select
     assets.public_id,
     assets.product_id,
     assets.parent_asset_id,
+    assets.parent_slot,
     assets.area_id,
     assets.name,
     assets.serial_number,
@@ -121,16 +151,19 @@ select
     assets.notes,
     assets.created_at,
     assets.updated_at,
-    products.public_id       as product_public_id,
-    parent.public_id         as parent_asset_public_id,
-    placement.public_id      as area_public_id,
-    effective_area.public_id as effective_area_public_id
+    products.public_id        as product_public_id,
+    parent.public_id          as parent_asset_public_id,
+    placement.public_id       as area_public_id,
+    effective_area.public_id  as effective_area_public_id,
+    purchase_record.public_id as purchase_public_id
 from assets
 inner join products on assets.product_id = products.id
 left join asset_identifiers as parent on assets.parent_asset_id = parent.id
 left join areas as placement on assets.area_id = placement.id
 left join effective_placements on assets.id = effective_placements.origin_id
 left join areas as effective_area on effective_placements.area_id = effective_area.id
+left join asset_purchase_owners on assets.id = asset_purchase_owners.asset_id
+left join purchases as purchase_record on asset_purchase_owners.purchase_id = purchase_record.id
 order by coalesce(assets.name, assets.serial_number, assets.public_id);
 
 -- name: UpdateAsset :one
@@ -138,6 +171,7 @@ update assets
 set
     product_id = ?,
     parent_asset_id = ?,
+    parent_slot = ?,
     area_id = ?,
     name = ?,
     serial_number = ?,
@@ -150,3 +184,33 @@ returning *;
 -- name: DeleteAsset :execrows
 delete from assets
 where public_id = ?;
+
+-- name: CreateAssetLink :one
+insert into asset_links (asset_id, position, kind, label, url)
+values (?, ?, ?, ?, ?)
+returning *;
+
+-- name: ListAssetLinksByAssetID :many
+select
+    asset_id,
+    position,
+    kind,
+    label,
+    url
+from asset_links
+where asset_id = ?
+order by position;
+
+-- name: ListAssetLinks :many
+select
+    asset_id,
+    position,
+    kind,
+    label,
+    url
+from asset_links
+order by asset_id, position;
+
+-- name: DeleteAssetLinks :execrows
+delete from asset_links
+where asset_id = ?;

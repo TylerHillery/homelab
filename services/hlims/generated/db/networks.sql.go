@@ -17,19 +17,21 @@ insert into addresses (
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,
     interface_name,
     is_primary
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,
@@ -45,6 +47,7 @@ type CreateAddressParams struct {
 	NetworkID     string         `json:"network_id"`
 	MachineID     sql.NullString `json:"machine_id"`
 	AreaID        sql.NullString `json:"area_id"`
+	AssetID       sql.NullString `json:"asset_id"`
 	Name          sql.NullString `json:"name"`
 	Address       string         `json:"address"`
 	DnsName       sql.NullString `json:"dns_name"`
@@ -59,6 +62,7 @@ func (q *Queries) CreateAddress(ctx context.Context, arg CreateAddressParams) (A
 		arg.NetworkID,
 		arg.MachineID,
 		arg.AreaID,
+		arg.AssetID,
 		arg.Name,
 		arg.Address,
 		arg.DnsName,
@@ -72,6 +76,7 @@ func (q *Queries) CreateAddress(ctx context.Context, arg CreateAddressParams) (A
 		&i.NetworkID,
 		&i.MachineID,
 		&i.AreaID,
+		&i.AssetID,
 		&i.Name,
 		&i.Address,
 		&i.DnsName,
@@ -160,6 +165,7 @@ select
     addresses.network_id,
     addresses.machine_id,
     addresses.area_id,
+    addresses.asset_id,
     addresses.name,
     addresses.address,
     addresses.dns_name,
@@ -169,11 +175,13 @@ select
     addresses.updated_at,
     networks.public_id as network_public_id,
     machines.public_id as machine_public_id,
-    areas.public_id    as area_public_id
+    areas.public_id    as area_public_id,
+    assets.public_id   as asset_public_id
 from addresses
 inner join networks on addresses.network_id = networks.id
 left join machines on addresses.machine_id = machines.id
 left join areas on addresses.area_id = areas.id
+left join assets on addresses.asset_id = assets.id
 where addresses.public_id = ?
 `
 
@@ -183,6 +191,7 @@ type GetAddressByPublicIDRow struct {
 	NetworkID       string         `json:"network_id"`
 	MachineID       sql.NullString `json:"machine_id"`
 	AreaID          sql.NullString `json:"area_id"`
+	AssetID         sql.NullString `json:"asset_id"`
 	Name            sql.NullString `json:"name"`
 	Address         string         `json:"address"`
 	DnsName         sql.NullString `json:"dns_name"`
@@ -193,6 +202,7 @@ type GetAddressByPublicIDRow struct {
 	NetworkPublicID string         `json:"network_public_id"`
 	MachinePublicID sql.NullString `json:"machine_public_id"`
 	AreaPublicID    sql.NullString `json:"area_public_id"`
+	AssetPublicID   sql.NullString `json:"asset_public_id"`
 }
 
 func (q *Queries) GetAddressByPublicID(ctx context.Context, publicID string) (GetAddressByPublicIDRow, error) {
@@ -204,6 +214,7 @@ func (q *Queries) GetAddressByPublicID(ctx context.Context, publicID string) (Ge
 		&i.NetworkID,
 		&i.MachineID,
 		&i.AreaID,
+		&i.AssetID,
 		&i.Name,
 		&i.Address,
 		&i.DnsName,
@@ -214,6 +225,7 @@ func (q *Queries) GetAddressByPublicID(ctx context.Context, publicID string) (Ge
 		&i.NetworkPublicID,
 		&i.MachinePublicID,
 		&i.AreaPublicID,
+		&i.AssetPublicID,
 	)
 	return i, err
 }
@@ -276,6 +288,7 @@ select
     addresses.network_id,
     addresses.machine_id,
     addresses.area_id,
+    addresses.asset_id,
     addresses.name,
     addresses.address,
     addresses.dns_name,
@@ -285,11 +298,13 @@ select
     addresses.updated_at,
     networks.public_id as network_public_id,
     machines.public_id as machine_public_id,
-    areas.public_id    as area_public_id
+    areas.public_id    as area_public_id,
+    assets.public_id   as asset_public_id
 from addresses
 inner join networks on addresses.network_id = networks.id
 left join machines on addresses.machine_id = machines.id
 left join areas on addresses.area_id = areas.id
+left join assets on addresses.asset_id = assets.id
 order by networks.name, addresses.address
 `
 
@@ -299,6 +314,7 @@ type ListAddressesRow struct {
 	NetworkID       string         `json:"network_id"`
 	MachineID       sql.NullString `json:"machine_id"`
 	AreaID          sql.NullString `json:"area_id"`
+	AssetID         sql.NullString `json:"asset_id"`
 	Name            sql.NullString `json:"name"`
 	Address         string         `json:"address"`
 	DnsName         sql.NullString `json:"dns_name"`
@@ -309,6 +325,7 @@ type ListAddressesRow struct {
 	NetworkPublicID string         `json:"network_public_id"`
 	MachinePublicID sql.NullString `json:"machine_public_id"`
 	AreaPublicID    sql.NullString `json:"area_public_id"`
+	AssetPublicID   sql.NullString `json:"asset_public_id"`
 }
 
 func (q *Queries) ListAddresses(ctx context.Context) ([]ListAddressesRow, error) {
@@ -326,6 +343,7 @@ func (q *Queries) ListAddresses(ctx context.Context) ([]ListAddressesRow, error)
 			&i.NetworkID,
 			&i.MachineID,
 			&i.AreaID,
+			&i.AssetID,
 			&i.Name,
 			&i.Address,
 			&i.DnsName,
@@ -336,6 +354,7 @@ func (q *Queries) ListAddresses(ctx context.Context) ([]ListAddressesRow, error)
 			&i.NetworkPublicID,
 			&i.MachinePublicID,
 			&i.AreaPublicID,
+			&i.AssetPublicID,
 		); err != nil {
 			return nil, err
 		}
@@ -423,6 +442,7 @@ set
     network_id = ?,
     machine_id = ?,
     area_id = ?,
+    asset_id = ?,
     name = ?,
     address = ?,
     dns_name = ?,
@@ -436,6 +456,7 @@ returning
     network_id,
     machine_id,
     area_id,
+    asset_id,
     name,
     address,
     dns_name,
@@ -449,6 +470,7 @@ type UpdateAddressParams struct {
 	NetworkID     string         `json:"network_id"`
 	MachineID     sql.NullString `json:"machine_id"`
 	AreaID        sql.NullString `json:"area_id"`
+	AssetID       sql.NullString `json:"asset_id"`
 	Name          sql.NullString `json:"name"`
 	Address       string         `json:"address"`
 	DnsName       sql.NullString `json:"dns_name"`
@@ -462,6 +484,7 @@ func (q *Queries) UpdateAddress(ctx context.Context, arg UpdateAddressParams) (A
 		arg.NetworkID,
 		arg.MachineID,
 		arg.AreaID,
+		arg.AssetID,
 		arg.Name,
 		arg.Address,
 		arg.DnsName,
@@ -476,6 +499,7 @@ func (q *Queries) UpdateAddress(ctx context.Context, arg UpdateAddressParams) (A
 		&i.NetworkID,
 		&i.MachineID,
 		&i.AreaID,
+		&i.AssetID,
 		&i.Name,
 		&i.Address,
 		&i.DnsName,

@@ -4,16 +4,23 @@ package hlims
 type ProductKind string
 
 const (
-	ProductKindSystem    ProductKind = "system"
-	ProductKindProcessor ProductKind = "processor"
-	ProductKindMemory    ProductKind = "memory"
-	ProductKindDrive     ProductKind = "drive"
+	ProductKindSystem         ProductKind = "system"
+	ProductKindProcessor      ProductKind = "processor"
+	ProductKindMemory         ProductKind = "memory"
+	ProductKindDrive          ProductKind = "drive"
+	ProductKindRack           ProductKind = "rack"
+	ProductKindRouter         ProductKind = "router"
+	ProductKindSwitch         ProductKind = "switch"
+	ProductKindAccessPoint    ProductKind = "access_point"
+	ProductKindNetworkAdapter ProductKind = "network_adapter"
 )
 
 // Valid reports whether the product kind is supported.
 func (kind ProductKind) Valid() bool {
 	switch kind {
-	case ProductKindSystem, ProductKindProcessor, ProductKindMemory, ProductKindDrive:
+	case ProductKindSystem, ProductKindProcessor, ProductKindMemory, ProductKindDrive,
+		ProductKindRack, ProductKindRouter, ProductKindSwitch, ProductKindAccessPoint,
+		ProductKindNetworkAdapter:
 		return true
 	default:
 		return false
