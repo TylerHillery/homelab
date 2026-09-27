@@ -78,7 +78,3 @@ security boundary. The server does not grant cross-origin browser access.
 - [`services/hlims/db/migrations`](../../services/hlims/db/migrations): schema
 - [`services/hlims/README.md`](../../services/hlims/README.md): operation and use
 - [HLIMS Domain Model](domain-model.md): conceptual relationships
-
-HLIMS began as a hard fork of Tailscale golink. Current upstream history and
-attribution are recorded in
-[`services/hlims/docs/upstream.md`](../../services/hlims/docs/upstream.md).

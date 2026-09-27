@@ -2,4 +2,5 @@
 *.go    text diff=golang
 *.html  text diff=html
 *.css   text diff=css
-static/vendor/* linguist-vendored
+console/static/htmx-*.min.js linguist-vendored
+console/static/swagger-ui-* linguist-vendored

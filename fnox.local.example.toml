@@ -1,8 +1,0 @@
-#:schema https://fnox.jdx.dev/schema.json
-
-[providers.age]
-type = "age"
-recipients = ["<AGE_PUBLIC_RECIPIENT>"]
-
-[secrets]
-# `mise run bw:unlock` writes BW_SESSION here.

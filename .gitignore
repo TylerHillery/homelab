@@ -1,12 +1,12 @@
 .env
-data/
+.agents/
+.opencode/
 .mise.local.toml
 *.db
 *.db-shm
 *.db-wal
 coverage.out
 fnox.local.toml
-.fnox.local.toml
+skills-lock.json
 opnsense/collections/
 opnsense/group_vars/all/site.yml
-opnsense/*.retry

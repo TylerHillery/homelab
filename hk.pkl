@@ -10,7 +10,6 @@ steps {
   }
   ["newlines"] = (Builtins.newlines) {
     exclude = List(
-      "services/hlims/static/vendor/**/*.min.js",
       "services/hlims/console/static/htmx-*.min.js",
       "services/hlims/console/static/swagger-ui-*"
     )

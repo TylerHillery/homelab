@@ -31,7 +31,7 @@ mise run apply
 ```
 
 Review `check` before applying. The management hostname is configured in
-`group_vars/all.yml`.
+the ignored `group_vars/all/site.yml`; start from `site.example.yml`.
 
 ## Scope
 

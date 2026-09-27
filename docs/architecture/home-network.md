@@ -56,7 +56,9 @@ tailnet access policy separate from firewall policy.
 OPNsense is managed through Ansible over its tailnet endpoint. Tailscale Serve
 provides trusted HTTPS. The operational sources of truth are:
 
-- [`opnsense/group_vars/all.yml`](../../opnsense/group_vars/all.yml)
+- [`opnsense/site.example.yml`](../../opnsense/site.example.yml): site variable
+  template
+- `opnsense/group_vars/all/site.yml`: ignored site configuration
 - [`opnsense/playbooks/site.yml`](../../opnsense/playbooks/site.yml)
 - [`opnsense/SETUP.md`](../../opnsense/SETUP.md)
 

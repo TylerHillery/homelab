@@ -15,5 +15,4 @@ operations.
 | [Zero-Touch Provisioning](zero-touch-provisioning.md) | Planned | Unattended installation and enrollment |
 | [Observability](observability.md) | Planned | Central telemetry pipeline |
 
-Historical designs belong in [`docs/archive`](../archive/). Decisions and their
-consequences belong in [`docs/decisions`](../decisions/).
+Historical designs belong in [`docs/archive`](../archive/).

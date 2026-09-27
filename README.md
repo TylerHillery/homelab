@@ -12,7 +12,7 @@ Monorepo for homelab software, infrastructure, and operations.
 ## Repository
 
 ```text
-docs/           architecture, decisions, and archived designs
+docs/           architecture and archived designs
 mise-tasks/     shared executable tasks
 opnsense/       OPNsense Ansible project and setup runbook
 services/       applications and platform services
