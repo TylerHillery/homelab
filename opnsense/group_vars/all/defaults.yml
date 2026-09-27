@@ -1,0 +1,23 @@
+---
+opnsense_api_port: 443
+opnsense_api_url: "https://{{ opnsense_api_host }}:{{ opnsense_api_port }}"
+opnsense_ssl_verify: true
+opnsense_serve_backend: "https+insecure://127.0.0.1:443"
+
+opnsense_tailscale_settings:
+  enabled: "1"
+  loginTimeout: "10"
+  listenPort: "41641"
+  acceptDNS: "0"
+  advertiseExitNode: "1"
+  useExitNode: ""
+  acceptSubnetRoutes: "0"
+  enableSSH: "1"
+  disableSNAT: "0"
+
+lab_lan_interface: "lan"
+tailnet_ipv4_subnet: "100.64.0.0/10"
+lab_rfc1918_networks:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"

@@ -1,0 +1,476 @@
+---
+- name: Configure the homelab OPNsense firewall
+  hosts: opnsense
+  gather_facts: false
+
+  pre_tasks:
+    - name: Read Tailscale Serve configuration
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - tailscale
+          - serve
+          - status
+          - --json
+      register: tailscale_serve_status
+      changed_when: false
+      check_mode: false
+      tags: [tailscale]
+
+    - name: Configure trusted HTTPS with Tailscale Serve
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - tailscale
+          - serve
+          - --bg
+          - --yes
+          - --https=443
+          - "{{ opnsense_serve_backend }}"
+      when:
+        - not ansible_check_mode
+        - >-
+          (tailscale_serve_status.stdout | from_json).get('Web', {})
+          .get(opnsense_tailnet_hostname ~ ':443', {})
+          .get('Handlers', {}).get('/', {}).get('Proxy', '')
+          != opnsense_serve_backend
+      tags: [tailscale]
+
+    - name: Verify Tailscale Serve configuration
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - tailscale
+          - serve
+          - status
+          - --json
+      register: tailscale_serve_verification
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [tailscale]
+
+    - name: Verify trusted HTTPS proxy settings
+      ansible.builtin.assert:
+        that:
+          - >-
+            (tailscale_serve_verification.stdout | from_json)
+            .get('TCP', {}).get('443', {}).get('HTTPS', false)
+          - >-
+            (tailscale_serve_verification.stdout | from_json).get('Web', {})
+            .get(opnsense_tailnet_hostname ~ ':443', {})
+            .get('Handlers', {}).get('/', {}).get('Proxy', '')
+            == opnsense_serve_backend
+        fail_msg: Tailscale Serve is not proxying trusted HTTPS to OPNsense
+      when: not ansible_check_mode
+      tags: [tailscale]
+
+    - name: Read OPNsense web GUI alternate hostnames
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - php
+        stdin: |
+          <?php
+          require_once("util.inc");
+          require_once("config.inc");
+          global $config;
+          echo $config["system"]["webgui"]["althostnames"] ?? "";
+      register: opnsense_webgui_alternate_hostnames
+      changed_when: false
+      check_mode: false
+      tags: [tailscale, webgui]
+
+    - name: Allow the Tailscale hostname in OPNsense web GUI checks
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - php
+        stdin: |
+          <?php
+          require_once("util.inc");
+          require_once("config.inc");
+          global $config;
+          $hostname = "{{ opnsense_tailnet_hostname }}";
+          $current = $config["system"]["webgui"]["althostnames"] ?? "";
+          $hostnames = preg_split('/\s+/', trim($current), -1, PREG_SPLIT_NO_EMPTY);
+          $hostnames[] = $hostname;
+          $config["system"]["webgui"]["althostnames"] = implode(" ", array_unique($hostnames));
+          write_config("Allow the Tailscale HTTPS hostname for web GUI access");
+      when:
+        - not ansible_check_mode
+        - opnsense_tailnet_hostname not in opnsense_webgui_alternate_hostnames.stdout.split()
+      tags: [tailscale, webgui]
+
+    - name: Verify the OPNsense web GUI alternate hostname
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - php
+        stdin: |
+          <?php
+          require_once("util.inc");
+          require_once("config.inc");
+          global $config;
+          echo $config["system"]["webgui"]["althostnames"] ?? "";
+      register: opnsense_webgui_alternate_hostnames_after
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [tailscale, webgui]
+
+    - name: Verify the Tailscale hostname is allowed by OPNsense
+      ansible.builtin.assert:
+        that:
+          - opnsense_tailnet_hostname in opnsense_webgui_alternate_hostnames_after.stdout.split()
+        fail_msg: OPNsense did not retain the Tailscale web GUI hostname
+      when: not ansible_check_mode
+      tags: [tailscale, webgui]
+
+  tasks:
+    - name: Install the OPNsense Tailscale community plugin
+      oxlorg.opnsense.package:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        name: [os-tailscale]
+        action: install
+      tags: [packages, tailscale]
+
+    - name: Read current Tailscale service settings
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/settings/get"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+      register: tailscale_settings_before
+      check_mode: false
+      tags: [tailscale]
+
+    - name: Configure Tailscale service settings
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/settings/set"
+        method: POST
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+        body_format: json
+        body:
+          settings: "{{ opnsense_tailscale_settings }}"
+      register: tailscale_settings_update
+      changed_when: true
+      when: >-
+        tailscale_settings_before.json.settings.enabled != opnsense_tailscale_settings.enabled or
+        tailscale_settings_before.json.settings.loginTimeout != opnsense_tailscale_settings.loginTimeout or
+        tailscale_settings_before.json.settings.listenPort != opnsense_tailscale_settings.listenPort or
+        tailscale_settings_before.json.settings.acceptDNS != opnsense_tailscale_settings.acceptDNS or
+        tailscale_settings_before.json.settings.advertiseExitNode != opnsense_tailscale_settings.advertiseExitNode or
+        tailscale_settings_before.json.settings.acceptSubnetRoutes != opnsense_tailscale_settings.acceptSubnetRoutes or
+        tailscale_settings_before.json.settings.enableSSH != opnsense_tailscale_settings.enableSSH or
+        tailscale_settings_before.json.settings.disableSNAT != opnsense_tailscale_settings.disableSNAT
+      tags: [tailscale]
+
+    - name: Apply Tailscale service settings
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/service/reconfigure"
+        method: POST
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+        timeout: 10
+        body_format: json
+        body: {}
+      when: tailscale_settings_update is changed
+      failed_when: false
+      tags: [tailscale]
+
+    - name: Wait for Tailscale HTTPS after reconfiguration
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/service/status"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+        timeout: 5
+      register: tailscale_https_status
+      until: tailscale_https_status.json.status | default('') == "running"
+      retries: 12
+      delay: 5
+      when: tailscale_settings_update is changed
+      tags: [tailscale]
+
+    - name: Read configured Tailscale service settings
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/settings/get"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+      register: tailscale_settings_after
+      check_mode: false
+      tags: [tailscale]
+
+    - name: Verify Tailscale SSH and exit-node settings
+      ansible.builtin.assert:
+        that:
+          - tailscale_settings_after.json.settings.enableSSH == "1"
+          - tailscale_settings_after.json.settings.advertiseExitNode == "1"
+        fail_msg: OPNsense did not retain the requested Tailscale settings
+      when: not ansible_check_mode
+      tags: [tailscale]
+
+    - name: Read Tailscale status
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/tailscale/status/status"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+      register: tailscale_status
+      check_mode: false
+      tags: [tailscale]
+
+    - name: Enroll OPNsense in Tailscale
+      when:
+        - not ansible_check_mode
+        - tailscale_status.json.BackendState != "Running"
+      tags: [tailscale]
+      block:
+        - name: Save the one-time Tailscale enrollment key
+          ansible.builtin.uri:
+            url: "{{ opnsense_api_url }}/api/tailscale/authentication/set"
+            method: POST
+            user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+            password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+            force_basic_auth: true
+            validate_certs: "{{ opnsense_ssl_verify }}"
+            body_format: json
+            body:
+              authentication:
+                loginServer: "https://controlplane.tailscale.com"
+                preAuthKey: "{{ lookup('env', 'TAILSCALE_AUTH_KEY') }}"
+          no_log: true
+
+        - name: Apply Tailscale enrollment
+          ansible.builtin.uri:
+            url: "{{ opnsense_api_url }}/api/tailscale/service/reconfigure"
+            method: POST
+            user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+            password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+            force_basic_auth: true
+            validate_certs: "{{ opnsense_ssl_verify }}"
+            body_format: json
+            body: {}
+          no_log: true
+
+        - name: Wait for Tailscale enrollment
+          ansible.builtin.uri:
+            url: "{{ opnsense_api_url }}/api/tailscale/status/status"
+            method: GET
+            user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+            password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+            force_basic_auth: true
+            validate_certs: "{{ opnsense_ssl_verify }}"
+          register: tailscale_enrollment_status
+          until: tailscale_enrollment_status.json.BackendState == "Running"
+          retries: 6
+          delay: 5
+
+        - name: Remove the consumed Tailscale enrollment key
+          ansible.builtin.uri:
+            url: "{{ opnsense_api_url }}/api/tailscale/authentication/set"
+            method: POST
+            user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+            password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+            force_basic_auth: true
+            validate_certs: "{{ opnsense_ssl_verify }}"
+            body_format: json
+            body:
+              authentication:
+                loginServer: "https://controlplane.tailscale.com"
+                preAuthKey: ""
+          no_log: true
+
+        - name: Remove the enrollment key from generated service configuration
+          ansible.builtin.uri:
+            url: "{{ opnsense_api_url }}/api/tailscale/service/reconfigure"
+            method: POST
+            user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+            password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+            force_basic_auth: true
+            validate_certs: "{{ opnsense_ssl_verify }}"
+            body_format: json
+            body: {}
+          no_log: true
+
+    - name: Manage RFC1918 network alias
+      oxlorg.opnsense.alias:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        name: rfc1918
+        type: network
+        content: "{{ lab_rfc1918_networks }}"
+        description: "All private address space (lab isolation)"
+        reload: true
+        state: present
+      tags: [firewall]
+
+    - name: Read the loaded RFC1918 PF table
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - ssh
+          - "root@{{ opnsense_tailnet_hostname }}"
+          - pfctl
+          - -t
+          - rfc1918
+          - -T
+          - show
+      register: rfc1918_pf_table
+      changed_when: false
+      check_mode: false
+      tags: [firewall]
+
+    - name: Verify the RFC1918 PF table
+      ansible.builtin.assert:
+        that:
+          - item.split('/')[0] in rfc1918_pf_table.stdout
+        fail_msg: "The RFC1918 PF table is missing {{ item }}"
+      loop: "{{ lab_rfc1918_networks }}"
+      when: not ansible_check_mode
+      tags: [firewall]
+
+    - name: Allow tailnet HTTPS management of this firewall
+      oxlorg.opnsense.rule:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        description: "Tailnet management: HTTPS to this firewall"
+        interface: []
+        direction: in
+        protocol: TCP
+        source_net: "{{ tailnet_ipv4_subnet }}"
+        destination_net: "(self)"
+        destination_port: 443
+        action: pass
+        sequence: 1
+        match_fields: [description]
+        reload: true
+        state: present
+      tags: [firewall, tailscale]
+
+    # Floating rules run before interface rules, including OPNsense's default LAN allow.
+    - name: Allow lab LAN to reach this firewall (DNS)
+      oxlorg.opnsense.rule:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        description: "Lab services: DNS to this firewall"
+        interface: []
+        direction: in
+        protocol: TCP/UDP
+        source_net: "{{ lab_lan_subnet }}"
+        destination_net: lanip
+        destination_port: 53
+        action: pass
+        sequence: 1
+        match_fields: [description]
+        reload: true
+        state: present
+      tags: [firewall]
+
+    - name: Allow lab LAN to reach this firewall (GUI/API)
+      oxlorg.opnsense.rule:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        description: "Lab services: GUI/API to this firewall"
+        interface: []
+        direction: in
+        protocol: TCP
+        source_net: "{{ lab_lan_subnet }}"
+        destination_net: lanip
+        destination_port: 443
+        action: pass
+        sequence: 2
+        match_fields: [description]
+        reload: true
+        state: present
+      tags: [firewall]
+
+    - name: Block lab LAN access to household and other RFC1918 networks
+      oxlorg.opnsense.rule:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        description: "Lab isolation: no RFC1918 from LAN"
+        interface: []
+        direction: in
+        protocol: any
+        source_net: "{{ lab_lan_subnet }}"
+        destination_net: rfc1918
+        action: block
+        sequence: 3
+        match_fields: [description]
+        reload: true
+        state: present
+      tags: [firewall]
+
+    - name: Configure DHCP for the lab LAN
+      oxlorg.opnsense.dhcp_subnet:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        subnet: "{{ lab_lan_subnet }}"
+        pools:
+          - "{{ lab_dhcp_range[0] }} - {{ lab_dhcp_range[1] }}"
+        gateway: ["{{ opnsense_lan_address }}"]
+        dns: ["{{ opnsense_lan_address }}"]
+        reload: true
+        state: present
+      tags: [dhcp]
+
+    - name: Ensure Unbound DNS is enabled
+      oxlorg.opnsense.unbound_general:
+        firewall: "{{ opnsense_api_host }}"
+        api_port: "{{ opnsense_api_port }}"
+        api_key: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        api_secret: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        ssl_verify: "{{ opnsense_ssl_verify }}"
+        enabled: true
+        # The module requires a valid prefix even while DNS64 is disabled.
+        dns64_prefix: "64:ff9b::/96"
+        reload: true
+      tags: [dns]

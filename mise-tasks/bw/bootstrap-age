@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#MISE description="Install the fnox age identity from Bitwarden My Vault"
+#MISE interactive=true
+
+set -euo pipefail
+unset BW_SESSION
+
+age_dir="$HOME/.config/fnox"
+age_file="$age_dir/age.txt"
+repo_root="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../..")"
+local_config="$repo_root/fnox.local.toml"
+mkdir -p "$age_dir"
+
+if [[ -e "$age_file" ]]; then
+  chmod 600 "$age_file"
+  age-keygen -y "$age_file" >/dev/null
+else
+  umask 077
+  tmp="$(mktemp "$age_dir/age.txt.XXXXXX")"
+  trap 'rm -f "$tmp"' EXIT
+
+  session="$(bw unlock --raw)"
+  [[ -n "$session" ]]
+  BW_SESSION="$session" bw get password fnox-age > "$tmp"
+  age-keygen -y "$tmp" >/dev/null
+  mv "$tmp" "$age_file"
+  trap - EXIT
+  unset session
+fi
+
+if [[ ! -e "$local_config" ]]; then
+  recipient="$(age-keygen -y "$age_file")"
+  umask 077
+  printf '%s\n' \
+    '#:schema https://fnox.jdx.dev/schema.json' \
+    '' \
+    '[providers.age]' \
+    'type = "age"' \
+    "recipients = [\"$recipient\"]" \
+    '' \
+    '[secrets]' \
+    '# `mise run bw:unlock` writes BW_SESSION here.' \
+    > "$local_config"
+fi

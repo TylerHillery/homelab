@@ -1,0 +1,12 @@
+#:schema https://fnox.jdx.dev/schema.json
+env = "exec"
+if_missing = "error"
+default_provider = "bitwarden"
+
+[providers.bitwarden]
+type = "bitwarden"
+
+[secrets]
+OPNSENSE_API_KEY = { provider = "bitwarden", value = "homelab-opnsense-api/username", if_missing = "error", description = "OPNsense API key for the operator" }
+OPNSENSE_API_SECRET = { provider = "bitwarden", value = "homelab-opnsense-api/password", if_missing = "error", description = "OPNsense API secret for the operator" }
+TAILSCALE_AUTH_KEY = { provider = "bitwarden", value = "tailscale-auth-key/password", if_missing = "error", description = "One-time Tailscale key for device enrollment" }

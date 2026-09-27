@@ -1,0 +1,8 @@
+---
+opnsense_api_host: "<TAILSCALE_FQDN>"
+opnsense_lan_address: "<FIREWALL_LAN_IP>"
+opnsense_tailnet_hostname: "<TAILSCALE_FQDN>"
+lab_lan_subnet: "<LAB_CIDR>"
+lab_dhcp_range:
+  - "<DHCP_START>"
+  - "<DHCP_END>"

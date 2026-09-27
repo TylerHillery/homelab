@@ -5,3 +5,8 @@ data/
 *.db-shm
 *.db-wal
 coverage.out
+fnox.local.toml
+.fnox.local.toml
+opnsense/collections/
+opnsense/group_vars/all/site.yml
+opnsense/*.retry

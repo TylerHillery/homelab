@@ -1,0 +1,43 @@
+amends "package://github.com/jdx/hk/releases/download/v2.0.1/hk@2.0.1#/Config.pkl"
+
+import "package://github.com/jdx/hk/releases/download/v2.0.1/hk@2.0.1#/Builtins.pkl"
+
+steps {
+  ["merge-conflicts"] = Builtins.check_merge_conflict
+  ["toml"] = Builtins.taplo
+  ["yaml"] = (Builtins.yamllint) {
+    check = "yamllint -d '{rules: {}}' {{files}}"
+  }
+  ["newlines"] = (Builtins.newlines) {
+    exclude = List(
+      "services/hlims/static/vendor/**/*.min.js",
+      "services/hlims/console/static/htmx-*.min.js",
+      "services/hlims/console/static/swagger-ui-*"
+    )
+  }
+  ["trailing-whitespace"] = Builtins.trailing_whitespace
+  ["hlims-format"] {
+    glob = "services/hlims/**/*.go"
+    check = "mise //services/hlims:format-check"
+  }
+  ["hlims-generate"] {
+    glob = Regex(#"^services/hlims/(api/|db/|generated/|sqlc\.yaml$)"#)
+    check = "mise //services/hlims:generate-check"
+  }
+  ["hlims-lint"] {
+    glob = "services/hlims/**/*.go"
+    check = "mise //services/hlims:lint"
+  }
+  ["hlims-test"] {
+    glob = "services/hlims/**"
+    check = "mise //services/hlims:test"
+  }
+  ["sql-lint"] {
+    glob = "services/hlims/db/**/*.sql"
+    check = "mise //services/hlims:sql:lint"
+  }
+  ["opnsense-ansible-syntax"] {
+    glob = List("opnsense/**/*.yml", "opnsense/**/*.yaml", "opnsense/**/*.toml")
+    check = "mise //opnsense:syntax"
+  }
+}

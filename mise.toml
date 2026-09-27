@@ -2,16 +2,34 @@ monorepo_root = true
 min_version = "2026.9.5"
 
 [monorepo]
-config_roots = ["services/*"]
+config_roots = ["services/*", "opnsense"]
 lockfile = true
 
 [tools]
-prek = "0.5.2"
+age = "1.2.1"
+bitwarden = "2026.9.0"
+fnox = "1.35.3"
+hk = "2.0.1"
+taplo = "0.10.0"
+"pipx:yamllint" = "1.38.0"
+
+[tasks."bw:unlock"]
+description = "Unlock Bitwarden and refresh fnox's age-encrypted session"
+dir = "{{ config_root }}"
+interactive = true
+run = 'unset BW_SESSION; session="$(bw unlock --raw)" && [ -n "$session" ] && printf "%s" "$session" | fnox -c fnox.local.toml set BW_SESSION --provider age'
+
+[tasks."fnox:exec"]
+description = "Run a command with fnox secrets and the Bitwarden session"
+dir = "{{ cwd }}"
+interactive = true
+raw_args = true
+run = 'session="$(fnox -c "{{ config_root }}/fnox.local.toml" get BW_SESSION)" && BW_SESSION="$session" fnox exec -- "$@"'
 
 [tasks.check]
 description = "Run checks for every project"
-depends = ["//services/...:check"]
+depends = ["//services/...:check", "//opnsense:syntax"]
 
 [tasks."precommit"]
 description = "Run all repository pre-commit hooks"
-run = "prek run --all-files"
+run = "hk check --all"

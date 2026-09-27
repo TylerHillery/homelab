@@ -1,6 +1,7 @@
 # 0001: Use golink as the HLIMS Foundation
 
-Status: accepted
+Status: accepted for the original fork; current behavior is documented in
+[`docs/architecture/hlims.md`](../architecture/hlims.md).
 
 ## Decision
 
@@ -10,11 +11,10 @@ migrations, sqlc queries, a proper JSON API, and catalog resources.
 
 ## Rationale
 
-golink already provides the desired Tailscale identity, direct redirects,
-SQLite persistence, embedded server-rendered UI, exports, and operational
-model. The upstream package is not composable: its handler, identity logic, and
-application state are private and coupled to `Run`. Importing it would require
-duplicating core behavior.
+golink provided a useful Go HTTP, redirect, SQLite, and embedded-UI foundation.
+The upstream package was not composable: its handler, identity logic, and
+application state were private and coupled to `Run`. Importing it would have
+required duplicating core behavior.
 
 The fork accepts responsibility for upstream updates in exchange for a clean
 API-first product boundary.
@@ -22,6 +22,6 @@ API-first product boundary.
 ## Consequences
 
 - The original BSD-3-Clause license and attribution remain in the service.
-- Existing golink behavior is protected by tests while internals evolve.
+- Golink behavior may be removed as HLIMS develops independent boundaries.
 - HLIMS owns its API and database migration compatibility.
 - Upstream changes are selectively reviewed and integrated.

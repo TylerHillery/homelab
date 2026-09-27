@@ -1,0 +1,26 @@
+[tools]
+"pypi:ansible-core" = { version = "2.19.2", with = ["httpx==0.28.1"] }
+
+[tasks.collection-install]
+description = "Install the pinned OPNsense Ansible collection"
+dir = "{{ config_root }}"
+run = "ansible-galaxy collection install -r requirements.yml -p collections"
+
+[tasks.syntax]
+description = "Check Ansible playbook syntax"
+dir = "{{ config_root }}"
+depends = ["collection-install"]
+run = "ansible-playbook --syntax-check playbooks/site.yml"
+
+[tasks.check]
+description = "Preview OPNsense changes without applying them"
+dir = "{{ config_root }}"
+depends = ["collection-install"]
+run = "mise //:fnox:exec ansible-playbook --check --diff playbooks/site.yml"
+
+[tasks.apply]
+description = "Apply the reviewed OPNsense playbook"
+dir = "{{ config_root }}"
+depends = ["collection-install"]
+confirm = { message = "Apply OPNsense changes? Only continue after reviewing `mise run check`.", default = "no" }
+run = "mise //:fnox:exec ansible-playbook playbooks/site.yml"
