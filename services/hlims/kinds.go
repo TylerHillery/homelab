@@ -48,12 +48,13 @@ const (
 	NetworkKindTailnet  NetworkKind = "tailnet"
 	NetworkKindCloudVPC NetworkKind = "cloud_vpc"
 	NetworkKindPublic   NetworkKind = "public"
+	NetworkKindLoopback NetworkKind = "loopback"
 )
 
 // Valid reports whether the network kind is supported.
 func (kind NetworkKind) Valid() bool {
 	switch kind {
-	case NetworkKindLAN, NetworkKindTailnet, NetworkKindCloudVPC, NetworkKindPublic:
+	case NetworkKindLAN, NetworkKindTailnet, NetworkKindCloudVPC, NetworkKindPublic, NetworkKindLoopback:
 		return true
 	default:
 		return false

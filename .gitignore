@@ -1,4 +1,5 @@
 .env
+/ORDERS.md
 .agents/
 .opencode/
 .mise.local.toml

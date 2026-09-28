@@ -121,7 +121,7 @@ func (s apiServer) ListInstanceEndpoints(w http.ResponseWriter, r *http.Request)
 	}
 	items := make([]api.InstanceEndpoint, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, endpointResponse(row.PublicID, row.InstancePublicID, row.AddressPublicID, row.Name, row.Scheme, row.Port, row.BasePath, row.IsPreferred, row.Notes))
+		items = append(items, endpointResponse(row.PublicID, row.InstancePublicID, row.AddressPublicID, row.Name, row.Scheme, row.Port, row.BasePath, row.HostType, row.IsPreferred, row.Notes, row.DnsRecordPublicID))
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Items []api.InstanceEndpoint `json:"items"`
@@ -129,14 +129,16 @@ func (s apiServer) ListInstanceEndpoints(w http.ResponseWriter, r *http.Request)
 }
 
 type endpointWriteValues struct {
-	instance  database.Instance
-	address   database.GetAddressByPublicIDRow
-	name      string
-	scheme    string
-	port      int64
-	basePath  string
-	preferred int64
-	notes     sql.NullString
+	instance    database.Instance
+	address     database.GetAddressByPublicIDRow
+	dnsRecordID sql.NullString
+	name        string
+	scheme      string
+	port        int64
+	basePath    string
+	hostType    string
+	preferred   int64
+	notes       sql.NullString
 }
 
 func (s apiServer) CreateInstanceEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +169,7 @@ func (s apiServer) CreateInstanceEndpoint(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	_, err = queries.CreateInstanceEndpoint(r.Context(), database.CreateInstanceEndpointParams{ID: id, PublicID: publicID, InstanceID: values.instance.ID, AddressID: values.address.ID, Name: values.name, Scheme: values.scheme, Port: values.port, BasePath: values.basePath, IsPreferred: values.preferred, Notes: values.notes})
+	_, err = queries.CreateInstanceEndpoint(r.Context(), database.CreateInstanceEndpointParams{ID: id, PublicID: publicID, InstanceID: values.instance.ID, AddressID: values.address.ID, DnsRecordID: values.dnsRecordID, Name: values.name, Scheme: values.scheme, Port: values.port, BasePath: values.basePath, HostType: values.hostType, IsPreferred: values.preferred, Notes: values.notes})
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -205,7 +207,34 @@ func (s apiServer) endpointWriteValues(r *http.Request, body api.InstanceEndpoin
 	if err != nil {
 		return endpointWriteValues{}, err
 	}
-	return endpointWriteValues{instance: instance, address: address, name: name, scheme: scheme, port: int64(body.Port), basePath: basePath, preferred: boolInt(body.IsPreferred), notes: nullString(body.Notes, false)}, nil
+	hostType := "auto"
+	if body.HostType != nil {
+		hostType = string(*body.HostType)
+	}
+	var dnsRecordID sql.NullString
+	if body.DnsRecordPublicId != nil {
+		record, err := s.queries.GetDNSRecordByPublicID(r.Context(), *body.DnsRecordPublicId)
+		if err != nil {
+			return endpointWriteValues{}, err
+		}
+		if record.AddressPublicID != body.AddressPublicId {
+			return endpointWriteValues{}, errors.New("DNS record must point to the endpoint address")
+		}
+		dnsRecordID = sql.NullString{String: record.ID, Valid: true}
+		if body.HostType == nil {
+			hostType = "dns"
+		}
+	}
+	if hostType != "auto" && hostType != "dns" && hostType != "ip" {
+		return endpointWriteValues{}, errors.New("hostType must be auto, dns, or ip")
+	}
+	if dnsRecordID.Valid && hostType != "dns" {
+		return endpointWriteValues{}, errors.New("an endpoint with a DNS record must use the DNS host type")
+	}
+	if hostType == "dns" && !address.DnsName.Valid && !dnsRecordID.Valid {
+		return endpointWriteValues{}, errors.New("DNS endpoint requires an address with a DNS name")
+	}
+	return endpointWriteValues{instance: instance, address: address, dnsRecordID: dnsRecordID, name: name, scheme: scheme, port: int64(body.Port), basePath: basePath, hostType: hostType, preferred: boolInt(body.IsPreferred), notes: nullString(body.Notes, false)}, nil
 }
 
 func (s apiServer) writeEndpointInputError(w http.ResponseWriter, err error) {
@@ -226,11 +255,12 @@ func (s apiServer) writeEndpoint(w http.ResponseWriter, r *http.Request, publicI
 		writeDatabaseError(w, err)
 		return
 	}
-	writeJSON(w, status, endpointResponse(row.PublicID, row.InstancePublicID, row.AddressPublicID, row.Name, row.Scheme, row.Port, row.BasePath, row.IsPreferred, row.Notes))
+	writeJSON(w, status, endpointResponse(row.PublicID, row.InstancePublicID, row.AddressPublicID, row.Name, row.Scheme, row.Port, row.BasePath, row.HostType, row.IsPreferred, row.Notes, row.DnsRecordPublicID))
 }
 
-func endpointResponse(publicID, instancePublicID, addressPublicID, name, scheme string, port int64, basePath string, preferred int64, notes sql.NullString) api.InstanceEndpoint {
-	return api.InstanceEndpoint{PublicId: publicID, InstancePublicId: instancePublicID, AddressPublicId: addressPublicID, Name: name, Scheme: api.Scheme(scheme), Port: int(port), BasePath: basePath, IsPreferred: preferred == 1, Notes: stringPointer(notes)}
+func endpointResponse(publicID, instancePublicID, addressPublicID, name, scheme string, port int64, basePath, hostType string, preferred int64, notes, recordID sql.NullString) api.InstanceEndpoint {
+	mode := api.EndpointHostType(hostType)
+	return api.InstanceEndpoint{PublicId: publicID, InstancePublicId: instancePublicID, AddressPublicId: addressPublicID, DnsRecordPublicId: stringPointer(recordID), Name: name, Scheme: api.Scheme(scheme), Port: int(port), BasePath: basePath, HostType: &mode, IsPreferred: preferred == 1, Notes: stringPointer(notes)}
 }
 
 func (s apiServer) UpdateInstanceEndpoint(w http.ResponseWriter, r *http.Request, publicID api.PublicId) {
@@ -260,7 +290,7 @@ func (s apiServer) UpdateInstanceEndpoint(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	_, err = queries.UpdateInstanceEndpoint(r.Context(), database.UpdateInstanceEndpointParams{InstanceID: values.instance.ID, AddressID: values.address.ID, Name: values.name, Scheme: values.scheme, Port: values.port, BasePath: values.basePath, IsPreferred: values.preferred, Notes: values.notes, PublicID: publicID})
+	_, err = queries.UpdateInstanceEndpoint(r.Context(), database.UpdateInstanceEndpointParams{InstanceID: values.instance.ID, AddressID: values.address.ID, DnsRecordID: values.dnsRecordID, Name: values.name, Scheme: values.scheme, Port: values.port, BasePath: values.basePath, HostType: values.hostType, IsPreferred: values.preferred, Notes: values.notes, PublicID: publicID})
 	if err == nil {
 		err = tx.Commit()
 	}

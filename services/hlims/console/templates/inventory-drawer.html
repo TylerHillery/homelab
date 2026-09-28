@@ -1,0 +1,76 @@
+{{define "inventory-drawer"}}
+<div class="inventory-drawer-backdrop" data-inventory-backdrop>
+  <aside class="inventory-drawer" role="dialog" aria-modal="true" aria-labelledby="inventory-drawer-title" tabindex="-1">
+    <header class="inventory-drawer-header">
+      <span class="product-eyebrow">{{if .SelectedAsset}}Physical Asset{{else}}Product model{{end}} / {{.Kind}}</span>
+      <button class="inventory-drawer-close" type="button" data-inventory-close aria-label="Close details">×</button>
+      <h2 id="inventory-drawer-title">{{.Title}}</h2>
+      {{if .SelectedAsset}}<a href="/console/inventory/?product={{.ProductID}}" data-inventory-detail>Model: {{.ProductName}} ↗</a>{{else}}<p>{{.Manufacturer}} · {{len .Assets}} owned</p>{{end}}
+      <code>{{.PublicID}}</code>
+    </header>
+    <div class="inventory-drawer-content">
+      {{if .SelectedAsset}}
+      <section class="inventory-detail-section">
+        <h3>This unit</h3>
+        <dl class="inventory-detail-facts">
+          <div><dt>Status</dt><dd>{{.SelectedAsset.Status}}</dd></div>
+          <div><dt>Placement</dt><dd>{{.SelectedAsset.Placement}}</dd></div>
+          {{if .SelectedAsset.ParentAssetPublicID}}<div><dt>Contained in</dt><dd><a href="/console/inventory/?asset={{.SelectedAsset.ParentAssetPublicID}}" data-inventory-detail>{{.SelectedAsset.ParentAssetName}} ↗</a></dd></div>{{end}}
+          {{if .SelectedAsset.MachinePublicID}}<div><dt>Machine</dt><dd><a href="/console/#machine-{{.SelectedAsset.MachinePublicID}}">{{.SelectedAsset.MachineName}} ↗</a></dd></div>{{end}}
+          {{if .SelectedAsset.PurchasePublicID}}<div><dt>Purchase</dt><dd><a href="/console/orders/#order-{{.SelectedAsset.PurchasePublicID}}">View order ↗</a></dd></div>{{end}}
+        </dl>
+        {{if .SelectedAsset.Notes}}<p class="inventory-detail-note">{{.SelectedAsset.Notes}}</p>{{end}}
+        {{if .PrimaryLinkURL}}<a class="inventory-model-reference" href="{{.PrimaryLinkURL}}" target="_blank" rel="noopener noreferrer">{{.PrimaryLinkLabel}} ↗</a>{{end}}
+      </section>
+      {{end}}
+
+      {{if .Components}}<section class="inventory-detail-section">
+        <h3>Contained Assets <span>({{len .Components}})</span></h3>
+        <ul class="inventory-component-tree">
+          {{range .Components}}<li style="--component-depth: {{.Depth}}"><a href="/console/inventory/?asset={{.PublicID}}" data-inventory-detail>
+            <span class="component-kind">{{.Kind}}{{if .Slot}} / {{.Slot}}{{end}}</span>
+            <strong>{{.Name}}</strong>
+            <small>{{.Model}}{{if .Details}} · {{.Details}}{{end}}</small>
+          </a></li>{{end}}
+        </ul>
+      </section>{{end}}
+
+      <section class="inventory-detail-section">
+        <h3>Model specifications</h3>
+        <dl class="inventory-detail-facts">
+          <div><dt>Manufacturer</dt><dd>{{.Manufacturer}}</dd></div>
+          {{if .PartNumber}}<div><dt>Part number</dt><dd><code>{{.PartNumber}}</code></dd></div>{{end}}
+          {{range .Facts}}<div><dt>{{.Label}}</dt><dd>{{.Value}}</dd></div>{{end}}
+        </dl>
+        {{if .Notes}}<p class="inventory-detail-note">{{.Notes}}</p>{{end}}
+      </section>
+
+      {{if .WiFiBands}}<section class="inventory-detail-section">
+        <h3>Wireless bands</h3>
+        <dl class="inventory-detail-facts">
+          {{range .WiFiBands}}<div><dt>{{.Label}}</dt><dd>{{.Value}}</dd></div>{{end}}
+        </dl>
+        <p class="inventory-detail-note">Advertised link rates, not measured throughput.</p>
+      </section>{{end}}
+
+      {{if .Ports}}<section class="inventory-detail-section">
+        <h3>Ethernet ports</h3>
+        <ul class="inventory-detail-ports">{{range .Ports}}<li>{{.}}</li>{{end}}</ul>
+        <p class="inventory-detail-note">Model capabilities; installed cable connections are not recorded here.</p>
+      </section>{{end}}
+
+      {{if .Assets}}<section class="inventory-detail-section">
+        <h3>Owned units <span>({{len .Assets}})</span></h3>
+        <ul class="inventory-detail-units">
+          {{range .Assets}}<li><a href="/console/inventory/?asset={{.PublicID}}" data-inventory-detail{{if eq .PublicID $.PublicID}} aria-current="true"{{end}}>{{.Name}} <span>{{.Placement}}</span></a></li>{{end}}
+        </ul>
+      </section>{{end}}
+
+      {{if and .Links (or (not .SelectedAsset) (gt (len .Links) 1))}}<section class="inventory-detail-section">
+        <h3>References</h3>
+        <ul class="inventory-detail-links">{{range .Links}}{{if or (not $.SelectedAsset) (ne .URL $.PrimaryLinkURL)}}<li><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}} ↗</a></li>{{end}}{{end}}</ul>
+      </section>{{end}}
+    </div>
+  </aside>
+</div>
+{{end}}

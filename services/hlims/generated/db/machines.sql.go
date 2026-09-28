@@ -30,6 +30,7 @@ insert into machines (
     kernel,
     architecture,
     cpu_count,
+    cpu_thread_count,
     cpu_allocation,
     cpu_vendor,
     memory_bytes,
@@ -41,9 +42,9 @@ insert into machines (
     notes
 )
 values (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
-returning id, public_id, asset_id, parent_machine_id, machine_provider_id, area_id, name, slug, kind, is_favorite, virtualization_platform, hostname, os_machine_id, operating_system, operating_system_version, kernel, architecture, cpu_count, cpu_allocation, cpu_vendor, memory_bytes, storage_bytes, storage_media_kind, storage_interface_kind, estimated_monthly_cost_cents, cost_currency, notes, created_at, updated_at
+returning id, public_id, asset_id, parent_machine_id, machine_provider_id, area_id, name, slug, kind, is_favorite, virtualization_platform, hostname, os_machine_id, operating_system, operating_system_version, kernel, architecture, cpu_count, cpu_thread_count, cpu_allocation, cpu_vendor, memory_bytes, storage_bytes, storage_media_kind, storage_interface_kind, estimated_monthly_cost_cents, cost_currency, notes, created_at, updated_at
 `
 
 type CreateMachineParams struct {
@@ -65,6 +66,7 @@ type CreateMachineParams struct {
 	Kernel                    sql.NullString `json:"kernel"`
 	Architecture              sql.NullString `json:"architecture"`
 	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuThreadCount            sql.NullInt64  `json:"cpu_thread_count"`
 	CpuAllocation             sql.NullString `json:"cpu_allocation"`
 	CpuVendor                 sql.NullString `json:"cpu_vendor"`
 	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
@@ -96,6 +98,7 @@ func (q *Queries) CreateMachine(ctx context.Context, arg CreateMachineParams) (M
 		arg.Kernel,
 		arg.Architecture,
 		arg.CpuCount,
+		arg.CpuThreadCount,
 		arg.CpuAllocation,
 		arg.CpuVendor,
 		arg.MemoryBytes,
@@ -126,6 +129,7 @@ func (q *Queries) CreateMachine(ctx context.Context, arg CreateMachineParams) (M
 		&i.Kernel,
 		&i.Architecture,
 		&i.CpuCount,
+		&i.CpuThreadCount,
 		&i.CpuAllocation,
 		&i.CpuVendor,
 		&i.MemoryBytes,
@@ -181,6 +185,7 @@ select
     machines.kernel,
     machines.architecture,
     machines.cpu_count,
+    machines.cpu_thread_count,
     machines.cpu_allocation,
     machines.cpu_vendor,
     machines.memory_bytes,
@@ -223,6 +228,7 @@ type GetMachineByPublicIDRow struct {
 	Kernel                    sql.NullString `json:"kernel"`
 	Architecture              sql.NullString `json:"architecture"`
 	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuThreadCount            sql.NullInt64  `json:"cpu_thread_count"`
 	CpuAllocation             sql.NullString `json:"cpu_allocation"`
 	CpuVendor                 sql.NullString `json:"cpu_vendor"`
 	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
@@ -262,6 +268,7 @@ func (q *Queries) GetMachineByPublicID(ctx context.Context, publicID string) (Ge
 		&i.Kernel,
 		&i.Architecture,
 		&i.CpuCount,
+		&i.CpuThreadCount,
 		&i.CpuAllocation,
 		&i.CpuVendor,
 		&i.MemoryBytes,
@@ -308,6 +315,7 @@ select
     machines.kernel,
     machines.architecture,
     machines.cpu_count,
+    machines.cpu_thread_count,
     machines.cpu_allocation,
     machines.cpu_vendor,
     machines.memory_bytes,
@@ -350,6 +358,7 @@ type ListMachineDetailsRow struct {
 	Kernel                    sql.NullString `json:"kernel"`
 	Architecture              sql.NullString `json:"architecture"`
 	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuThreadCount            sql.NullInt64  `json:"cpu_thread_count"`
 	CpuAllocation             sql.NullString `json:"cpu_allocation"`
 	CpuVendor                 sql.NullString `json:"cpu_vendor"`
 	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
@@ -395,6 +404,7 @@ func (q *Queries) ListMachineDetails(ctx context.Context) ([]ListMachineDetailsR
 			&i.Kernel,
 			&i.Architecture,
 			&i.CpuCount,
+			&i.CpuThreadCount,
 			&i.CpuAllocation,
 			&i.CpuVendor,
 			&i.MemoryBytes,
@@ -464,6 +474,7 @@ set
     kernel = ?,
     architecture = ?,
     cpu_count = ?,
+    cpu_thread_count = ?,
     cpu_allocation = ?,
     cpu_vendor = ?,
     memory_bytes = ?,
@@ -475,7 +486,7 @@ set
     notes = ?,
     updated_at = strftime('%s', 'now')
 where public_id = ?
-returning id, public_id, asset_id, parent_machine_id, machine_provider_id, area_id, name, slug, kind, is_favorite, virtualization_platform, hostname, os_machine_id, operating_system, operating_system_version, kernel, architecture, cpu_count, cpu_allocation, cpu_vendor, memory_bytes, storage_bytes, storage_media_kind, storage_interface_kind, estimated_monthly_cost_cents, cost_currency, notes, created_at, updated_at
+returning id, public_id, asset_id, parent_machine_id, machine_provider_id, area_id, name, slug, kind, is_favorite, virtualization_platform, hostname, os_machine_id, operating_system, operating_system_version, kernel, architecture, cpu_count, cpu_thread_count, cpu_allocation, cpu_vendor, memory_bytes, storage_bytes, storage_media_kind, storage_interface_kind, estimated_monthly_cost_cents, cost_currency, notes, created_at, updated_at
 `
 
 type UpdateMachineParams struct {
@@ -495,6 +506,7 @@ type UpdateMachineParams struct {
 	Kernel                    sql.NullString `json:"kernel"`
 	Architecture              sql.NullString `json:"architecture"`
 	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuThreadCount            sql.NullInt64  `json:"cpu_thread_count"`
 	CpuAllocation             sql.NullString `json:"cpu_allocation"`
 	CpuVendor                 sql.NullString `json:"cpu_vendor"`
 	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
@@ -525,6 +537,7 @@ func (q *Queries) UpdateMachine(ctx context.Context, arg UpdateMachineParams) (M
 		arg.Kernel,
 		arg.Architecture,
 		arg.CpuCount,
+		arg.CpuThreadCount,
 		arg.CpuAllocation,
 		arg.CpuVendor,
 		arg.MemoryBytes,
@@ -556,6 +569,7 @@ func (q *Queries) UpdateMachine(ctx context.Context, arg UpdateMachineParams) (M
 		&i.Kernel,
 		&i.Architecture,
 		&i.CpuCount,
+		&i.CpuThreadCount,
 		&i.CpuAllocation,
 		&i.CpuVendor,
 		&i.MemoryBytes,

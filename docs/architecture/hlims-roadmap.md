@@ -13,7 +13,7 @@ HLIMS should grow from observed workflows, not speculative topology detail.
 | Installed links need tracing | Asset-owned physical ports and Cables |
 | Routed relationships need inventory | Explicit typed Network relationships |
 | A real scheduler cluster exists | Cluster inventory and placement design |
-| Proxy, VIP, or load balancer owns an endpoint | Explicit endpoint ownership model |
+| VIP or load balancer owns an endpoint outside its host Machine | Endpoint ownership beyond current machine-local ingress routes |
 
 ## Rules
 

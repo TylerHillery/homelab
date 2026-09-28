@@ -11,6 +11,8 @@ http://go/badger/5173?via=tailnet
 
 The `go` host is the common entry point. Canonical paths use
 `go/<machine>/<service>/<instance>`; ad hoc paths use `go/<machine>/<port>`.
+These segments use stable slugs. Keep Service and Instance names lowercase and
+hyphenated to match those slugs in CLI listings and console cards.
 
 See the [architecture](../../docs/architecture/hlims.md) and
 [domain model](../../docs/architecture/domain-model.md) for system boundaries
@@ -40,20 +42,95 @@ hlimsd --listen=127.0.0.1:8080 --sqlitedb=/var/lib/hlims/hlims.db
 `hlimsd` requires a SQLite database path for persistent use. Use `--demo` only
 with an empty disposable database.
 
+### Framework WSL staging
+
+The repository's [`hlims-staging.service`](hlims-staging.service) runs an
+independent, persistent user service on `127.0.0.1:8081` (development uses
+`8090`; the in-memory `serve` task uses `8080`). From this directory:
+
+```sh
+go build -o "$HOME/.local/bin/hlimsd" ./cmd/hlimsd
+install -m 644 hlims-staging.service "$HOME/.config/systemd/user/hlims-staging.service"
+systemctl --user daemon-reload
+systemctl --user enable --now hlims-staging.service
+```
+
+Open <http://localhost:8081/console/> on the Framework, including from Windows
+when WSL localhost forwarding is enabled. The database is
+`~/.local/state/hlims/staging.db`; do not add it to Git. After rebuilding, run
+`systemctl --user restart hlims-staging.service`. Inspect with
+`systemctl --user status hlims-staging.service` and
+`journalctl --user -u hlims-staging.service`. Back up the running database using
+Python's SQLite online-backup API:
+
+```sh
+python3 -c 'import sqlite3,sys; src=sqlite3.connect(sys.argv[1]); dst=sqlite3.connect(sys.argv[2]); src.backup(dst); dst.close(); src.close()' \
+  "$HOME/.local/state/hlims/staging.db" /path/to/private/backup.db
+```
+
+The user service starts with the WSL distribution; systemd does not start WSL
+at Windows boot.
+
 ## Interfaces
 
 The server provides:
 
 | Path | Purpose |
 |---|---|
+| `/` | Redirect to Machine Topology |
 | `/api/v1` | Versioned JSON API |
-| `/console/` | Web inventory console |
+| `/console/` | Machine Topology console |
+| `/console/inventory/` | Owned Products and physical Assets, including uninstalled parts |
+| `/console/orders/` | Purchase history with selected inventory lines and related Assets |
 | `/openapi.yaml` | OpenAPI source |
 | `/api-docs/` | Self-hosted API reference |
 
 The OpenAPI source is [`api/openapi.yaml`](api/openapi.yaml). Generated server
 and client code is committed under `generated/api` and verified by
 `mise run check`.
+
+Inventory groups physical Assets under reusable Product models and shows their
+placement, installed Machine, and related Purchase. Orders keep full transaction
+totals separate from the pre-tax subtotal of selected inventory lines; unrelated
+retailer items can be omitted. A tracked household purchase can be excluded
+from the homelab spending subtotal without losing its Assets. Product and Asset
+details open in a shareable side panel; the two pages still link back to Machine
+Topology and to each other. See the
+[console page specification](../../docs/architecture/hlims-console.md) for
+current boundaries and deferred sections.
+
+Selecting a system or rack Asset reveals contained Assets recursively. Component
+drawers link to their parent Asset as well as the associated Machine and
+Purchase. Model references are shown directly on Asset details when available.
+
+The console shows device addresses and every recorded service endpoint. Set an
+endpoint's `hostType` to `dns` or `ip` to choose the actual URL host; the default
+`auto` chooses DNS when present, otherwise IP. Add separate endpoints when both
+hosts serve the application. An address by itself does not imply that the
+service listens on it. The existing service menu lists the full URLs for each
+endpoint; the primary link still uses the preferred resolver path. Direct-IP
+HTTPS may give a certificate warning when its certificate covers only the DNS
+name. Machine cards show an OS line and lightweight inline facts for cores (or
+vCPUs), threads, memory, and storage when those facts have been recorded. Hover
+or focus a fact for the available CPU model and generation, memory type, storage
+interface, or OS details. SSH controls appear when a Machine has a recorded
+login user and address. Click or keyboard-activate the network-address label to
+inspect IPs without moving the rest of the card.
+Physical CPU model, generation, and RAM type come from installed
+processor and memory Assets under a Machine's backing system Asset. VM cards
+show allocated resources without inheriting the host's physical hardware.
+Recorded IPs are inventory snapshots, not live DHCP leases; update an address
+if its assigned IP changes. Network facts are stored in `networks`,
+`addresses`, `instances`, and `instance_endpoints`; add real inventory through
+the API or CLI, not demo seeding.
+
+`dns_zones` and `dns_records` inventory owned domains and A/AAAA mappings. An
+endpoint can reference a DNS record when several names share one address.
+`ingress_routes` records which ingress Instance proxies, serves, or redirects
+that endpoint. WSL-only applications use a loopback Network and `127.0.0.1`
+endpoints, accessible only on the local host. If Tailscale Serve publishes one,
+record a separate tailnet HTTPS endpoint and its proxy route to the loopback
+backend.
 
 `hlims` is an API-only client. It does not open the SQLite database.
 

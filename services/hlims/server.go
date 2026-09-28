@@ -77,7 +77,7 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 func serveRedirect(w http.ResponseWriter, r *http.Request, resolver resolver) {
 	path := strings.Trim(r.URL.Path, "/")
 	if path == "" {
-		serveHome(w)
+		http.Redirect(w, r, "/console/", http.StatusPermanentRedirect)
 		return
 	}
 
@@ -134,22 +134,4 @@ func serveResolveError(w http.ResponseWriter, err error) {
 		log.Printf("resolving destination: %v", err)
 		http.Error(w, "failed to resolve destination", http.StatusInternalServerError)
 	}
-}
-
-func serveHome(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>HLIMS</title></head>
-<body>
-<main>
-<h1>HLIMS</h1>
-<p>Inventory-backed redirects for your homelab.</p>
-<pre>go/{machine}/{service}/{instance}
-go/{machine}/{port}?via=tailnet</pre>
-<p><a href="/console/">Open inventory console</a></p>
-<p><a href="/openapi.yaml">OpenAPI specification</a></p>
-</main>
-</body>
-</html>`))
 }

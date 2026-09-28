@@ -28,6 +28,7 @@ var consoleTemplates = template.Must(template.New("console").Funcs(template.Func
 		result := consoleMachineViews(machines, false)
 		for index := range result {
 			result[index].ShowChildren = false
+			result[index].IsFavoriteCopy = true
 		}
 		return result
 	},
@@ -38,15 +39,11 @@ var consoleTemplates = template.Must(template.New("console").Funcs(template.Func
 		}
 		return result
 	},
-	"osLabel": consoleOSLabel,
+	"osLabel":          consoleOSLabel,
+	"memoryTypes":      consoleMemoryTypes,
+	"processorSummary": consoleProcessorSummary,
 	"providerMachines": func(provider api.TopologyProvider) int {
 		return consoleMachineCount([]api.TopologyProvider{provider})
-	},
-	"viaLabel": func(via api.Via) string {
-		return strings.ToUpper(string(via))
-	},
-	"viaPath": func(path string, via api.Via) string {
-		return path + "?via=" + string(via)
 	},
 }).ParseFS(consoleFiles, "console/templates/*.html"))
 
@@ -55,6 +52,7 @@ type consoleServer struct {
 }
 
 type consolePage struct {
+	View           string
 	Providers      []api.TopologyProvider
 	Favorites      []api.TopologyMachine
 	ActiveProvider string
@@ -63,10 +61,11 @@ type consolePage struct {
 
 type consoleMachineView struct {
 	api.TopologyMachine
-	ExpandAll    bool
-	ParentName   string
-	ShowChildren bool
-	SSH          *consoleSSHControl
+	ExpandAll      bool
+	ParentName     string
+	ShowChildren   bool
+	IsFavoriteCopy bool
+	SSH            *consoleSSHControl
 }
 
 type consoleMachineChildren struct {
@@ -114,6 +113,15 @@ func registerConsoleHandlers(mux *http.ServeMux, server apiServer) {
 		http.Redirect(w, r, "/console/", http.StatusPermanentRedirect)
 	})
 	mux.HandleFunc("GET /console/{$}", console.index)
+	mux.HandleFunc("GET /console/inventory", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/console/inventory/", http.StatusPermanentRedirect)
+	})
+	mux.HandleFunc("GET /console/inventory/{$}", console.inventory)
+	mux.HandleFunc("GET /console/inventory/detail", console.inventoryDetail)
+	mux.HandleFunc("GET /console/orders", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/console/orders/", http.StatusPermanentRedirect)
+	})
+	mux.HandleFunc("GET /console/orders/{$}", console.orders)
 	mux.HandleFunc("GET /console/topology", console.topologyFragment)
 	mux.HandleFunc("GET /console/providers/{publicID}", console.provider)
 	mux.HandleFunc("GET /console/machines/{publicID}/children", console.children)
@@ -237,7 +245,7 @@ func newConsolePage(topology api.Topology, providerID string) consolePage {
 	if providerID == "" {
 		favorites = consoleFavoriteMachines(topology.Providers)
 	}
-	return consolePage{Providers: providers, Favorites: favorites, ActiveProvider: providerID}
+	return consolePage{View: "topology", Providers: providers, Favorites: favorites, ActiveProvider: providerID}
 }
 
 func (s consoleServer) render(w http.ResponseWriter, name string, data any) {
@@ -372,6 +380,36 @@ func consoleOSLabel(machine api.TopologyMachine) string {
 	return strings.Join(parts, " ")
 }
 
+func consoleMemoryTypes(hardware []api.TopologyMachineHardware) string {
+	types := make(map[string]struct{})
+	for _, component := range hardware {
+		if component.Kind == api.Memory && component.MemoryType != nil && *component.MemoryType != "" {
+			types[*component.MemoryType] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(types))
+	for kind := range types {
+		result = append(result, kind)
+	}
+	sort.Strings(result)
+	return strings.Join(result, ", ")
+}
+
+func consoleProcessorSummary(hardware []api.TopologyMachineHardware) string {
+	models := []string{}
+	for _, component := range hardware {
+		if component.Kind != api.Processor {
+			continue
+		}
+		model := component.Name
+		if component.Generation != nil {
+			model += " · " + *component.Generation
+		}
+		models = append(models, model)
+	}
+	return strings.Join(models, ", ")
+}
+
 func consoleMachineViews(machines []api.TopologyMachine, expandAll bool) []consoleMachineView {
 	result := make([]consoleMachineView, 0, len(machines))
 	for _, machine := range machines {
@@ -400,6 +438,18 @@ func consoleSSHControlFor(machine api.TopologyMachine) *consoleSSHControl {
 		addTarget("Hostname", *machine.Hostname)
 	}
 	for _, address := range machine.Addresses {
+		if address.NetworkKind != api.NetworkKindTailnet {
+			continue
+		}
+		if address.DnsName != nil {
+			addTarget("TAILNET DNS", *address.DnsName)
+		}
+		addTarget("TAILNET IP", address.Address)
+	}
+	for _, address := range machine.Addresses {
+		if address.NetworkKind == api.NetworkKindTailnet {
+			continue
+		}
 		network := strings.ToUpper(strings.ReplaceAll(string(address.NetworkKind), "_", " "))
 		if address.DnsName != nil {
 			addTarget(network+" DNS", *address.DnsName)

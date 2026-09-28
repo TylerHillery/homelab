@@ -49,6 +49,10 @@ func (s apiServer) topology(ctx context.Context) (api.Topology, error) {
 	if err != nil {
 		return api.Topology{}, fmt.Errorf("list machine addresses: %w", err)
 	}
+	hardware, err := queries.ListTopologyMachineHardware(ctx)
+	if err != nil {
+		return api.Topology{}, fmt.Errorf("list machine hardware: %w", err)
+	}
 	services, err := queries.ListServices(ctx)
 	if err != nil {
 		return api.Topology{}, fmt.Errorf("list services: %w", err)
@@ -57,11 +61,19 @@ func (s apiServer) topology(ctx context.Context) (api.Topology, error) {
 	if err != nil {
 		return api.Topology{}, fmt.Errorf("list instances: %w", err)
 	}
+	endpoints, err := queries.ListTopologyInstanceEndpoints(ctx)
+	if err != nil {
+		return api.Topology{}, fmt.Errorf("list instance endpoints: %w", err)
+	}
+	ingressRoutes, err := queries.ListIngressRoutes(ctx)
+	if err != nil {
+		return api.Topology{}, fmt.Errorf("list ingress routes: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return api.Topology{}, fmt.Errorf("commit topology snapshot: %w", err)
 	}
 
-	return buildTopology(providers, areas, machines, users, addresses, services, instances)
+	return buildTopology(providers, areas, machines, users, addresses, hardware, services, instances, endpoints, ingressRoutes)
 }
 
 type topologyProviderBuilder struct {
@@ -95,8 +107,11 @@ func buildTopology(
 	machineRows []database.ListMachineDetailsRow,
 	userRows []database.ListMachineUsersRow,
 	addressRows []database.ListTopologyMachineAddressesRow,
+	hardwareRows []database.ListTopologyMachineHardwareRow,
 	serviceRows []database.ListServicesRow,
 	instanceRows []database.ListInstancesRow,
+	endpointRows []database.ListTopologyInstanceEndpointsRow,
+	ingressRows []database.ListIngressRoutesRow,
 ) (api.Topology, error) {
 	providers := make(map[string]*topologyProviderBuilder, len(providerRows))
 	for _, row := range providerRows {
@@ -166,6 +181,7 @@ func buildTopology(
 				Kernel:                 stringPointer(row.Kernel),
 				Architecture:           stringPointer(row.Architecture),
 				CpuCount:               intPointer(row.CpuCount),
+				CpuThreadCount:         intPointer(row.CpuThreadCount),
 				CpuAllocation:          cpuAllocationPointer(row.CpuAllocation),
 				CpuVendor:              stringPointer(row.CpuVendor),
 				MemoryBytes:            int64Pointer(row.MemoryBytes),
@@ -175,6 +191,7 @@ func buildTopology(
 				VirtualizationPlatform: stringPointer(row.VirtualizationPlatform),
 				Users:                  []api.TopologyMachineUser{},
 				Addresses:              []api.TopologyMachineAddress{},
+				Hardware:               []api.TopologyMachineHardware{},
 				Children:               []api.TopologyMachine{},
 				Services:               []api.TopologyService{},
 			},
@@ -240,6 +257,20 @@ func buildTopology(
 			InterfaceName: stringPointer(row.InterfaceName), IsPrimary: row.IsPrimary == 1,
 		})
 	}
+	for _, row := range hardwareRows {
+		machine := machines[row.MachinePublicID]
+		if machine == nil {
+			return api.Topology{}, fmt.Errorf("hardware asset %q references missing machine %q", row.AssetPublicID, row.MachinePublicID)
+		}
+		if row.Kind != string(api.Processor) && row.Kind != string(api.Memory) {
+			return api.Topology{}, fmt.Errorf("hardware asset %q has unsupported kind %q", row.AssetPublicID, row.Kind)
+		}
+		machine.value.Hardware = append(machine.value.Hardware, api.TopologyMachineHardware{
+			AssetPublicId: row.AssetPublicID, ProductPublicId: row.ProductPublicID,
+			Kind: api.ProductKind(row.Kind), Name: row.Name, Generation: stringPointer(row.Generation),
+			Codename: stringPointer(row.Codename), MemoryType: stringPointer(row.MemoryType),
+		})
+	}
 
 	for _, machine := range machines {
 		if err := validateMachineParent(machine, machines); err != nil {
@@ -269,6 +300,46 @@ func buildTopology(
 			Instances:   []api.TopologyInstance{},
 		}
 	}
+	endpointsByInstance := make(map[string][]api.TopologyInstanceEndpoint)
+	ingressByEndpoint := make(map[string]api.IngressRoute, len(ingressRows))
+	ingressInstances := make(map[string]bool, len(ingressRows))
+	for _, row := range ingressRows {
+		ingressInstances[row.IngressInstancePublicID] = true
+		ingressByEndpoint[row.EndpointPublicID] = api.IngressRoute{
+			EndpointPublicId: row.EndpointPublicID, IngressInstancePublicId: row.IngressInstancePublicID,
+			IngressServiceName: row.IngressServiceName, Kind: api.IngressRouteKind(row.Kind), Target: row.Target,
+		}
+	}
+	for _, row := range endpointRows {
+		kind := api.NetworkKind(row.NetworkKind)
+		if !kind.Valid() || !api.Scheme(row.Scheme).Valid() {
+			return api.Topology{}, fmt.Errorf("endpoint %q has invalid network kind or scheme", row.PublicID)
+		}
+		if row.HostType != "auto" && row.HostType != "dns" && row.HostType != "ip" {
+			return api.Topology{}, fmt.Errorf("endpoint %q has invalid host type %q", row.PublicID, row.HostType)
+		}
+		value, err := endpointURL(endpoint{
+			address: row.Address, dnsName: row.DnsName, hostType: row.HostType,
+			scheme: row.Scheme, port: row.Port, basePath: row.BasePath,
+		}, "", nil)
+		if err != nil {
+			return api.Topology{}, fmt.Errorf("endpoint %q URL: %w", row.PublicID, err)
+		}
+		var ingress *api.IngressRoute
+		if route, ok := ingressByEndpoint[row.PublicID]; ok {
+			ingress = &route
+			delete(ingressByEndpoint, row.PublicID)
+		}
+		endpointsByInstance[row.InstancePublicID] = append(endpointsByInstance[row.InstancePublicID], api.TopologyInstanceEndpoint{
+			PublicId: row.PublicID, Name: row.Name, NetworkKind: kind, Address: row.Address,
+			DnsName: stringPointer(row.DnsName), Scheme: api.Scheme(row.Scheme), Port: int(row.Port),
+			DnsRecordPublicId: stringPointer(row.DnsRecordPublicID), Ingress: ingress,
+			HostType: api.EndpointHostType(row.HostType), Url: value, IsPreferred: row.IsPreferred == 1,
+		})
+	}
+	if len(ingressByEndpoint) != 0 {
+		return api.Topology{}, fmt.Errorf("ingress route references a missing endpoint")
+	}
 	for _, row := range instanceRows {
 		machine := machines[row.MachinePublicID]
 		if machine == nil {
@@ -277,6 +348,11 @@ func buildTopology(
 		service, exists := services[row.ServicePublicID]
 		if !exists {
 			return api.Topology{}, fmt.Errorf("instance %q references missing service %q", row.PublicID, row.ServicePublicID)
+		}
+		// Ingress-only infrastructure stays in the API and endpoint relationships,
+		// but has no separate action to offer in Machine Topology.
+		if len(endpointsByInstance[row.PublicID]) == 0 && ingressInstances[row.PublicID] {
+			continue
 		}
 		group := machine.services[row.ServicePublicID]
 		if group == nil {
@@ -290,7 +366,12 @@ func buildTopology(
 			Port:         int(row.Port),
 			ResolverPath: "/" + machine.value.Slug + "/" + service.Slug + "/" + row.Slug,
 			AvailableVia: topologyAvailableVia(row.HasLanRoute, row.HasTailnetRoute),
+			Endpoints:    append([]api.TopologyInstanceEndpoint{}, endpointsByInstance[row.PublicID]...),
 		})
+		delete(endpointsByInstance, row.PublicID)
+	}
+	if len(endpointsByInstance) != 0 {
+		return api.Topology{}, fmt.Errorf("instance endpoints reference a missing instance")
 	}
 
 	result := api.Topology{Providers: make([]api.TopologyProvider, 0, len(providers))}

@@ -1,0 +1,41 @@
+{{define "inventory"}}
+<nav class="catalog-filters" aria-label="Inventory filters" data-inventory-page>
+  {{range .Tabs}}<a href="{{.URL}}"{{if .Active}} aria-current="page"{{end}}>{{.Name}}</a>{{end}}
+</nav>
+
+{{if not .Groups}}
+<div class="catalog-empty">{{if eq .Filter "uninstalled"}}No uninstalled parts are recorded yet. Once a spare module or component is identified, it will appear here even if it has no Machine.{{else}}No Assets match this view.{{end}}</div>
+{{end}}
+{{range .Groups}}
+<section class="catalog-group" aria-label="{{.Name}}">
+  <header class="catalog-group-header"><h2>{{.Name}}</h2><span>{{.Count}} assets</span></header>
+  <div class="product-grid">
+    {{range .Products}}
+    <article class="product-card" id="product-{{.PublicID}}">
+      <header class="product-card-header">
+        <span class="product-eyebrow">Model / {{.Manufacturer}}</span>
+        <h3><a class="product-detail-link" href="/console/inventory/?product={{.PublicID}}" data-inventory-detail>{{.Name}} <span aria-hidden="true">↗</span></a></h3>
+        {{if .Specification}}<p>{{.Specification}}</p>{{end}}
+        {{if .Notes}}<p>{{.Notes}}</p>{{end}}
+        <span class="product-quantity">{{len .Assets}} owned</span>
+      </header>
+      <ul class="product-assets">
+        {{range .Assets}}
+        <li id="asset-{{.PublicID}}">
+          <div class="asset-identity"><strong><a class="asset-detail-link" href="/console/inventory/?asset={{.PublicID}}" data-inventory-detail>{{.Name}} ↗</a></strong><span>{{.Placement}}</span>{{if .Notes}}<small>{{.Notes}}</small>{{end}}</div>
+          <div class="asset-context">
+            <span class="asset-state">{{.Status}}</span>
+            {{if .MachinePublicID}}<a href="/console/#machine-{{.MachinePublicID}}">{{.MachineName}} ↗</a>{{end}}
+            {{if .PurchasePublicID}}<a href="/console/orders/#order-{{.PurchasePublicID}}">Purchase ↗</a>{{end}}
+          </div>
+        </li>
+        {{end}}
+      </ul>
+      {{if .LinkURL}}<footer class="product-card-footer"><a href="{{.LinkURL}}" target="_blank" rel="noopener noreferrer">{{.LinkLabel}} ↗</a></footer>{{end}}
+    </article>
+    {{end}}
+  </div>
+</section>
+{{end}}
+<div id="inventory-drawer-host">{{if .Detail}}{{template "inventory-drawer" .Detail}}{{end}}</div>
+{{end}}

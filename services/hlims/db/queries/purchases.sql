@@ -1,9 +1,9 @@
 -- name: CreatePurchase :one
 insert into purchases (
     id, public_id, primary_asset_id, total_price_cents, currency,
-    purchased_on, source, notes
+    purchased_on, source, order_reference, notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning *;
 
 -- name: GetPurchaseByPublicID :one
@@ -15,6 +15,7 @@ select
     currency,
     purchased_on,
     source,
+    order_reference,
     notes,
     created_at,
     updated_at
@@ -30,6 +31,7 @@ select
     currency,
     purchased_on,
     source,
+    order_reference,
     notes,
     created_at,
     updated_at
@@ -44,6 +46,7 @@ set
     currency = ?,
     purchased_on = ?,
     source = ?,
+    order_reference = ?,
     notes = ?,
     updated_at = strftime('%s', 'now')
 where public_id = ?
@@ -56,6 +59,44 @@ where public_id = ?;
 -- name: CreatePurchaseAsset :exec
 insert into purchase_assets (purchase_id, asset_id)
 values (?, ?);
+
+-- name: CreatePurchaseLine :exec
+insert into purchase_lines (
+    purchase_id, position, product_id, description, quantity, subtotal_cents,
+    include_in_homelab_total
+)
+values (?, ?, ?, ?, ?, ?, ?);
+
+-- name: ListPurchaseLinesByPurchaseID :many
+select
+    purchase_lines.purchase_id,
+    purchase_lines.position,
+    products.public_id as product_public_id,
+    purchase_lines.description,
+    purchase_lines.quantity,
+    purchase_lines.subtotal_cents,
+    purchase_lines.include_in_homelab_total
+from purchase_lines
+left join products on purchase_lines.product_id = products.id
+where purchase_lines.purchase_id = ?
+order by purchase_lines.position;
+
+-- name: ListPurchaseLines :many
+select
+    purchase_lines.purchase_id,
+    purchase_lines.position,
+    products.public_id as product_public_id,
+    purchase_lines.description,
+    purchase_lines.quantity,
+    purchase_lines.subtotal_cents,
+    purchase_lines.include_in_homelab_total
+from purchase_lines
+left join products on purchase_lines.product_id = products.id
+order by purchase_lines.purchase_id, purchase_lines.position;
+
+-- name: DeletePurchaseLines :execrows
+delete from purchase_lines
+where purchase_id = ?;
 
 -- name: ListPurchaseAssetsByPurchaseID :many
 with selected_purchase as (

@@ -13,10 +13,10 @@ import (
 const createPurchase = `-- name: CreatePurchase :one
 insert into purchases (
     id, public_id, primary_asset_id, total_price_cents, currency,
-    purchased_on, source, notes
+    purchased_on, source, order_reference, notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?)
-returning id, public_id, primary_asset_id, total_price_cents, currency, purchased_on, source, notes, created_at, updated_at
+values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+returning id, public_id, primary_asset_id, total_price_cents, currency, purchased_on, source, order_reference, notes, created_at, updated_at
 `
 
 type CreatePurchaseParams struct {
@@ -27,6 +27,7 @@ type CreatePurchaseParams struct {
 	Currency        string         `json:"currency"`
 	PurchasedOn     sql.NullString `json:"purchased_on"`
 	Source          sql.NullString `json:"source"`
+	OrderReference  sql.NullString `json:"order_reference"`
 	Notes           sql.NullString `json:"notes"`
 }
 
@@ -39,6 +40,7 @@ func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) 
 		arg.Currency,
 		arg.PurchasedOn,
 		arg.Source,
+		arg.OrderReference,
 		arg.Notes,
 	)
 	var i Purchase
@@ -50,6 +52,7 @@ func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) 
 		&i.Currency,
 		&i.PurchasedOn,
 		&i.Source,
+		&i.OrderReference,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -69,6 +72,37 @@ type CreatePurchaseAssetParams struct {
 
 func (q *Queries) CreatePurchaseAsset(ctx context.Context, arg CreatePurchaseAssetParams) error {
 	_, err := q.db.ExecContext(ctx, createPurchaseAsset, arg.PurchaseID, arg.AssetID)
+	return err
+}
+
+const createPurchaseLine = `-- name: CreatePurchaseLine :exec
+insert into purchase_lines (
+    purchase_id, position, product_id, description, quantity, subtotal_cents,
+    include_in_homelab_total
+)
+values (?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreatePurchaseLineParams struct {
+	PurchaseID            string         `json:"purchase_id"`
+	Position              int64          `json:"position"`
+	ProductID             sql.NullString `json:"product_id"`
+	Description           string         `json:"description"`
+	Quantity              int64          `json:"quantity"`
+	SubtotalCents         sql.NullInt64  `json:"subtotal_cents"`
+	IncludeInHomelabTotal int64          `json:"include_in_homelab_total"`
+}
+
+func (q *Queries) CreatePurchaseLine(ctx context.Context, arg CreatePurchaseLineParams) error {
+	_, err := q.db.ExecContext(ctx, createPurchaseLine,
+		arg.PurchaseID,
+		arg.Position,
+		arg.ProductID,
+		arg.Description,
+		arg.Quantity,
+		arg.SubtotalCents,
+		arg.IncludeInHomelabTotal,
+	)
 	return err
 }
 
@@ -131,6 +165,19 @@ func (q *Queries) DeletePurchaseAssets(ctx context.Context, purchaseID string) (
 	return result.RowsAffected()
 }
 
+const deletePurchaseLines = `-- name: DeletePurchaseLines :execrows
+delete from purchase_lines
+where purchase_id = ?
+`
+
+func (q *Queries) DeletePurchaseLines(ctx context.Context, purchaseID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePurchaseLines, purchaseID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deletePurchaseLinks = `-- name: DeletePurchaseLinks :execrows
 delete from purchase_links
 where purchase_id = ?
@@ -153,6 +200,7 @@ select
     currency,
     purchased_on,
     source,
+    order_reference,
     notes,
     created_at,
     updated_at
@@ -171,6 +219,7 @@ func (q *Queries) GetPurchaseByPublicID(ctx context.Context, publicID string) (P
 		&i.Currency,
 		&i.PurchasedOn,
 		&i.Source,
+		&i.OrderReference,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -306,6 +355,117 @@ func (q *Queries) ListPurchaseAssetsByPurchaseID(ctx context.Context, id string)
 	return items, nil
 }
 
+const listPurchaseLines = `-- name: ListPurchaseLines :many
+select
+    purchase_lines.purchase_id,
+    purchase_lines.position,
+    products.public_id as product_public_id,
+    purchase_lines.description,
+    purchase_lines.quantity,
+    purchase_lines.subtotal_cents,
+    purchase_lines.include_in_homelab_total
+from purchase_lines
+left join products on purchase_lines.product_id = products.id
+order by purchase_lines.purchase_id, purchase_lines.position
+`
+
+type ListPurchaseLinesRow struct {
+	PurchaseID            string         `json:"purchase_id"`
+	Position              int64          `json:"position"`
+	ProductPublicID       sql.NullString `json:"product_public_id"`
+	Description           string         `json:"description"`
+	Quantity              int64          `json:"quantity"`
+	SubtotalCents         sql.NullInt64  `json:"subtotal_cents"`
+	IncludeInHomelabTotal int64          `json:"include_in_homelab_total"`
+}
+
+func (q *Queries) ListPurchaseLines(ctx context.Context) ([]ListPurchaseLinesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPurchaseLines)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurchaseLinesRow{}
+	for rows.Next() {
+		var i ListPurchaseLinesRow
+		if err := rows.Scan(
+			&i.PurchaseID,
+			&i.Position,
+			&i.ProductPublicID,
+			&i.Description,
+			&i.Quantity,
+			&i.SubtotalCents,
+			&i.IncludeInHomelabTotal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPurchaseLinesByPurchaseID = `-- name: ListPurchaseLinesByPurchaseID :many
+select
+    purchase_lines.purchase_id,
+    purchase_lines.position,
+    products.public_id as product_public_id,
+    purchase_lines.description,
+    purchase_lines.quantity,
+    purchase_lines.subtotal_cents,
+    purchase_lines.include_in_homelab_total
+from purchase_lines
+left join products on purchase_lines.product_id = products.id
+where purchase_lines.purchase_id = ?
+order by purchase_lines.position
+`
+
+type ListPurchaseLinesByPurchaseIDRow struct {
+	PurchaseID            string         `json:"purchase_id"`
+	Position              int64          `json:"position"`
+	ProductPublicID       sql.NullString `json:"product_public_id"`
+	Description           string         `json:"description"`
+	Quantity              int64          `json:"quantity"`
+	SubtotalCents         sql.NullInt64  `json:"subtotal_cents"`
+	IncludeInHomelabTotal int64          `json:"include_in_homelab_total"`
+}
+
+func (q *Queries) ListPurchaseLinesByPurchaseID(ctx context.Context, purchaseID string) ([]ListPurchaseLinesByPurchaseIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPurchaseLinesByPurchaseID, purchaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurchaseLinesByPurchaseIDRow{}
+	for rows.Next() {
+		var i ListPurchaseLinesByPurchaseIDRow
+		if err := rows.Scan(
+			&i.PurchaseID,
+			&i.Position,
+			&i.ProductPublicID,
+			&i.Description,
+			&i.Quantity,
+			&i.SubtotalCents,
+			&i.IncludeInHomelabTotal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPurchaseLinks = `-- name: ListPurchaseLinks :many
 select
     purchase_id,
@@ -396,6 +556,7 @@ select
     currency,
     purchased_on,
     source,
+    order_reference,
     notes,
     created_at,
     updated_at
@@ -420,6 +581,7 @@ func (q *Queries) ListPurchases(ctx context.Context) ([]Purchase, error) {
 			&i.Currency,
 			&i.PurchasedOn,
 			&i.Source,
+			&i.OrderReference,
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -445,10 +607,11 @@ set
     currency = ?,
     purchased_on = ?,
     source = ?,
+    order_reference = ?,
     notes = ?,
     updated_at = strftime('%s', 'now')
 where public_id = ?
-returning id, public_id, primary_asset_id, total_price_cents, currency, purchased_on, source, notes, created_at, updated_at
+returning id, public_id, primary_asset_id, total_price_cents, currency, purchased_on, source, order_reference, notes, created_at, updated_at
 `
 
 type UpdatePurchaseParams struct {
@@ -457,6 +620,7 @@ type UpdatePurchaseParams struct {
 	Currency        string         `json:"currency"`
 	PurchasedOn     sql.NullString `json:"purchased_on"`
 	Source          sql.NullString `json:"source"`
+	OrderReference  sql.NullString `json:"order_reference"`
 	Notes           sql.NullString `json:"notes"`
 	PublicID        string         `json:"public_id"`
 }
@@ -468,6 +632,7 @@ func (q *Queries) UpdatePurchase(ctx context.Context, arg UpdatePurchaseParams) 
 		arg.Currency,
 		arg.PurchasedOn,
 		arg.Source,
+		arg.OrderReference,
 		arg.Notes,
 		arg.PublicID,
 	)
@@ -480,6 +645,7 @@ func (q *Queries) UpdatePurchase(ctx context.Context, arg UpdatePurchaseParams) 
 		&i.Currency,
 		&i.PurchasedOn,
 		&i.Source,
+		&i.OrderReference,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,

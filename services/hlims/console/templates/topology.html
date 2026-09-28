@@ -70,7 +70,7 @@
 {{end}}
 
 {{define "machine-card"}}
-<article class="machine-card{{if .ParentName}} is-nested{{end}}">
+<article class="machine-card{{if .ParentName}} is-nested{{end}}"{{if not .IsFavoriteCopy}} id="machine-{{.PublicId}}"{{end}}>
   {{if .ParentName}}<div class="parent-context"><span aria-hidden="true">└</span> Hosted on <strong>{{.ParentName}}</strong></div>{{end}}
   <header class="machine-header">
     <div class="machine-identity">
@@ -109,16 +109,46 @@
     </button>
     </div>
   </header>
-  <div class="machine-facts">
-    {{if osLabel .TopologyMachine}}<span><b>OS</b>{{osLabel .TopologyMachine}}</span>{{end}}
-    {{if .CpuCount}}<span><b>CPU</b>{{.CpuCount}} {{if .CpuVendor}}{{.CpuVendor}}{{end}}</span>{{end}}
-    {{if .MemoryBytes}}<span><b>Memory</b>{{byteSize .MemoryBytes}}</span>{{end}}
-    {{if .StorageBytes}}<span><b>Storage</b>{{byteSize .StorageBytes}}</span>{{end}}
-    {{if .VirtualizationPlatform}}<span><b>Platform</b>{{.VirtualizationPlatform}}</span>{{end}}
-  </div>
+  {{if or (osLabel .TopologyMachine) .CpuCount .CpuThreadCount .MemoryBytes .StorageBytes}}
+  <dl class="machine-facts">
+    {{if osLabel .TopologyMachine}}<div class="machine-os machine-fact{{if or .Kernel .Architecture .VirtualizationPlatform}} has-detail{{end}}"{{if or .Kernel .Architecture .VirtualizationPlatform}} tabindex="0" aria-label="OS: {{osLabel .TopologyMachine}}{{if .Kernel}}. Kernel: {{.Kernel}}{{end}}{{if .Architecture}}. Architecture: {{.Architecture}}{{end}}{{if .VirtualizationPlatform}}. Platform: {{.VirtualizationPlatform}}{{end}}"{{end}}>
+      <dt>OS</dt><dd>{{osLabel .TopologyMachine}}</dd>
+      {{if or .Kernel .Architecture .VirtualizationPlatform}}<span class="machine-fact-tooltip" aria-hidden="true">{{if .Kernel}}Kernel: {{.Kernel}}<br>{{end}}{{if .Architecture}}Architecture: {{.Architecture}}<br>{{end}}{{if .VirtualizationPlatform}}Platform: {{.VirtualizationPlatform}}{{end}}</span>{{end}}
+    </div>{{end}}
+    {{$processor := processorSummary .Hardware}}
+    {{if .CpuCount}}<div class="machine-fact{{if $processor}} has-detail{{end}}"{{if $processor}} tabindex="0" aria-label="Cores: {{.CpuCount}}. Processor: {{$processor}}"{{end}}>
+      <dt>{{if eq .Kind "virtual_machine"}}vCPUs{{else}}Cores{{end}}</dt><dd>{{.CpuCount}}</dd>
+      {{if $processor}}<span class="machine-fact-tooltip" aria-hidden="true">{{$processor}}</span>{{end}}
+    </div>{{end}}
+    {{if .CpuThreadCount}}<div><dt>Threads</dt><dd>{{.CpuThreadCount}}</dd></div>{{end}}
+    {{$memoryTypes := memoryTypes .Hardware}}
+    {{if .MemoryBytes}}<div class="machine-fact{{if $memoryTypes}} has-detail{{end}}"{{if $memoryTypes}} tabindex="0" aria-label="Memory: {{byteSize .MemoryBytes}}. Type: {{$memoryTypes}}"{{end}}>
+      <dt>Memory</dt><dd>{{byteSize .MemoryBytes}}</dd>
+      {{if $memoryTypes}}<span class="machine-fact-tooltip" aria-hidden="true">Memory type: {{$memoryTypes}}</span>{{end}}
+    </div>{{end}}
+    {{if .StorageBytes}}<div class="machine-fact{{if or .StorageMediaKind .StorageInterfaceKind}} has-detail{{end}}"{{if or .StorageMediaKind .StorageInterfaceKind}} tabindex="0" aria-label="Storage: {{byteSize .StorageBytes}}{{if .StorageMediaKind}}. Media: {{.StorageMediaKind}}{{end}}{{if .StorageInterfaceKind}}. Interface: {{.StorageInterfaceKind}}{{end}}"{{end}}>
+      <dt>Storage</dt><dd>{{byteSize .StorageBytes}}</dd>
+      {{if or .StorageMediaKind .StorageInterfaceKind}}<span class="machine-fact-tooltip" aria-hidden="true">{{if .StorageMediaKind}}Media: {{.StorageMediaKind}}<br>{{end}}{{if .StorageInterfaceKind}}Interface: {{.StorageInterfaceKind}}{{end}}</span>{{end}}
+    </div>{{end}}
+  </dl>
+  {{end}}
+  {{if .Addresses}}
+  <details class="machine-addresses">
+    <summary class="machine-addresses-label" aria-label="Network addresses for {{.Name}}">Network addresses <span>({{len .Addresses}})</span></summary>
+    <ul class="access-list">
+      {{range .Addresses}}
+      <li><strong>{{.NetworkKind}}{{if .Name}} / {{.Name}}{{end}}</strong>
+        <div class="address-value"><span>IP</span><code>{{.Address}}</code><button class="address-copy" type="button" data-copy-value="{{.Address}}" aria-label="Copy IP address {{.Address}}"><span data-copy-label>Copy</span></button></div>
+        {{if .DnsName}}<div class="address-value"><span>DNS</span><code>{{.DnsName}}</code><button class="address-copy" type="button" data-copy-value="{{.DnsName}}" aria-label="Copy DNS name {{.DnsName}}"><span data-copy-label>Copy</span></button></div>{{end}}
+        {{if .InterfaceName}}<small>Interface: {{.InterfaceName}}</small>{{end}}
+      </li>
+      {{end}}
+    </ul>
+  </details>
+  {{end}}
   {{if .Services}}
   <section class="service-deck" aria-label="Services on {{.Name}}">
-    <span class="section-label">Running here / {{len .Services}}</span>
+    <span class="section-label">Services / {{len .Services}}</span>
     <div class="service-grid">{{range .Services}}{{template "service-card" .}}{{end}}</div>
   </section>
   {{end}}
@@ -146,16 +176,20 @@
   </div>
   <div class="instance-list">
     {{range .Instances}}
-    {{$instance := .}}
     <div class="instance-row">
-      <a class="instance-primary" href="{{.ResolverPath}}" title="Open {{$.Name}} / {{.Name}} using its preferred route">
+      {{if .Endpoints}}<a class="instance-primary" href="{{.ResolverPath}}" target="_blank" rel="noopener noreferrer" title="Open {{$.Name}} / {{.Name}} using its preferred route">
         <span class="instance-label">{{template "reachability-badge" (reachabilityBadge "instance" .PublicId "" .Name .ResolverPath)}}{{.Name}}</span><code>:{{.Port}}</code><b aria-hidden="true">↗</b>
-      </a>
-      {{if .AvailableVia}}
+      </a>{{else}}<div class="instance-primary instance-unrouted"><span class="instance-label">{{.Name}}</span><small>No direct URL</small><code>:{{.Port}}</code></div>{{end}}
+      {{if .Endpoints}}
       <details class="route-picker">
-        <summary aria-label="Choose route for {{.Name}}" title="Choose network route"><span aria-hidden="true">⌄</span></summary>
+        <summary aria-label="Choose access path for {{.Name}}" title="Choose access path"><span aria-hidden="true">⌄</span></summary>
         <div class="route-menu">
-          {{range .AvailableVia}}<a href="{{viaPath $instance.ResolverPath .}}"><span>{{template "reachability-badge" (reachabilityBadge "route" $instance.PublicId . (printf "%s route" (viaLabel .)) (viaPath $instance.ResolverPath .))}}{{viaLabel .}}</span><small>via {{.}}</small></a>{{end}}
+          {{range .Endpoints}}
+          <a href="{{.Url}}" target="_blank" rel="noopener noreferrer">
+            <span>{{template "reachability-badge" (reachabilityBadge "route" .PublicId "" .Name .Url)}}<strong>{{.Name}}{{if .IsPreferred}} · preferred{{end}}</strong></span>
+            <small>{{.NetworkKind}} · {{if eq .HostType "ip"}}IP{{else if and (eq .HostType "auto") (not .DnsName)}}IP{{else}}DNS{{end}}<br><code>{{.Url}}</code>{{if .DnsRecordPublicId}}<br>DNS record → {{.Address}}{{end}}{{if .Ingress}}<br>{{.Ingress.IngressServiceName}} · {{.Ingress.Kind}} → {{.Ingress.Target}}{{end}}{{if and (eq .Scheme "https") (eq .HostType "ip")}}<br>Certificate may not cover this IP{{end}}</small>
+          </a>
+          {{end}}
         </div>
       </details>
       {{end}}

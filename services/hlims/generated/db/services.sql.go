@@ -106,23 +106,27 @@ insert into instance_endpoints (
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes,
     created_at,
@@ -134,10 +138,12 @@ type CreateInstanceEndpointParams struct {
 	PublicID    string         `json:"public_id"`
 	InstanceID  string         `json:"instance_id"`
 	AddressID   string         `json:"address_id"`
+	DnsRecordID sql.NullString `json:"dns_record_id"`
 	Name        string         `json:"name"`
 	Scheme      string         `json:"scheme"`
 	Port        int64          `json:"port"`
 	BasePath    string         `json:"base_path"`
+	HostType    string         `json:"host_type"`
 	IsPreferred int64          `json:"is_preferred"`
 	Notes       sql.NullString `json:"notes"`
 }
@@ -148,10 +154,12 @@ func (q *Queries) CreateInstanceEndpoint(ctx context.Context, arg CreateInstance
 		arg.PublicID,
 		arg.InstanceID,
 		arg.AddressID,
+		arg.DnsRecordID,
 		arg.Name,
 		arg.Scheme,
 		arg.Port,
 		arg.BasePath,
+		arg.HostType,
 		arg.IsPreferred,
 		arg.Notes,
 	)
@@ -161,10 +169,12 @@ func (q *Queries) CreateInstanceEndpoint(ctx context.Context, arg CreateInstance
 		&i.PublicID,
 		&i.InstanceID,
 		&i.AddressID,
+		&i.DnsRecordID,
 		&i.Name,
 		&i.Scheme,
 		&i.Port,
 		&i.BasePath,
+		&i.HostType,
 		&i.IsPreferred,
 		&i.Notes,
 		&i.CreatedAt,
@@ -351,30 +361,35 @@ select
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
+    instance_endpoints.host_type,
     instance_endpoints.is_preferred,
     instance_endpoints.notes,
     instance_endpoints.created_at,
     instance_endpoints.updated_at,
-    instances.public_id as instance_public_id,
-    addresses.public_id as address_public_id
+    instances.public_id   as instance_public_id,
+    addresses.public_id   as address_public_id,
+    dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 where instance_endpoints.public_id = ?
 `
 
 type GetInstanceEndpointByPublicIDRow struct {
-	PublicID         string         `json:"public_id"`
-	Name             string         `json:"name"`
-	Scheme           string         `json:"scheme"`
-	Port             int64          `json:"port"`
-	BasePath         string         `json:"base_path"`
-	IsPreferred      int64          `json:"is_preferred"`
-	Notes            sql.NullString `json:"notes"`
-	CreatedAt        int64          `json:"created_at"`
-	UpdatedAt        int64          `json:"updated_at"`
-	InstancePublicID string         `json:"instance_public_id"`
-	AddressPublicID  string         `json:"address_public_id"`
+	PublicID          string         `json:"public_id"`
+	Name              string         `json:"name"`
+	Scheme            string         `json:"scheme"`
+	Port              int64          `json:"port"`
+	BasePath          string         `json:"base_path"`
+	HostType          string         `json:"host_type"`
+	IsPreferred       int64          `json:"is_preferred"`
+	Notes             sql.NullString `json:"notes"`
+	CreatedAt         int64          `json:"created_at"`
+	UpdatedAt         int64          `json:"updated_at"`
+	InstancePublicID  string         `json:"instance_public_id"`
+	AddressPublicID   string         `json:"address_public_id"`
+	DnsRecordPublicID sql.NullString `json:"dns_record_public_id"`
 }
 
 func (q *Queries) GetInstanceEndpointByPublicID(ctx context.Context, publicID string) (GetInstanceEndpointByPublicIDRow, error) {
@@ -386,12 +401,14 @@ func (q *Queries) GetInstanceEndpointByPublicID(ctx context.Context, publicID st
 		&i.Scheme,
 		&i.Port,
 		&i.BasePath,
+		&i.HostType,
 		&i.IsPreferred,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.InstancePublicID,
 		&i.AddressPublicID,
+		&i.DnsRecordPublicID,
 	)
 	return i, err
 }
@@ -454,30 +471,35 @@ select
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
+    instance_endpoints.host_type,
     instance_endpoints.is_preferred,
     instance_endpoints.notes,
     instance_endpoints.created_at,
     instance_endpoints.updated_at,
-    instances.public_id as instance_public_id,
-    addresses.public_id as address_public_id
+    instances.public_id   as instance_public_id,
+    addresses.public_id   as address_public_id,
+    dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 order by instances.name, instance_endpoints.name
 `
 
 type ListInstanceEndpointsRow struct {
-	PublicID         string         `json:"public_id"`
-	Name             string         `json:"name"`
-	Scheme           string         `json:"scheme"`
-	Port             int64          `json:"port"`
-	BasePath         string         `json:"base_path"`
-	IsPreferred      int64          `json:"is_preferred"`
-	Notes            sql.NullString `json:"notes"`
-	CreatedAt        int64          `json:"created_at"`
-	UpdatedAt        int64          `json:"updated_at"`
-	InstancePublicID string         `json:"instance_public_id"`
-	AddressPublicID  string         `json:"address_public_id"`
+	PublicID          string         `json:"public_id"`
+	Name              string         `json:"name"`
+	Scheme            string         `json:"scheme"`
+	Port              int64          `json:"port"`
+	BasePath          string         `json:"base_path"`
+	HostType          string         `json:"host_type"`
+	IsPreferred       int64          `json:"is_preferred"`
+	Notes             sql.NullString `json:"notes"`
+	CreatedAt         int64          `json:"created_at"`
+	UpdatedAt         int64          `json:"updated_at"`
+	InstancePublicID  string         `json:"instance_public_id"`
+	AddressPublicID   string         `json:"address_public_id"`
+	DnsRecordPublicID sql.NullString `json:"dns_record_public_id"`
 }
 
 func (q *Queries) ListInstanceEndpoints(ctx context.Context) ([]ListInstanceEndpointsRow, error) {
@@ -495,12 +517,14 @@ func (q *Queries) ListInstanceEndpoints(ctx context.Context) ([]ListInstanceEndp
 			&i.Scheme,
 			&i.Port,
 			&i.BasePath,
+			&i.HostType,
 			&i.IsPreferred,
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.InstancePublicID,
 			&i.AddressPublicID,
+			&i.DnsRecordPublicID,
 		); err != nil {
 			return nil, err
 		}
@@ -717,6 +741,86 @@ func (q *Queries) ListServices(ctx context.Context) ([]ListServicesRow, error) {
 	return items, nil
 }
 
+const listTopologyInstanceEndpoints = `-- name: ListTopologyInstanceEndpoints :many
+select
+    instance_endpoints.public_id,
+    instances.public_id   as instance_public_id,
+    instance_endpoints.name,
+    instance_endpoints.scheme,
+    instance_endpoints.port,
+    instance_endpoints.base_path,
+    instance_endpoints.host_type,
+    instance_endpoints.is_preferred,
+    addresses.address,
+    dns_records.public_id as dns_record_public_id,
+    networks.kind         as network_kind,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )                     as dns_name
+from instance_endpoints
+inner join instances on instance_endpoints.instance_id = instances.id
+inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
+inner join networks on addresses.network_id = networks.id
+order by instances.public_id asc, instance_endpoints.is_preferred desc, instance_endpoints.name asc
+`
+
+type ListTopologyInstanceEndpointsRow struct {
+	PublicID          string         `json:"public_id"`
+	InstancePublicID  string         `json:"instance_public_id"`
+	Name              string         `json:"name"`
+	Scheme            string         `json:"scheme"`
+	Port              int64          `json:"port"`
+	BasePath          string         `json:"base_path"`
+	HostType          string         `json:"host_type"`
+	IsPreferred       int64          `json:"is_preferred"`
+	Address           string         `json:"address"`
+	DnsRecordPublicID sql.NullString `json:"dns_record_public_id"`
+	NetworkKind       string         `json:"network_kind"`
+	DnsName           sql.NullString `json:"dns_name"`
+}
+
+func (q *Queries) ListTopologyInstanceEndpoints(ctx context.Context) ([]ListTopologyInstanceEndpointsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTopologyInstanceEndpoints)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTopologyInstanceEndpointsRow{}
+	for rows.Next() {
+		var i ListTopologyInstanceEndpointsRow
+		if err := rows.Scan(
+			&i.PublicID,
+			&i.InstancePublicID,
+			&i.Name,
+			&i.Scheme,
+			&i.Port,
+			&i.BasePath,
+			&i.HostType,
+			&i.IsPreferred,
+			&i.Address,
+			&i.DnsRecordPublicID,
+			&i.NetworkKind,
+			&i.DnsName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const serviceHasLogo = `-- name: ServiceHasLogo :one
 select exists(
     select 1 as result
@@ -798,10 +902,12 @@ update instance_endpoints
 set
     instance_id = ?,
     address_id = ?,
+    dns_record_id = ?,
     name = ?,
     scheme = ?,
     port = ?,
     base_path = ?,
+    host_type = ?,
     is_preferred = ?,
     notes = ?,
     updated_at = strftime('%s', 'now')
@@ -811,10 +917,12 @@ returning
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes,
     created_at,
@@ -824,10 +932,12 @@ returning
 type UpdateInstanceEndpointParams struct {
 	InstanceID  string         `json:"instance_id"`
 	AddressID   string         `json:"address_id"`
+	DnsRecordID sql.NullString `json:"dns_record_id"`
 	Name        string         `json:"name"`
 	Scheme      string         `json:"scheme"`
 	Port        int64          `json:"port"`
 	BasePath    string         `json:"base_path"`
+	HostType    string         `json:"host_type"`
 	IsPreferred int64          `json:"is_preferred"`
 	Notes       sql.NullString `json:"notes"`
 	PublicID    string         `json:"public_id"`
@@ -837,10 +947,12 @@ func (q *Queries) UpdateInstanceEndpoint(ctx context.Context, arg UpdateInstance
 	row := q.db.QueryRowContext(ctx, updateInstanceEndpoint,
 		arg.InstanceID,
 		arg.AddressID,
+		arg.DnsRecordID,
 		arg.Name,
 		arg.Scheme,
 		arg.Port,
 		arg.BasePath,
+		arg.HostType,
 		arg.IsPreferred,
 		arg.Notes,
 		arg.PublicID,
@@ -851,10 +963,12 @@ func (q *Queries) UpdateInstanceEndpoint(ctx context.Context, arg UpdateInstance
 		&i.PublicID,
 		&i.InstanceID,
 		&i.AddressID,
+		&i.DnsRecordID,
 		&i.Name,
 		&i.Scheme,
 		&i.Port,
 		&i.BasePath,
+		&i.HostType,
 		&i.IsPreferred,
 		&i.Notes,
 		&i.CreatedAt,

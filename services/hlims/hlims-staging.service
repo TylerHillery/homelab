@@ -1,0 +1,14 @@
+[Unit]
+Description=HLIMS local staging inventory
+
+[Service]
+Type=simple
+StateDirectory=hlims
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=%h/.local/bin/hlimsd -listen=127.0.0.1:8081 -sqlitedb=%h/.local/state/hlims/staging.db
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

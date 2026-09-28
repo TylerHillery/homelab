@@ -166,6 +166,38 @@ left join asset_purchase_owners on assets.id = asset_purchase_owners.asset_id
 left join purchases as purchase_record on asset_purchase_owners.purchase_id = purchase_record.id
 order by coalesce(assets.name, assets.serial_number, assets.public_id);
 
+-- name: ListContainedAssets :many
+with recursive descendants (id, depth, sort_path) as (
+    select
+        assets.id,
+        0  as depth,
+        '' as sort_path
+    from assets
+    where assets.public_id = ?
+    union all
+    select
+        child.id,
+        descendants.depth + 1,
+        descendants.sort_path || '/' || lower(coalesce(child.name, child.public_id))
+        || '-' || child.public_id
+    from descendants
+    inner join assets as child on descendants.id = child.parent_asset_id
+)
+
+select
+    child.public_id,
+    child.name,
+    child.parent_slot,
+    products.public_id as product_public_id,
+    products.name      as product_name,
+    products.kind      as product_kind,
+    descendants.depth
+from descendants
+inner join assets as child on descendants.id = child.id
+inner join products on child.product_id = products.id
+where descendants.depth > 0
+order by descendants.sort_path;
+
 -- name: UpdateAsset :one
 update assets
 set

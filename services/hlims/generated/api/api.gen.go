@@ -83,6 +83,66 @@ func (e CpuAllocation) Valid() bool {
 	}
 }
 
+// Defines values for DNSRecordKind.
+const (
+	A    DNSRecordKind = "A"
+	AAAA DNSRecordKind = "AAAA"
+)
+
+// Valid indicates whether the value is a known member of the DNSRecordKind enum.
+func (e DNSRecordKind) Valid() bool {
+	switch e {
+	case A:
+		return true
+	case AAAA:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EndpointHostType.
+const (
+	Auto EndpointHostType = "auto"
+	Dns  EndpointHostType = "dns"
+	Ip   EndpointHostType = "ip"
+)
+
+// Valid indicates whether the value is a known member of the EndpointHostType enum.
+func (e EndpointHostType) Valid() bool {
+	switch e {
+	case Auto:
+		return true
+	case Dns:
+		return true
+	case Ip:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IngressRouteKind.
+const (
+	Proxy    IngressRouteKind = "proxy"
+	Redirect IngressRouteKind = "redirect"
+	Static   IngressRouteKind = "static"
+)
+
+// Valid indicates whether the value is a known member of the IngressRouteKind enum.
+func (e IngressRouteKind) Valid() bool {
+	switch e {
+	case Proxy:
+		return true
+	case Redirect:
+		return true
+	case Static:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MachineKind.
 const (
 	BareMetal      MachineKind = "bare_metal"
@@ -105,6 +165,7 @@ func (e MachineKind) Valid() bool {
 const (
 	NetworkKindCloudVpc NetworkKind = "cloud_vpc"
 	NetworkKindLan      NetworkKind = "lan"
+	NetworkKindLoopback NetworkKind = "loopback"
 	NetworkKindPublic   NetworkKind = "public"
 	NetworkKindTailnet  NetworkKind = "tailnet"
 )
@@ -115,6 +176,8 @@ func (e NetworkKind) Valid() bool {
 	case NetworkKindCloudVpc:
 		return true
 	case NetworkKindLan:
+		return true
+	case NetworkKindLoopback:
 		return true
 	case NetworkKindPublic:
 		return true
@@ -283,16 +346,46 @@ func (e StorageMediaKind) Valid() bool {
 
 // Defines values for Via.
 const (
-	ViaLan     Via = "lan"
-	ViaTailnet Via = "tailnet"
+	ViaCloudVpc Via = "cloud_vpc"
+	ViaLan      Via = "lan"
+	ViaLoopback Via = "loopback"
+	ViaPublic   Via = "public"
+	ViaTailnet  Via = "tailnet"
 )
 
 // Valid indicates whether the value is a known member of the Via enum.
 func (e Via) Valid() bool {
 	switch e {
+	case ViaCloudVpc:
+		return true
 	case ViaLan:
 		return true
+	case ViaLoopback:
+		return true
+	case ViaPublic:
+		return true
 	case ViaTailnet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WiFiBandSpecBandGHz.
+const (
+	N24 WiFiBandSpecBandGHz = "2.4"
+	N5  WiFiBandSpecBandGHz = "5"
+	N6  WiFiBandSpecBandGHz = "6"
+)
+
+// Valid indicates whether the value is a known member of the WiFiBandSpecBandGHz enum.
+func (e WiFiBandSpecBandGHz) Valid() bool {
+	switch e {
+	case N24:
+		return true
+	case N5:
+		return true
+	case N6:
 		return true
 	default:
 		return false
@@ -402,6 +495,49 @@ type AssetWrite struct {
 // CpuAllocation defines model for CpuAllocation.
 type CpuAllocation string
 
+// DNSRecord defines model for DNSRecord.
+type DNSRecord struct {
+	Address         string        `json:"address"`
+	AddressPublicId PublicId      `json:"addressPublicId"`
+	Fqdn            string        `json:"fqdn"`
+	Kind            DNSRecordKind `json:"kind"`
+
+	// Name @ for the zone apex or a relative hostname.
+	Name         string   `json:"name"`
+	PublicId     PublicId `json:"publicId"`
+	ZonePublicId PublicId `json:"zonePublicId"`
+}
+
+// DNSRecordKind defines model for DNSRecordKind.
+type DNSRecordKind string
+
+// DNSRecordWrite defines model for DNSRecordWrite.
+type DNSRecordWrite struct {
+	AddressPublicId PublicId      `json:"addressPublicId"`
+	Kind            DNSRecordKind `json:"kind"`
+
+	// Name @ for the zone apex or a relative hostname.
+	Name         string   `json:"name"`
+	ZonePublicId PublicId `json:"zonePublicId"`
+}
+
+// DNSZone defines model for DNSZone.
+type DNSZone struct {
+	// Name Owned DNS zone
+	Name      string   `json:"name"`
+	Notes     *string  `json:"notes,omitempty"`
+	PublicId  PublicId `json:"publicId"`
+	Registrar *string  `json:"registrar,omitempty"`
+}
+
+// DNSZoneWrite defines model for DNSZoneWrite.
+type DNSZoneWrite struct {
+	// Name Owned DNS zone
+	Name      string  `json:"name"`
+	Notes     *string `json:"notes,omitempty"`
+	Registrar *string `json:"registrar,omitempty"`
+}
+
 // DriveSpec defines model for DriveSpec.
 type DriveSpec struct {
 	CapacityBytes int64                 `json:"capacityBytes"`
@@ -409,10 +545,37 @@ type DriveSpec struct {
 	MediaKind     StorageMediaKind      `json:"mediaKind"`
 }
 
+// EndpointHostType defines model for EndpointHostType.
+type EndpointHostType string
+
 // Error defines model for Error.
 type Error struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+// IngressRoute defines model for IngressRoute.
+type IngressRoute struct {
+	EndpointPublicId        PublicId         `json:"endpointPublicId"`
+	IngressInstancePublicId PublicId         `json:"ingressInstancePublicId"`
+	IngressServiceName      string           `json:"ingressServiceName"`
+	Kind                    IngressRouteKind `json:"kind"`
+
+	// Target Proxy upstream
+	Target string `json:"target"`
+}
+
+// IngressRouteKind defines model for IngressRouteKind.
+type IngressRouteKind string
+
+// IngressRouteWrite defines model for IngressRouteWrite.
+type IngressRouteWrite struct {
+	EndpointPublicId        PublicId         `json:"endpointPublicId"`
+	IngressInstancePublicId PublicId         `json:"ingressInstancePublicId"`
+	Kind                    IngressRouteKind `json:"kind"`
+
+	// Target Proxy upstream
+	Target string `json:"target"`
 }
 
 // Instance defines model for Instance.
@@ -428,27 +591,31 @@ type Instance struct {
 
 // InstanceEndpoint defines model for InstanceEndpoint.
 type InstanceEndpoint struct {
-	AddressPublicId  string  `json:"addressPublicId"`
-	BasePath         string  `json:"basePath"`
-	InstancePublicId string  `json:"instancePublicId"`
-	IsPreferred      bool    `json:"isPreferred"`
-	Name             string  `json:"name"`
-	Notes            *string `json:"notes,omitempty"`
-	Port             int     `json:"port"`
-	PublicId         string  `json:"publicId"`
-	Scheme           Scheme  `json:"scheme"`
+	AddressPublicId   string            `json:"addressPublicId"`
+	BasePath          string            `json:"basePath"`
+	DnsRecordPublicId *PublicId         `json:"dnsRecordPublicId,omitempty"`
+	HostType          *EndpointHostType `json:"hostType,omitempty"`
+	InstancePublicId  string            `json:"instancePublicId"`
+	IsPreferred       bool              `json:"isPreferred"`
+	Name              string            `json:"name"`
+	Notes             *string           `json:"notes,omitempty"`
+	Port              int               `json:"port"`
+	PublicId          string            `json:"publicId"`
+	Scheme            Scheme            `json:"scheme"`
 }
 
 // InstanceEndpointWrite defines model for InstanceEndpointWrite.
 type InstanceEndpointWrite struct {
-	AddressPublicId  string  `json:"addressPublicId"`
-	BasePath         *string `json:"basePath,omitempty"`
-	InstancePublicId string  `json:"instancePublicId"`
-	IsPreferred      *bool   `json:"isPreferred,omitempty"`
-	Name             string  `json:"name"`
-	Notes            *string `json:"notes,omitempty"`
-	Port             int     `json:"port"`
-	Scheme           Scheme  `json:"scheme"`
+	AddressPublicId   string            `json:"addressPublicId"`
+	BasePath          *string           `json:"basePath,omitempty"`
+	DnsRecordPublicId *PublicId         `json:"dnsRecordPublicId,omitempty"`
+	HostType          *EndpointHostType `json:"hostType,omitempty"`
+	InstancePublicId  string            `json:"instancePublicId"`
+	IsPreferred       *bool             `json:"isPreferred,omitempty"`
+	Name              string            `json:"name"`
+	Notes             *string           `json:"notes,omitempty"`
+	Port              int               `json:"port"`
+	Scheme            Scheme            `json:"scheme"`
 }
 
 // InstanceWrite defines model for InstanceWrite.
@@ -463,12 +630,15 @@ type InstanceWrite struct {
 
 // Machine defines model for Machine.
 type Machine struct {
-	Architecture              *string               `json:"architecture,omitempty"`
-	AreaPublicId              PublicId              `json:"areaPublicId"`
-	AssetPublicId             *PublicId             `json:"assetPublicId,omitempty"`
-	CostCurrency              *string               `json:"costCurrency,omitempty"`
-	CpuAllocation             *CpuAllocation        `json:"cpuAllocation,omitempty"`
-	CpuCount                  *int                  `json:"cpuCount,omitempty"`
+	Architecture  *string        `json:"architecture,omitempty"`
+	AreaPublicId  PublicId       `json:"areaPublicId"`
+	AssetPublicId *PublicId      `json:"assetPublicId,omitempty"`
+	CostCurrency  *string        `json:"costCurrency,omitempty"`
+	CpuAllocation *CpuAllocation `json:"cpuAllocation,omitempty"`
+	CpuCount      *int           `json:"cpuCount,omitempty"`
+
+	// CpuThreadCount Logical hardware threads for a physical Machine; cpuCount is cores on physical Machines or vCPUs on virtual Machines.
+	CpuThreadCount            *int                  `json:"cpuThreadCount,omitempty"`
 	CpuVendor                 *string               `json:"cpuVendor,omitempty"`
 	EstimatedMonthlyCostCents *int64                `json:"estimatedMonthlyCostCents,omitempty"`
 	Hostname                  *string               `json:"hostname,omitempty"`
@@ -541,12 +711,15 @@ type MachineUsername = string
 
 // MachineWrite defines model for MachineWrite.
 type MachineWrite struct {
-	Architecture              *string               `json:"architecture,omitempty"`
-	AreaPublicId              PublicId              `json:"areaPublicId"`
-	AssetPublicId             *PublicId             `json:"assetPublicId,omitempty"`
-	CostCurrency              *string               `json:"costCurrency,omitempty"`
-	CpuAllocation             *CpuAllocation        `json:"cpuAllocation,omitempty"`
-	CpuCount                  *int                  `json:"cpuCount,omitempty"`
+	Architecture  *string        `json:"architecture,omitempty"`
+	AreaPublicId  PublicId       `json:"areaPublicId"`
+	AssetPublicId *PublicId      `json:"assetPublicId,omitempty"`
+	CostCurrency  *string        `json:"costCurrency,omitempty"`
+	CpuAllocation *CpuAllocation `json:"cpuAllocation,omitempty"`
+	CpuCount      *int           `json:"cpuCount,omitempty"`
+
+	// CpuThreadCount Logical hardware threads for a physical Machine; cpuCount is cores on physical Machines or vCPUs on virtual Machines.
+	CpuThreadCount            *int                  `json:"cpuThreadCount,omitempty"`
 	CpuVendor                 *string               `json:"cpuVendor,omitempty"`
 	EstimatedMonthlyCostCents *int64                `json:"estimatedMonthlyCostCents,omitempty"`
 	Hostname                  *string               `json:"hostname,omitempty"`
@@ -625,7 +798,13 @@ type PortProfile struct {
 // ProcessorSpec defines model for ProcessorSpec.
 type ProcessorSpec struct {
 	BaseClockMhz *int `json:"baseClockMhz,omitempty"`
-	CoreCount    int  `json:"coreCount"`
+
+	// Codename Processor family codename
+	Codename  *string `json:"codename,omitempty"`
+	CoreCount int     `json:"coreCount"`
+
+	// Generation Vendor product generation
+	Generation *string `json:"generation,omitempty"`
 
 	// ThreadCount Must be greater than or equal to coreCount.
 	ThreadCount    int     `json:"threadCount"`
@@ -646,6 +825,7 @@ type Product struct {
 	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
 	PublicId             PublicId       `json:"publicId"`
 	RackSpec             *RackSpec      `json:"rackSpec,omitempty"`
+	WifiSpec             *WiFiSpec      `json:"wifiSpec,omitempty"`
 }
 
 // ProductKind defines model for ProductKind.
@@ -663,7 +843,7 @@ type ProductLink struct {
 // ProductLinkKind defines model for ProductLinkKind.
 type ProductLinkKind string
 
-// ProductWrite The product kind determines which single spec is allowed and required. System and network products have no scalar spec; port profiles are allowed only on router, switch, access_point, and network_adapter products.
+// ProductWrite The product kind determines which specifications are allowed. Routers and access points may have Wi-Fi specifications alongside port profiles; other kinds use their dedicated spec where applicable.
 type ProductWrite struct {
 	DriveSpec            *DriveSpec     `json:"driveSpec,omitempty"`
 	Kind                 ProductKind    `json:"kind"`
@@ -676,6 +856,7 @@ type ProductWrite struct {
 	PortProfiles         *[]PortProfile `json:"portProfiles,omitempty"`
 	ProcessorSpec        *ProcessorSpec `json:"processorSpec,omitempty"`
 	RackSpec             *RackSpec      `json:"rackSpec,omitempty"`
+	WifiSpec             *WiFiSpec      `json:"wifiSpec,omitempty"`
 }
 
 // PublicId defines model for PublicId.
@@ -683,14 +864,37 @@ type PublicId = string
 
 // Purchase defines model for Purchase.
 type Purchase struct {
-	AssetPublicIds  []PublicId          `json:"assetPublicIds"`
-	Currency        string              `json:"currency"`
+	AssetPublicIds []PublicId `json:"assetPublicIds"`
+	Currency       string     `json:"currency"`
+
+	// HomelabSubtotalCents Sum of selected lines included in homelab spending; excludes shared-home lines, omitted items, tax, and shipping.
+	HomelabSubtotalCents *int64 `json:"homelabSubtotalCents,omitempty"`
+
+	// Lines Only the owned items selected from the source order.
+	Lines           *[]PurchaseLine     `json:"lines,omitempty"`
 	Links           *[]PurchaseLink     `json:"links,omitempty"`
 	Notes           *string             `json:"notes,omitempty"`
+	OrderReference  *string             `json:"orderReference,omitempty"`
 	PublicId        PublicId            `json:"publicId"`
 	PurchasedOn     *openapi_types.Date `json:"purchasedOn,omitempty"`
 	Source          *string             `json:"source,omitempty"`
 	TotalPriceCents int64               `json:"totalPriceCents"`
+
+	// TrackedSubtotalCents Sum of selected line subtotals when all are known; excludes omitted items, tax, and shipping.
+	TrackedSubtotalCents *int64 `json:"trackedSubtotalCents,omitempty"`
+}
+
+// PurchaseLine An owned item selected from an order; other retailer lines can be omitted.
+type PurchaseLine struct {
+	Description string `json:"description"`
+
+	// IncludeInHomelabTotal Whether this selected item contributes to homelab-only spending. Inventory remains tracked either way.
+	IncludeInHomelabTotal *bool     `json:"includeInHomelabTotal,omitempty"`
+	ProductPublicId       *PublicId `json:"productPublicId,omitempty"`
+	Quantity              int       `json:"quantity"`
+
+	// SubtotalCents Selected line subtotal before tax and shipping; null when unknown.
+	SubtotalCents *int64 `json:"subtotalCents,omitempty"`
 }
 
 // PurchaseLink defines model for PurchaseLink.
@@ -721,10 +925,14 @@ type PurchaseTotal struct {
 
 // PurchaseWrite defines model for PurchaseWrite.
 type PurchaseWrite struct {
-	AssetPublicIds  []PublicId          `json:"assetPublicIds"`
-	Currency        string              `json:"currency"`
+	AssetPublicIds []PublicId `json:"assetPublicIds"`
+	Currency       string     `json:"currency"`
+
+	// Lines Only the owned items selected from the source order.
+	Lines           *[]PurchaseLine     `json:"lines,omitempty"`
 	Links           *[]PurchaseLink     `json:"links,omitempty"`
 	Notes           *string             `json:"notes,omitempty"`
+	OrderReference  *string             `json:"orderReference,omitempty"`
 	PurchasedOn     *openapi_types.Date `json:"purchasedOn,omitempty"`
 	Source          *string             `json:"source,omitempty"`
 	TotalPriceCents int64               `json:"totalPriceCents"`
@@ -788,40 +996,68 @@ type TopologyArea struct {
 // TopologyInstance defines model for TopologyInstance.
 type TopologyInstance struct {
 	// AvailableVia Network routes that can be selected by adding the via query parameter to resolverPath.
-	AvailableVia []Via    `json:"availableVia"`
-	Name         string   `json:"name"`
-	Port         int      `json:"port"`
-	PublicId     PublicId `json:"publicId"`
+	AvailableVia []Via `json:"availableVia"`
+
+	// Endpoints Every recorded client-facing route for this instance.
+	Endpoints []TopologyInstanceEndpoint `json:"endpoints"`
+	Name      string                     `json:"name"`
+	Port      int                        `json:"port"`
+	PublicId  PublicId                   `json:"publicId"`
 
 	// ResolverPath Canonical root-relative redirect resolver path suitable for links.
 	ResolverPath string `json:"resolverPath"`
 	Slug         Slug   `json:"slug"`
 }
 
+// TopologyInstanceEndpoint defines model for TopologyInstanceEndpoint.
+type TopologyInstanceEndpoint struct {
+	// Address IP address of the device on this network.
+	Address           string           `json:"address"`
+	DnsName           *string          `json:"dnsName,omitempty"`
+	DnsRecordPublicId *PublicId        `json:"dnsRecordPublicId,omitempty"`
+	HostType          EndpointHostType `json:"hostType"`
+	Ingress           *IngressRoute    `json:"ingress,omitempty"`
+	IsPreferred       bool             `json:"isPreferred"`
+	Name              string           `json:"name"`
+	NetworkKind       NetworkKind      `json:"networkKind"`
+	Port              int              `json:"port"`
+	PublicId          PublicId         `json:"publicId"`
+	Scheme            Scheme           `json:"scheme"`
+
+	// Url Configured URL
+	Url string `json:"url"`
+}
+
 // TopologyMachine defines model for TopologyMachine.
 type TopologyMachine struct {
-	Addresses              []TopologyMachineAddress `json:"addresses"`
-	Architecture           *string                  `json:"architecture,omitempty"`
-	Children               []TopologyMachine        `json:"children"`
-	CpuAllocation          *CpuAllocation           `json:"cpuAllocation,omitempty"`
-	CpuCount               *int                     `json:"cpuCount,omitempty"`
-	CpuVendor              *string                  `json:"cpuVendor,omitempty"`
-	Hostname               *string                  `json:"hostname,omitempty"`
-	IsFavorite             bool                     `json:"isFavorite"`
-	Kernel                 *string                  `json:"kernel,omitempty"`
-	Kind                   MachineKind              `json:"kind"`
-	MemoryBytes            *int64                   `json:"memoryBytes,omitempty"`
-	Name                   string                   `json:"name"`
-	OperatingSystem        *string                  `json:"operatingSystem,omitempty"`
-	OperatingSystemVersion *string                  `json:"operatingSystemVersion,omitempty"`
-	PublicId               PublicId                 `json:"publicId"`
-	Services               []TopologyService        `json:"services"`
-	Slug                   Slug                     `json:"slug"`
-	StorageBytes           *int64                   `json:"storageBytes,omitempty"`
-	StorageInterfaceKind   *StorageInterfaceKind    `json:"storageInterfaceKind,omitempty"`
-	StorageMediaKind       *StorageMediaKind        `json:"storageMediaKind,omitempty"`
-	Users                  []TopologyMachineUser    `json:"users"`
-	VirtualizationPlatform *string                  `json:"virtualizationPlatform,omitempty"`
+	Addresses     []TopologyMachineAddress `json:"addresses"`
+	Architecture  *string                  `json:"architecture,omitempty"`
+	Children      []TopologyMachine        `json:"children"`
+	CpuAllocation *CpuAllocation           `json:"cpuAllocation,omitempty"`
+	CpuCount      *int                     `json:"cpuCount,omitempty"`
+
+	// CpuThreadCount Logical hardware threads for a physical Machine; cpuCount is cores on physical Machines or vCPUs on virtual Machines.
+	CpuThreadCount *int    `json:"cpuThreadCount,omitempty"`
+	CpuVendor      *string `json:"cpuVendor,omitempty"`
+
+	// Hardware Installed processor and memory Assets of the backing physical system.
+	Hardware               []TopologyMachineHardware `json:"hardware"`
+	Hostname               *string                   `json:"hostname,omitempty"`
+	IsFavorite             bool                      `json:"isFavorite"`
+	Kernel                 *string                   `json:"kernel,omitempty"`
+	Kind                   MachineKind               `json:"kind"`
+	MemoryBytes            *int64                    `json:"memoryBytes,omitempty"`
+	Name                   string                    `json:"name"`
+	OperatingSystem        *string                   `json:"operatingSystem,omitempty"`
+	OperatingSystemVersion *string                   `json:"operatingSystemVersion,omitempty"`
+	PublicId               PublicId                  `json:"publicId"`
+	Services               []TopologyService         `json:"services"`
+	Slug                   Slug                      `json:"slug"`
+	StorageBytes           *int64                    `json:"storageBytes,omitempty"`
+	StorageInterfaceKind   *StorageInterfaceKind     `json:"storageInterfaceKind,omitempty"`
+	StorageMediaKind       *StorageMediaKind         `json:"storageMediaKind,omitempty"`
+	Users                  []TopologyMachineUser     `json:"users"`
+	VirtualizationPlatform *string                   `json:"virtualizationPlatform,omitempty"`
 }
 
 // TopologyMachineAddress defines model for TopologyMachineAddress.
@@ -834,6 +1070,17 @@ type TopologyMachineAddress struct {
 	NetworkKind     NetworkKind `json:"networkKind"`
 	NetworkPublicId PublicId    `json:"networkPublicId"`
 	PublicId        PublicId    `json:"publicId"`
+}
+
+// TopologyMachineHardware defines model for TopologyMachineHardware.
+type TopologyMachineHardware struct {
+	AssetPublicId   PublicId    `json:"assetPublicId"`
+	Codename        *string     `json:"codename,omitempty"`
+	Generation      *string     `json:"generation,omitempty"`
+	Kind            ProductKind `json:"kind"`
+	MemoryType      *string     `json:"memoryType,omitempty"`
+	Name            string      `json:"name"`
+	ProductPublicId PublicId    `json:"productPublicId"`
 }
 
 // TopologyMachineUser defines model for TopologyMachineUser.
@@ -865,6 +1112,32 @@ type TopologyService struct {
 
 // Via defines model for Via.
 type Via string
+
+// WiFiBandSpec defines model for WiFiBandSpec.
+type WiFiBandSpec struct {
+	BandGHz WiFiBandSpecBandGHz `json:"bandGHz"`
+
+	// MaxLinkMbps Manufacturer-advertised link rate
+	MaxLinkMbps int `json:"maxLinkMbps"`
+}
+
+// WiFiBandSpecBandGHz defines model for WiFiBandSpec.BandGHz.
+type WiFiBandSpecBandGHz string
+
+// WiFiSpec defines model for WiFiSpec.
+type WiFiSpec struct {
+	Bands []WiFiBandSpec `json:"bands"`
+
+	// Class Manufacturer marketing class such as BE11000.
+	Class *string `json:"class,omitempty"`
+
+	// Generation Marketed Wi-Fi generation such as 7.
+	Generation int `json:"generation"`
+
+	// IeeeStandard Primary standard such as 802.11be.
+	IeeeStandard       string `json:"ieeeStandard"`
+	MaxChannelWidthMHz *int   `json:"maxChannelWidthMHz,omitempty"`
+}
 
 // InstanceSlug defines model for InstanceSlug.
 type InstanceSlug = Slug
@@ -903,6 +1176,15 @@ type CreateAssetJSONRequestBody = AssetWrite
 
 // UpdateAssetJSONRequestBody defines body for UpdateAsset for application/json ContentType.
 type UpdateAssetJSONRequestBody = AssetWrite
+
+// CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
+type CreateDNSRecordJSONRequestBody = DNSRecordWrite
+
+// CreateDNSZoneJSONRequestBody defines body for CreateDNSZone for application/json ContentType.
+type CreateDNSZoneJSONRequestBody = DNSZoneWrite
+
+// CreateIngressRouteJSONRequestBody defines body for CreateIngressRoute for application/json ContentType.
+type CreateIngressRouteJSONRequestBody = IngressRouteWrite
 
 // CreateInstanceEndpointJSONRequestBody defines body for CreateInstanceEndpoint for application/json ContentType.
 type CreateInstanceEndpointJSONRequestBody = InstanceEndpointWrite
@@ -1112,6 +1394,39 @@ type ClientInterface interface {
 	// UpdateAsset performs a PUT /assets/{publicId} (the `UpdateAsset` operationId) request.
 	// Takes a body of the `application/json` content type.
 	UpdateAsset(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSRecords performs a GET /dns-records (the `ListDNSRecords` operationId) request.
+	ListDNSRecords(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSRecordWithBody performs a POST /dns-records (the `CreateDNSRecord` operationId) request,
+	// with any type of body and a specified content type.
+	CreateDNSRecordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSRecord performs a POST /dns-records (the `CreateDNSRecord` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateDNSRecord(ctx context.Context, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListDNSZones performs a GET /dns-zones (the `ListDNSZones` operationId) request.
+	ListDNSZones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSZoneWithBody performs a POST /dns-zones (the `CreateDNSZone` operationId) request,
+	// with any type of body and a specified content type.
+	CreateDNSZoneWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDNSZone performs a POST /dns-zones (the `CreateDNSZone` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateDNSZone(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListIngressRoutes performs a GET /ingress-routes (the `ListIngressRoutes` operationId) request.
+	ListIngressRoutes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateIngressRouteWithBody performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request,
+	// with any type of body and a specified content type.
+	CreateIngressRouteWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateIngressRoute performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateIngressRoute(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 	ListInstanceEndpoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1674,6 +1989,129 @@ func (c *Client) UpdateAssetWithBody(ctx context.Context, publicId PublicId, con
 // Takes a body of the `application/json` content type.
 func (c *Client) UpdateAsset(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateAssetRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListDNSRecords performs a GET /dns-records (the `ListDNSRecords` operationId) request.
+func (c *Client) ListDNSRecords(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSRecordsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDNSRecordWithBody performs a POST /dns-records (the `CreateDNSRecord` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateDNSRecordWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSRecordRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDNSRecord performs a POST /dns-records (the `CreateDNSRecord` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateDNSRecord(ctx context.Context, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSRecordRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListDNSZones performs a GET /dns-zones (the `ListDNSZones` operationId) request.
+func (c *Client) ListDNSZones(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDNSZonesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDNSZoneWithBody performs a POST /dns-zones (the `CreateDNSZone` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateDNSZoneWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSZoneRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDNSZone performs a POST /dns-zones (the `CreateDNSZone` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateDNSZone(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDNSZoneRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListIngressRoutes performs a GET /ingress-routes (the `ListIngressRoutes` operationId) request.
+func (c *Client) ListIngressRoutes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListIngressRoutesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateIngressRouteWithBody performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateIngressRouteWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIngressRouteRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateIngressRoute performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateIngressRoute(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateIngressRouteRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3316,6 +3754,207 @@ func NewUpdateAssetRequestWithBody(server string, publicId PublicId, contentType
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListDNSRecordsRequest constructs an http.Request for the ListDNSRecords method
+func NewListDNSRecordsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dns-records")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDNSRecordRequest calls the generic CreateDNSRecord builder with application/json body
+func NewCreateDNSRecordRequest(server string, body CreateDNSRecordJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDNSRecordRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDNSRecordRequestWithBody constructs an http.Request for the CreateDNSRecord method, with any body, and a specified content type
+func NewCreateDNSRecordRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dns-records")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListDNSZonesRequest constructs an http.Request for the ListDNSZones method
+func NewListDNSZonesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dns-zones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDNSZoneRequest calls the generic CreateDNSZone builder with application/json body
+func NewCreateDNSZoneRequest(server string, body CreateDNSZoneJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDNSZoneRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDNSZoneRequestWithBody constructs an http.Request for the CreateDNSZone method, with any body, and a specified content type
+func NewCreateDNSZoneRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dns-zones")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListIngressRoutesRequest constructs an http.Request for the ListIngressRoutes method
+func NewListIngressRoutesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ingress-routes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateIngressRouteRequest calls the generic CreateIngressRoute builder with application/json body
+func NewCreateIngressRouteRequest(server string, body CreateIngressRouteJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateIngressRouteRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateIngressRouteRequestWithBody constructs an http.Request for the CreateIngressRoute method, with any body, and a specified content type
+func NewCreateIngressRouteRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ingress-routes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -5745,6 +6384,51 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	UpdateAssetWithResponse(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error)
 
+	// ListDNSRecordsWithResponse performs a GET /dns-records (the `ListDNSRecords` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListDNSRecordsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSRecordsResponse, error)
+
+	// CreateDNSRecordWithBodyWithResponse performs a POST /dns-records (the `CreateDNSRecord` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateDNSRecordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error)
+
+	// CreateDNSRecordWithResponse performs a POST /dns-records (the `CreateDNSRecord` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateDNSRecordWithResponse(ctx context.Context, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error)
+
+	// ListDNSZonesWithResponse performs a GET /dns-zones (the `ListDNSZones` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListDNSZonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSZonesResponse, error)
+
+	// CreateDNSZoneWithBodyWithResponse performs a POST /dns-zones (the `CreateDNSZone` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateDNSZoneWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error)
+
+	// CreateDNSZoneWithResponse performs a POST /dns-zones (the `CreateDNSZone` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateDNSZoneWithResponse(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error)
+
+	// ListIngressRoutesWithResponse performs a GET /ingress-routes (the `ListIngressRoutes` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListIngressRoutesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIngressRoutesResponse, error)
+
+	// CreateIngressRouteWithBodyWithResponse performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateIngressRouteWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIngressRouteResponse, error)
+
+	// CreateIngressRouteWithResponse performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateIngressRouteWithResponse(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIngressRouteResponse, error)
+
 	// ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6858,6 +7542,306 @@ func (r UpdateAssetResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateAssetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListDNSRecordsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []DNSRecord `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDNSRecordsResponse) GetJSON200() *struct {
+	Items []DNSRecord `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListDNSRecordsResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDNSRecordsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSRecordsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSRecordsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDNSRecordsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateDNSRecordResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *DNSRecord
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateDNSRecordResponse) GetJSON201() *DNSRecord {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateDNSRecordResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateDNSRecordResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDNSRecordResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDNSRecordResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateDNSRecordResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListDNSZonesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []DNSZone `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDNSZonesResponse) GetJSON200() *struct {
+	Items []DNSZone `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListDNSZonesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDNSZonesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDNSZonesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDNSZonesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDNSZonesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateDNSZoneResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *DNSZone
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateDNSZoneResponse) GetJSON201() *DNSZone {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateDNSZoneResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateDNSZoneResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDNSZoneResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDNSZoneResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateDNSZoneResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListIngressRoutesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []IngressRoute `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListIngressRoutesResponse) GetJSON200() *struct {
+	Items []IngressRoute `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListIngressRoutesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListIngressRoutesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListIngressRoutesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListIngressRoutesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListIngressRoutesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateIngressRouteResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *IngressRoute
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateIngressRouteResponse) GetJSON201() *IngressRoute {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateIngressRouteResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateIngressRouteResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateIngressRouteResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateIngressRouteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateIngressRouteResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -9955,6 +10939,105 @@ func (c *ClientWithResponses) UpdateAssetWithResponse(ctx context.Context, publi
 	return ParseUpdateAssetResponse(rsp)
 }
 
+// ListDNSRecordsWithResponse performs a GET /dns-records (the `ListDNSRecords` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListDNSRecordsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSRecordsResponse, error) {
+	rsp, err := c.ListDNSRecords(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSRecordsResponse(rsp)
+}
+
+// CreateDNSRecordWithBodyWithResponse performs a POST /dns-records (the `CreateDNSRecord` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDNSRecordWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error) {
+	rsp, err := c.CreateDNSRecordWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSRecordResponse(rsp)
+}
+
+// CreateDNSRecordWithResponse performs a POST /dns-records (the `CreateDNSRecord` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDNSRecordWithResponse(ctx context.Context, body CreateDNSRecordJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSRecordResponse, error) {
+	rsp, err := c.CreateDNSRecord(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSRecordResponse(rsp)
+}
+
+// ListDNSZonesWithResponse performs a GET /dns-zones (the `ListDNSZones` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListDNSZonesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDNSZonesResponse, error) {
+	rsp, err := c.ListDNSZones(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDNSZonesResponse(rsp)
+}
+
+// CreateDNSZoneWithBodyWithResponse performs a POST /dns-zones (the `CreateDNSZone` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDNSZoneWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error) {
+	rsp, err := c.CreateDNSZoneWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSZoneResponse(rsp)
+}
+
+// CreateDNSZoneWithResponse performs a POST /dns-zones (the `CreateDNSZone` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDNSZoneWithResponse(ctx context.Context, body CreateDNSZoneJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDNSZoneResponse, error) {
+	rsp, err := c.CreateDNSZone(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDNSZoneResponse(rsp)
+}
+
+// ListIngressRoutesWithResponse performs a GET /ingress-routes (the `ListIngressRoutes` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListIngressRoutesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListIngressRoutesResponse, error) {
+	rsp, err := c.ListIngressRoutes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListIngressRoutesResponse(rsp)
+}
+
+// CreateIngressRouteWithBodyWithResponse performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateIngressRouteWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateIngressRouteResponse, error) {
+	rsp, err := c.CreateIngressRouteWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateIngressRouteResponse(rsp)
+}
+
+// CreateIngressRouteWithResponse performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateIngressRouteWithResponse(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIngressRouteResponse, error) {
+	rsp, err := c.CreateIngressRoute(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateIngressRouteResponse(rsp)
+}
+
 // ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -11324,6 +12407,210 @@ func ParseUpdateAssetResponse(rsp *http.Response) (*UpdateAssetResponse, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSRecordsResponse parses an HTTP response from a ListDNSRecordsWithResponse call
+func ParseListDNSRecordsResponse(rsp *http.Response) (*ListDNSRecordsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSRecordsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []DNSRecord `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDNSRecordResponse parses an HTTP response from a CreateDNSRecordWithResponse call
+func ParseCreateDNSRecordResponse(rsp *http.Response) (*CreateDNSRecordResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDNSRecordResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListDNSZonesResponse parses an HTTP response from a ListDNSZonesWithResponse call
+func ParseListDNSZonesResponse(rsp *http.Response) (*ListDNSZonesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDNSZonesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []DNSZone `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDNSZoneResponse parses an HTTP response from a CreateDNSZoneWithResponse call
+func ParseCreateDNSZoneResponse(rsp *http.Response) (*CreateDNSZoneResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDNSZoneResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest DNSZone
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListIngressRoutesResponse parses an HTTP response from a ListIngressRoutesWithResponse call
+func ParseListIngressRoutesResponse(rsp *http.Response) (*ListIngressRoutesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListIngressRoutesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []IngressRoute `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateIngressRouteResponse parses an HTTP response from a CreateIngressRouteWithResponse call
+func ParseCreateIngressRouteResponse(rsp *http.Response) (*CreateIngressRouteResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateIngressRouteResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest IngressRoute
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest Error
@@ -13356,6 +14643,24 @@ type ServerInterface interface {
 	// (PUT /assets/{publicId})
 	UpdateAsset(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
+	// (GET /dns-records)
+	ListDNSRecords(w http.ResponseWriter, r *http.Request)
+
+	// (POST /dns-records)
+	CreateDNSRecord(w http.ResponseWriter, r *http.Request)
+
+	// (GET /dns-zones)
+	ListDNSZones(w http.ResponseWriter, r *http.Request)
+
+	// (POST /dns-zones)
+	CreateDNSZone(w http.ResponseWriter, r *http.Request)
+
+	// (GET /ingress-routes)
+	ListIngressRoutes(w http.ResponseWriter, r *http.Request)
+
+	// (POST /ingress-routes)
+	CreateIngressRoute(w http.ResponseWriter, r *http.Request)
+
 	// (GET /instance-endpoints)
 	ListInstanceEndpoints(w http.ResponseWriter, r *http.Request)
 
@@ -13858,6 +15163,90 @@ func (siw *ServerInterfaceWrapper) UpdateAsset(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAsset(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDNSRecords operation middleware
+func (siw *ServerInterfaceWrapper) ListDNSRecords(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDNSRecords(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDNSRecord operation middleware
+func (siw *ServerInterfaceWrapper) CreateDNSRecord(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDNSRecord(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDNSZones operation middleware
+func (siw *ServerInterfaceWrapper) ListDNSZones(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDNSZones(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDNSZone operation middleware
+func (siw *ServerInterfaceWrapper) CreateDNSZone(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDNSZone(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIngressRoutes operation middleware
+func (siw *ServerInterfaceWrapper) ListIngressRoutes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIngressRoutes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateIngressRoute operation middleware
+func (siw *ServerInterfaceWrapper) CreateIngressRoute(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateIngressRoute(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15436,6 +16825,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/addresses/{publicId}", wrapper.DeleteAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/addresses/{publicId}", wrapper.GetAddress)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/addresses/{publicId}", wrapper.UpdateAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dns-zones", wrapper.ListDNSZones)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dns-zones", wrapper.CreateDNSZone)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dns-records", wrapper.ListDNSRecords)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dns-records", wrapper.CreateDNSRecord)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ingress-routes", wrapper.ListIngressRoutes)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ingress-routes", wrapper.CreateIngressRoute)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/services", wrapper.ListServices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/services", wrapper.CreateService)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/services/{publicId}", wrapper.DeleteService)

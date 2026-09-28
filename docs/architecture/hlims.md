@@ -11,6 +11,8 @@ workloads, monitor health, or proxy application traffic.
 - OpenAPI is the external contract and generates server and client code.
 - Browser redirects and API resolution use the same resolver.
 - Inventory relationships produce destinations; no separate link store exists.
+- DNS Zones and Records describe observed names and their target addresses.
+- Ingress Routes record which proxy, static server, or redirect serves an endpoint.
 - Normal database access uses sqlc-generated queries.
 - Clients connect directly to the selected endpoint.
 - Private ingress is a deployment concern, not an application dependency.
@@ -42,6 +44,8 @@ a Machine and port. Network preference can distinguish LAN and tailnet paths.
 | OpenAPI | External request and response contract |
 | SQLite migrations | Persistence constraints |
 | sqlc | Application queries |
+| DNS Zones and Records | Owned domain names and observed A/AAAA targets |
+| Ingress Routes | Association between public URLs and ingress Instances |
 
 Generated code is committed, never edited manually, and checked by mise.
 

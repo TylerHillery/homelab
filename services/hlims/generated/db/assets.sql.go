@@ -471,6 +471,80 @@ func (q *Queries) ListAssetLinksByAssetID(ctx context.Context, assetID string) (
 	return items, nil
 }
 
+const listContainedAssets = `-- name: ListContainedAssets :many
+with recursive descendants (id, depth, sort_path) as (
+    select
+        assets.id,
+        0  as depth,
+        '' as sort_path
+    from assets
+    where assets.public_id = ?
+    union all
+    select
+        child.id,
+        descendants.depth + 1,
+        descendants.sort_path || '/' || lower(coalesce(child.name, child.public_id))
+        || '-' || child.public_id
+    from descendants
+    inner join assets as child on descendants.id = child.parent_asset_id
+)
+
+select
+    child.public_id,
+    child.name,
+    child.parent_slot,
+    products.public_id as product_public_id,
+    products.name      as product_name,
+    products.kind      as product_kind,
+    descendants.depth
+from descendants
+inner join assets as child on descendants.id = child.id
+inner join products on child.product_id = products.id
+where descendants.depth > 0
+order by descendants.sort_path
+`
+
+type ListContainedAssetsRow struct {
+	PublicID        string         `json:"public_id"`
+	Name            sql.NullString `json:"name"`
+	ParentSlot      sql.NullString `json:"parent_slot"`
+	ProductPublicID string         `json:"product_public_id"`
+	ProductName     string         `json:"product_name"`
+	ProductKind     string         `json:"product_kind"`
+	Depth           int64          `json:"depth"`
+}
+
+func (q *Queries) ListContainedAssets(ctx context.Context, publicID string) ([]ListContainedAssetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listContainedAssets, publicID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListContainedAssetsRow{}
+	for rows.Next() {
+		var i ListContainedAssetsRow
+		if err := rows.Scan(
+			&i.PublicID,
+			&i.Name,
+			&i.ParentSlot,
+			&i.ProductPublicID,
+			&i.ProductName,
+			&i.ProductKind,
+			&i.Depth,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateAsset = `-- name: UpdateAsset :one
 update assets
 set

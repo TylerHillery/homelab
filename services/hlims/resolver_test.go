@@ -76,9 +76,40 @@ func TestResolver(t *testing.T) {
 	})
 }
 
+func TestEndpointURLHostSelection(t *testing.T) {
+	t.Parallel()
+	target := endpoint{
+		address: "100.64.0.1", dnsName: sql.NullString{String: "firewall.example.ts.net", Valid: true},
+		scheme: "https", port: 443,
+	}
+	for _, test := range []struct {
+		mode, want string
+	}{
+		{"auto", "https://firewall.example.ts.net/"},
+		{"dns", "https://firewall.example.ts.net/"},
+		{"ip", "https://100.64.0.1/"},
+	} {
+		target.hostType = test.mode
+		got, err := endpointURL(target, "", nil)
+		if err != nil || got != test.want {
+			t.Fatalf("hostType %s: URL = %q, error = %v; want %q", test.mode, got, err, test.want)
+		}
+	}
+	target.hostType = "dns"
+	target.dnsName = sql.NullString{}
+	if _, err := endpointURL(target, "", nil); err == nil {
+		t.Fatal("DNS endpoint without a name must not fall back to an IP URL")
+	}
+}
+
 func TestRedirectAndAPIHandlers(t *testing.T) {
 	db := newResolverTestDB(t)
 	handler := newHandler(db)
+	root := httptest.NewRecorder()
+	handler.ServeHTTP(root, httptest.NewRequest(http.MethodGet, "/", nil))
+	if root.Code != http.StatusPermanentRedirect || root.Header().Get("Location") != "/console/" {
+		t.Fatalf("root redirect = %d %q; want 308 /console/", root.Code, root.Header().Get("Location"))
+	}
 
 	request := httptest.NewRequest(http.MethodGet, "/badger/opencode/production/dashboard?via=lan&org=1", nil)
 	response := httptest.NewRecorder()
@@ -144,9 +175,9 @@ func newResolverTestDB(t *testing.T) *SQLiteDB {
 	mustSucceed(t, err)
 	_, err = db.queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instanceID, PublicID: instancePublicID, ServiceID: serviceID, MachineID: machineID, Name: "Production", Slug: "production", Port: 4096})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: lanEndpointID, PublicID: lanEndpointPublicID, InstanceID: instanceID, AddressID: lanAddressID, Name: "LAN", Scheme: "http", Port: 4096})
+	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: lanEndpointID, PublicID: lanEndpointPublicID, InstanceID: instanceID, AddressID: lanAddressID, Name: "LAN", Scheme: "http", Port: 4096, HostType: "auto"})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: tailnetEndpointID, PublicID: tailnetEndpointPublicID, InstanceID: instanceID, AddressID: tailnetAddressID, Name: "Tailscale Serve", Scheme: "https", Port: 443, BasePath: "/opencode", IsPreferred: 1})
+	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: tailnetEndpointID, PublicID: tailnetEndpointPublicID, InstanceID: instanceID, AddressID: tailnetAddressID, Name: "Tailscale Serve", Scheme: "https", Port: 443, BasePath: "/opencode", HostType: "auto", IsPreferred: 1})
 	mustSucceed(t, err)
 
 	return db

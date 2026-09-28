@@ -330,6 +330,36 @@ paths:
       tags: [Addresses]
       operationId: deleteAddress
       responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /dns-zones:
+    get:
+      tags: [DNS]
+      operationId: listDNSZones
+      responses: {"200": {description: Owned DNS zones, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/DNSZone"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [DNS]
+      operationId: createDNSZone
+      requestBody: {$ref: "#/components/requestBodies/DNSZoneWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/DNSZone"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /dns-records:
+    get:
+      tags: [DNS]
+      operationId: listDNSRecords
+      responses: {"200": {description: DNS records, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/DNSRecord"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [DNS]
+      operationId: createDNSRecord
+      requestBody: {$ref: "#/components/requestBodies/DNSRecordWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/DNSRecord"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /ingress-routes:
+    get:
+      tags: [Ingress]
+      operationId: listIngressRoutes
+      responses: {"200": {description: Ingress routes, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/IngressRoute"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Ingress]
+      operationId: createIngressRoute
+      requestBody: {$ref: "#/components/requestBodies/IngressRouteWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/IngressRoute"}}}}, default: {$ref: "#/components/responses/Error"}}
   /services:
     get:
       tags: [Services]
@@ -473,6 +503,9 @@ components:
     MachineUserWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUserWrite"}}}}
     NetworkWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NetworkWrite"}}}}
     AddressWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AddressWrite"}}}}
+    DNSZoneWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DNSZoneWrite"}}}}
+    DNSRecordWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DNSRecordWrite"}}}}
+    IngressRouteWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IngressRouteWrite"}}}}
     ServiceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ServiceWrite"}}}}
     InstanceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceWrite"}}}}
     InstanceEndpointWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpointWrite"}}}}
@@ -481,10 +514,13 @@ components:
   schemas:
     PublicId: {type: string, pattern: "^[a-z0-9]{12}$"}
     Slug: {type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
-    Via: {type: string, enum: [lan, tailnet]}
+    Via: {type: string, enum: [lan, tailnet, cloud_vpc, public, loopback]}
     Scheme: {type: string, enum: [http, https]}
+    EndpointHostType: {type: string, enum: [auto, dns, ip]}
+    DNSRecordKind: {type: string, enum: [A, AAAA]}
+    IngressRouteKind: {type: string, enum: [proxy, static, redirect]}
     MachineKind: {type: string, enum: [bare_metal, virtual_machine]}
-    NetworkKind: {type: string, enum: [lan, tailnet, cloud_vpc, public]}
+    NetworkKind: {type: string, enum: [lan, tailnet, cloud_vpc, public, loopback]}
     ProductKind: {type: string, enum: [system, processor, memory, drive, rack, router, switch, access_point, network_adapter]}
     ProductLinkKind: {type: string, enum: [manufacturer, retailer, manual, datasheet, support]}
     AssetLinkKind: {type: string, enum: [receipt, warranty, management, other]}
@@ -528,7 +564,7 @@ components:
     TopologyMachine:
       type: object
       additionalProperties: false
-      required: [publicId, name, slug, kind, isFavorite, users, addresses, children, services]
+      required: [publicId, name, slug, kind, isFavorite, users, addresses, hardware, children, services]
       properties:
         publicId: {$ref: "#/components/schemas/PublicId"}
         name: {type: string}
@@ -541,6 +577,7 @@ components:
         kernel: {type: string, nullable: true}
         architecture: {type: string, nullable: true}
         cpuCount: {type: integer, minimum: 1, nullable: true}
+        cpuThreadCount: {type: integer, minimum: 1, nullable: true, description: Logical hardware threads for a physical Machine; cpuCount is cores on physical Machines or vCPUs on virtual Machines.}
         cpuAllocation:
           nullable: true
           allOf: [{$ref: "#/components/schemas/CpuAllocation"}]
@@ -560,6 +597,10 @@ components:
         addresses:
           type: array
           items: {$ref: "#/components/schemas/TopologyMachineAddress"}
+        hardware:
+          type: array
+          description: Installed processor and memory Assets of the backing physical system.
+          items: {$ref: "#/components/schemas/TopologyMachineHardware"}
         children:
           type: array
           items: {$ref: "#/components/schemas/TopologyMachine"}
@@ -588,6 +629,18 @@ components:
         dnsName: {type: string, nullable: true}
         interfaceName: {type: string, nullable: true}
         isPrimary: {type: boolean}
+    TopologyMachineHardware:
+      type: object
+      additionalProperties: false
+      required: [assetPublicId, productPublicId, kind, name]
+      properties:
+        assetPublicId: {$ref: "#/components/schemas/PublicId"}
+        productPublicId: {$ref: "#/components/schemas/PublicId"}
+        kind: {$ref: "#/components/schemas/ProductKind"}
+        name: {type: string}
+        generation: {type: string, nullable: true}
+        codename: {type: string, nullable: true}
+        memoryType: {type: string, nullable: true}
     TopologyService:
       type: object
       additionalProperties: false
@@ -604,17 +657,42 @@ components:
     TopologyInstance:
       type: object
       additionalProperties: false
-      required: [publicId, name, slug, port, resolverPath, availableVia]
+      required: [publicId, name, slug, port, resolverPath, availableVia, endpoints]
       properties:
         publicId: {$ref: "#/components/schemas/PublicId"}
         name: {type: string}
         slug: {$ref: "#/components/schemas/Slug"}
         port: {type: integer, minimum: 1, maximum: 65535}
         resolverPath: {type: string, description: Canonical root-relative redirect resolver path suitable for links.}
+        endpoints:
+          type: array
+          description: Every recorded client-facing route for this instance.
+          items: {$ref: "#/components/schemas/TopologyInstanceEndpoint"}
         availableVia:
           type: array
           description: Network routes that can be selected by adding the via query parameter to resolverPath.
           items: {$ref: "#/components/schemas/Via"}
+    TopologyInstanceEndpoint:
+      type: object
+      additionalProperties: false
+      required: [publicId, name, networkKind, address, scheme, port, hostType, url, isPreferred]
+      properties:
+        publicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        networkKind: {$ref: "#/components/schemas/NetworkKind"}
+        address: {type: string, description: IP address of the device on this network.}
+        dnsName: {type: string, nullable: true}
+        dnsRecordPublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+        scheme: {$ref: "#/components/schemas/Scheme"}
+        port: {type: integer, minimum: 1, maximum: 65535}
+        hostType: {$ref: "#/components/schemas/EndpointHostType"}
+        url: {type: string, format: uri, description: Configured URL, using the DNS name or IP as selected by hostType.}
+        isPreferred: {type: boolean}
+        ingress:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/IngressRoute"}]
     MachineProviderWrite:
       type: object
       additionalProperties: false
@@ -644,6 +722,8 @@ components:
         coreCount: {type: integer, minimum: 1}
         threadCount: {type: integer, minimum: 1, description: Must be greater than or equal to coreCount.}
         baseClockMhz: {type: integer, minimum: 1, nullable: true}
+        generation: {type: string, nullable: true, description: Vendor product generation, such as 4th Gen Core or Ryzen AI 300.}
+        codename: {type: string, nullable: true, description: Processor family codename, such as Haswell or Krackan Point.}
         virtualization: {type: string, nullable: true}
     MemorySpec:
       type: object
@@ -680,6 +760,27 @@ components:
         portCount: {type: integer, minimum: 1}
         connector: {type: string, minLength: 1, example: RJ45}
         speedMbps: {type: integer, minimum: 1}
+    WiFiBandSpec:
+      type: object
+      additionalProperties: false
+      required: [bandGHz, maxLinkMbps]
+      properties:
+        bandGHz: {type: string, enum: ["2.4", "5", "6"]}
+        maxLinkMbps: {type: integer, minimum: 1, description: Manufacturer-advertised link rate, not measured throughput.}
+    WiFiSpec:
+      type: object
+      additionalProperties: false
+      required: [generation, ieeeStandard, bands]
+      properties:
+        generation: {type: integer, minimum: 1, description: Marketed Wi-Fi generation such as 7.}
+        ieeeStandard: {type: string, description: Primary standard such as 802.11be.}
+        class: {type: string, nullable: true, description: Manufacturer marketing class such as BE11000.}
+        maxChannelWidthMHz: {type: integer, minimum: 1, nullable: true}
+        bands:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {$ref: "#/components/schemas/WiFiBandSpec"}
     ProductLink:
       type: object
       additionalProperties: false
@@ -707,7 +808,7 @@ components:
     ProductWrite:
       type: object
       additionalProperties: false
-      description: The product kind determines which single spec is allowed and required. System and network products have no scalar spec; port profiles are allowed only on router, switch, access_point, and network_adapter products.
+      description: The product kind determines which specifications are allowed. Routers and access points may have Wi-Fi specifications alongside port profiles; other kinds use their dedicated spec where applicable.
       required: [manufacturerPublicId, kind, name]
       properties:
         manufacturerPublicId: {$ref: "#/components/schemas/PublicId"}
@@ -719,6 +820,7 @@ components:
         memorySpec: {$ref: "#/components/schemas/MemorySpec"}
         driveSpec: {$ref: "#/components/schemas/DriveSpec"}
         rackSpec: {$ref: "#/components/schemas/RackSpec"}
+        wifiSpec: {$ref: "#/components/schemas/WiFiSpec"}
         portProfiles:
           type: array
           items: {$ref: "#/components/schemas/PortProfile"}
@@ -761,6 +863,19 @@ components:
           format: uri
           pattern: "^https?://"
           description: Absolute HTTP or HTTPS URL without credentials or a fragment.
+    PurchaseLine:
+      type: object
+      additionalProperties: false
+      required: [description, quantity]
+      description: An owned item selected from an order; other retailer lines can be omitted.
+      properties:
+        productPublicId:
+          nullable: true
+          allOf: [{$ref: "#/components/schemas/PublicId"}]
+        description: {type: string, minLength: 1}
+        quantity: {type: integer, minimum: 1}
+        subtotalCents: {type: integer, format: int64, minimum: 0, nullable: true, description: Selected line subtotal before tax and shipping; null when unknown.}
+        includeInHomelabTotal: {type: boolean, default: true, description: Whether this selected item contributes to homelab-only spending. Inventory remains tracked either way.}
     PurchaseWrite:
       type: object
       additionalProperties: false
@@ -775,7 +890,12 @@ components:
         currency: {type: string, minLength: 3, maxLength: 3, pattern: "^[A-Za-z]{3}$"}
         purchasedOn: {type: string, format: date, nullable: true}
         source: {type: string, nullable: true}
+        orderReference: {type: string, nullable: true}
         notes: {type: string, nullable: true}
+        lines:
+          type: array
+          description: Only the owned items selected from the source order.
+          items: {$ref: "#/components/schemas/PurchaseLine"}
         links:
           type: array
           items: {$ref: "#/components/schemas/PurchaseLink"}
@@ -786,6 +906,16 @@ components:
           required: [publicId]
           properties:
             publicId: {$ref: "#/components/schemas/PublicId"}
+            trackedSubtotalCents:
+              type: integer
+              format: int64
+              nullable: true
+              description: Sum of selected line subtotals when all are known; excludes omitted items, tax, and shipping.
+            homelabSubtotalCents:
+              type: integer
+              format: int64
+              nullable: true
+              description: Sum of selected lines included in homelab spending; excludes shared-home lines, omitted items, tax, and shipping.
     PurchaseTotal:
       type: object
       additionalProperties: false
@@ -856,6 +986,7 @@ components:
         kernel: {type: string, nullable: true}
         architecture: {type: string, nullable: true}
         cpuCount: {type: integer, minimum: 1, nullable: true}
+        cpuThreadCount: {type: integer, minimum: 1, nullable: true, description: Logical hardware threads for a physical Machine; cpuCount is cores on physical Machines or vCPUs on virtual Machines.}
         cpuAllocation:
           nullable: true
           allOf: [{$ref: "#/components/schemas/CpuAllocation"}]
@@ -915,6 +1046,38 @@ components:
         isPrimary: {type: boolean, default: false}
     Address:
       allOf: [{$ref: "#/components/schemas/AddressWrite"}, {type: object, required: [publicId, isPrimary], properties: {publicId: {type: string}, isPrimary: {type: boolean}}}]
+    DNSZoneWrite:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: {type: string, description: Owned DNS zone, such as example.com.}
+        registrar: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+    DNSZone:
+      allOf: [{$ref: "#/components/schemas/DNSZoneWrite"}, {type: object, required: [publicId], properties: {publicId: {$ref: "#/components/schemas/PublicId"}}}]
+    DNSRecordWrite:
+      type: object
+      additionalProperties: false
+      required: [zonePublicId, name, kind, addressPublicId]
+      properties:
+        zonePublicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string, description: "@ for the zone apex or a relative hostname."}
+        kind: {$ref: "#/components/schemas/DNSRecordKind"}
+        addressPublicId: {$ref: "#/components/schemas/PublicId"}
+    DNSRecord:
+      allOf: [{$ref: "#/components/schemas/DNSRecordWrite"}, {type: object, required: [publicId, fqdn, address], properties: {publicId: {$ref: "#/components/schemas/PublicId"}, fqdn: {type: string}, address: {type: string}}}]
+    IngressRouteWrite:
+      type: object
+      additionalProperties: false
+      required: [endpointPublicId, ingressInstancePublicId, kind, target]
+      properties:
+        endpointPublicId: {$ref: "#/components/schemas/PublicId"}
+        ingressInstancePublicId: {$ref: "#/components/schemas/PublicId"}
+        kind: {$ref: "#/components/schemas/IngressRouteKind"}
+        target: {type: string, description: Proxy upstream, static document root, or redirect destination.}
+    IngressRoute:
+      allOf: [{$ref: "#/components/schemas/IngressRouteWrite"}, {type: object, required: [ingressServiceName], properties: {ingressServiceName: {type: string}}}]
     ServiceWrite:
       type: object
       additionalProperties: false
@@ -933,7 +1096,7 @@ components:
       type: object
       additionalProperties: false
       required: [instancePublicId, addressPublicId, name, scheme, port]
-      properties: {instancePublicId: {type: string}, addressPublicId: {type: string}, name: {type: string}, scheme: {$ref: "#/components/schemas/Scheme"}, port: {type: integer, minimum: 1, maximum: 65535}, basePath: {type: string, default: ""}, isPreferred: {type: boolean, default: false}, notes: {type: string, nullable: true}}
+      properties: {instancePublicId: {type: string}, addressPublicId: {type: string}, dnsRecordPublicId: {$ref: "#/components/schemas/PublicId", nullable: true}, name: {type: string}, scheme: {$ref: "#/components/schemas/Scheme"}, port: {type: integer, minimum: 1, maximum: 65535}, basePath: {type: string, default: ""}, hostType: {$ref: "#/components/schemas/EndpointHostType"}, isPreferred: {type: boolean, default: false}, notes: {type: string, nullable: true}}
     InstanceEndpoint:
       allOf: [{$ref: "#/components/schemas/InstanceEndpointWrite"}, {type: object, required: [publicId, basePath, isPreferred], properties: {publicId: {type: string}, basePath: {type: string}, isPreferred: {type: boolean}}}]
     MachineInstance:

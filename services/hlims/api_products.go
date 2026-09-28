@@ -20,6 +20,7 @@ type normalizedProduct struct {
 	memorySpec    *api.MemorySpec
 	driveSpec     *api.DriveSpec
 	rackSpec      *api.RackSpec
+	wifiSpec      *api.WiFiSpec
 	portProfiles  []api.PortProfile
 	links         []api.ProductLink
 }
@@ -47,6 +48,11 @@ func (s apiServer) ListProducts(w http.ResponseWriter, r *http.Request) {
 		writeDatabaseError(w, err)
 		return
 	}
+	bands, err := queries.ListWiFiBands(r.Context())
+	if err != nil {
+		writeDatabaseError(w, err)
+		return
+	}
 	profilesByProduct := make(map[string][]database.ProductPortProfile)
 	for _, profile := range profiles {
 		profilesByProduct[profile.ProductID] = append(profilesByProduct[profile.ProductID], profile)
@@ -55,9 +61,13 @@ func (s apiServer) ListProducts(w http.ResponseWriter, r *http.Request) {
 	for _, link := range links {
 		linksByProduct[link.ProductID] = append(linksByProduct[link.ProductID], link)
 	}
+	bandsByProduct := make(map[string][]database.WifiBandSpec)
+	for _, band := range bands {
+		bandsByProduct[band.ProductID] = append(bandsByProduct[band.ProductID], band)
+	}
 	items := make([]api.Product, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, productListResponse(row, profilesByProduct[row.ID], linksByProduct[row.ID]))
+		items = append(items, productListResponse(row, profilesByProduct[row.ID], linksByProduct[row.ID], bandsByProduct[row.ID]))
 	}
 	if err := tx.Commit(); err != nil {
 		writeDatabaseError(w, err)
@@ -140,11 +150,16 @@ func (s apiServer) writeProduct(w http.ResponseWriter, r *http.Request, publicID
 		writeDatabaseError(w, err)
 		return
 	}
+	bands, err := queries.ListWiFiBandsByProductID(r.Context(), row.ID)
+	if err != nil {
+		writeDatabaseError(w, err)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeDatabaseError(w, err)
 		return
 	}
-	writeJSON(w, status, productDetailResponse(row, profiles, links))
+	writeJSON(w, status, productDetailResponse(row, profiles, links, bands))
 }
 
 func (s apiServer) UpdateProduct(w http.ResponseWriter, r *http.Request, publicID api.PublicId) {
@@ -210,7 +225,7 @@ func normalizeProduct(body api.ProductWrite) (normalizedProduct, error) {
 	product := normalizedProduct{
 		kind: body.Kind, name: name, partNumber: nullableTrimmed(body.PartNumber), notes: nullableTrimmed(body.Notes),
 		processorSpec: body.ProcessorSpec, memorySpec: body.MemorySpec, driveSpec: body.DriveSpec,
-		rackSpec: body.RackSpec,
+		rackSpec: body.RackSpec, wifiSpec: body.WifiSpec,
 	}
 	if body.PortProfiles != nil {
 		product.portProfiles = append(product.portProfiles, (*body.PortProfiles)...)
@@ -229,6 +244,9 @@ func normalizeProduct(body api.ProductWrite) (normalizedProduct, error) {
 		specCount++
 	}
 	if body.RackSpec != nil {
+		specCount++
+	}
+	if body.WifiSpec != nil {
 		specCount++
 	}
 	switch body.Kind {
@@ -274,9 +292,30 @@ func normalizeProduct(body api.ProductWrite) (normalizedProduct, error) {
 		if body.RackSpec.RackUnits < 1 || body.RackSpec.MountingStandard == "" {
 			return normalizedProduct{}, errors.New("rackSpec requires positive rackUnits and mountingStandard")
 		}
-	case api.Router, api.Switch, api.AccessPoint, api.NetworkAdapter:
+	case api.Router, api.AccessPoint:
+		if specCount > 1 || (specCount == 1 && body.WifiSpec == nil) {
+			return normalizedProduct{}, errors.New("router and access point products allow only wifiSpec")
+		}
+	case api.Switch, api.NetworkAdapter:
 		if specCount != 0 {
 			return normalizedProduct{}, errors.New("network equipment products must not include a scalar specification")
+		}
+	}
+	if spec := product.wifiSpec; spec != nil {
+		spec.IeeeStandard = strings.TrimSpace(spec.IeeeStandard)
+		spec.Class = stringPointer(nullableTrimmed(spec.Class))
+		if spec.Generation < 1 || spec.IeeeStandard == "" || len(spec.Bands) == 0 {
+			return normalizedProduct{}, errors.New("wifiSpec needs a positive generation, IEEE standard, and at least one band")
+		}
+		if spec.MaxChannelWidthMHz != nil && *spec.MaxChannelWidthMHz < 1 {
+			return normalizedProduct{}, errors.New("wifiSpec maxChannelWidthMHz must be positive")
+		}
+		seen := make(map[api.WiFiBandSpecBandGHz]bool, len(spec.Bands))
+		for _, band := range spec.Bands {
+			if !band.BandGHz.Valid() || band.MaxLinkMbps < 1 || seen[band.BandGHz] {
+				return normalizedProduct{}, errors.New("wifiSpec bands must be unique, valid, and have positive link rates")
+			}
+			seen[band.BandGHz] = true
 		}
 	}
 	if body.Kind != api.Router && body.Kind != api.Switch && body.Kind != api.AccessPoint && body.Kind != api.NetworkAdapter && len(product.portProfiles) > 0 {
@@ -313,11 +352,27 @@ func insertProductSpec(ctx context.Context, queries *database.Queries, productID
 	switch product.kind {
 	case api.System:
 	case api.Router, api.Switch, api.AccessPoint, api.NetworkAdapter:
+		if spec := product.wifiSpec; spec != nil {
+			if _, err := queries.CreateWiFiSpec(ctx, database.CreateWiFiSpecParams{
+				ProductID: productID, Generation: int64(spec.Generation), IeeeStandard: spec.IeeeStandard,
+				WifiClass: nullableTrimmed(spec.Class), MaxChannelWidthMhz: nullInt(spec.MaxChannelWidthMHz),
+			}); err != nil {
+				return err
+			}
+			for _, band := range spec.Bands {
+				if err := queries.CreateWiFiBand(ctx, database.CreateWiFiBandParams{
+					ProductID: productID, BandGhz: string(band.BandGHz), MaxLinkMbps: int64(band.MaxLinkMbps),
+				}); err != nil {
+					return err
+				}
+			}
+		}
 	case api.Processor:
 		spec := product.processorSpec
 		_, err := queries.CreateProcessorSpec(ctx, database.CreateProcessorSpecParams{
 			ProductID: productID, CoreCount: int64(spec.CoreCount), ThreadCount: int64(spec.ThreadCount),
-			BaseClockMhz: nullInt(spec.BaseClockMhz), Virtualization: nullableTrimmed(spec.Virtualization),
+			BaseClockMhz: nullInt(spec.BaseClockMhz), Generation: nullableTrimmed(spec.Generation),
+			Codename: nullableTrimmed(spec.Codename), Virtualization: nullableTrimmed(spec.Virtualization),
 		})
 		if err != nil {
 			return err
@@ -371,6 +426,9 @@ func insertProductSpec(ctx context.Context, queries *database.Queries, productID
 }
 
 func deleteProductSpecs(ctx context.Context, queries *database.Queries, productID string) error {
+	if _, err := queries.DeleteWiFiSpec(ctx, productID); err != nil {
+		return err
+	}
 	if _, err := queries.DeleteProductLinks(ctx, productID); err != nil {
 		return err
 	}
@@ -390,33 +448,39 @@ func deleteProductSpecs(ctx context.Context, queries *database.Queries, productI
 	return err
 }
 
-func productDetailResponse(row database.GetProductByPublicIDRow, profiles []database.ProductPortProfile, links []database.ProductLink) api.Product {
+func productDetailResponse(row database.GetProductByPublicIDRow, profiles []database.ProductPortProfile, links []database.ProductLink, bands []database.WifiBandSpec) api.Product {
 	return productResponse(row.PublicID, row.ManufacturerPublicID, row.Kind, row.Name, row.PartNumber, row.Notes,
-		row.CoreCount, row.ThreadCount, row.BaseClockMhz, row.Virtualization,
+		row.CoreCount, row.ThreadCount, row.BaseClockMhz, row.Generation, row.Codename, row.Virtualization,
 		row.MemoryCapacityBytes, row.MemoryType, row.FormFactor, row.SpeedMts,
-		row.DriveCapacityBytes, row.MediaKind, row.InterfaceKind, row.RackUnits, row.MountingStandard, profiles, links)
+		row.DriveCapacityBytes, row.MediaKind, row.InterfaceKind, row.RackUnits, row.MountingStandard,
+		row.WifiGeneration, row.IeeeStandard, row.WifiClass, row.MaxChannelWidthMhz, profiles, links, bands)
 }
 
-func productListResponse(row database.ListProductDetailsRow, profiles []database.ProductPortProfile, links []database.ProductLink) api.Product {
+func productListResponse(row database.ListProductDetailsRow, profiles []database.ProductPortProfile, links []database.ProductLink, bands []database.WifiBandSpec) api.Product {
 	return productResponse(row.PublicID, row.ManufacturerPublicID, row.Kind, row.Name, row.PartNumber, row.Notes,
-		row.CoreCount, row.ThreadCount, row.BaseClockMhz, row.Virtualization,
+		row.CoreCount, row.ThreadCount, row.BaseClockMhz, row.Generation, row.Codename, row.Virtualization,
 		row.MemoryCapacityBytes, row.MemoryType, row.FormFactor, row.SpeedMts,
-		row.DriveCapacityBytes, row.MediaKind, row.InterfaceKind, row.RackUnits, row.MountingStandard, profiles, links)
+		row.DriveCapacityBytes, row.MediaKind, row.InterfaceKind, row.RackUnits, row.MountingStandard,
+		row.WifiGeneration, row.IeeeStandard, row.WifiClass, row.MaxChannelWidthMhz, profiles, links, bands)
 }
 
 func productResponse(
 	publicID, manufacturerPublicID, kind, name string,
 	partNumber, notes sql.NullString,
 	coreCount, threadCount, baseClockMhz sql.NullInt64,
-	virtualization sql.NullString,
+	generation, codename, virtualization sql.NullString,
 	memoryCapacity sql.NullInt64,
 	memoryType, formFactor sql.NullString,
 	speedMts, driveCapacity sql.NullInt64,
 	mediaKind, interfaceKind sql.NullString,
 	rackUnits sql.NullInt64,
 	mountingStandard sql.NullString,
+	wifiGeneration sql.NullInt64,
+	wifiStandard, wifiClass sql.NullString,
+	wifiMaxWidth sql.NullInt64,
 	profileRows []database.ProductPortProfile,
 	linkRows []database.ProductLink,
+	bandRows []database.WifiBandSpec,
 ) api.Product {
 	profiles := make([]api.PortProfile, 0, len(profileRows))
 	for _, profile := range profileRows {
@@ -436,7 +500,7 @@ func productResponse(
 	if coreCount.Valid {
 		product.ProcessorSpec = &api.ProcessorSpec{
 			CoreCount: int(coreCount.Int64), ThreadCount: int(threadCount.Int64), BaseClockMhz: intPointer(baseClockMhz),
-			Virtualization: stringPointer(virtualization),
+			Generation: stringPointer(generation), Codename: stringPointer(codename), Virtualization: stringPointer(virtualization),
 		}
 	}
 	if memoryCapacity.Valid {
@@ -453,6 +517,16 @@ func productResponse(
 	}
 	if rackUnits.Valid {
 		product.RackSpec = &api.RackSpec{RackUnits: int(rackUnits.Int64), MountingStandard: mountingStandard.String}
+	}
+	if wifiGeneration.Valid {
+		bands := make([]api.WiFiBandSpec, 0, len(bandRows))
+		for _, band := range bandRows {
+			bands = append(bands, api.WiFiBandSpec{BandGHz: api.WiFiBandSpecBandGHz(band.BandGhz), MaxLinkMbps: int(band.MaxLinkMbps)})
+		}
+		product.WifiSpec = &api.WiFiSpec{
+			Generation: int(wifiGeneration.Int64), IeeeStandard: wifiStandard.String,
+			Class: stringPointer(wifiClass), MaxChannelWidthMHz: intPointer(wifiMaxWidth), Bands: bands,
+		}
 	}
 	return product
 }

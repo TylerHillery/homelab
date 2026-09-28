@@ -19,7 +19,7 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 	})
 	root := createAPIResource(t, handler, "/api/v1/machines", map[string]any{
 		"machineProviderPublicId": providerID, "areaPublicId": area["publicId"], "name": "Badger",
-		"kind": "bare_metal", "hostname": "badger.lan", "operatingSystem": "Ubuntu", "cpuCount": 4,
+		"kind": "bare_metal", "hostname": "badger.lan", "operatingSystem": "Ubuntu", "cpuCount": 4, "cpuThreadCount": 8,
 		"memoryBytes": 8589934592, "storageBytes": 250000000000, "isFavorite": true,
 	})
 	rootID := root["publicId"].(string)
@@ -50,19 +50,21 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 		"networkPublicId": lan["publicId"], "machinePublicId": rootID, "address": "192.168.1.10",
 	})
 	tailnetAddress := createAPIResource(t, handler, "/api/v1/addresses", map[string]any{
-		"networkPublicId": tailnet["publicId"], "machinePublicId": rootID, "address": "100.64.0.10",
+		"networkPublicId": tailnet["publicId"], "machinePublicId": rootID, "address": "100.64.0.10", "dnsName": "badger.example.ts.net",
 	})
 	for _, endpoint := range []struct {
 		name      string
 		addressID any
 		preferred bool
+		hostType  string
 	}{
-		{name: "LAN", addressID: lanAddress["publicId"], preferred: true},
-		{name: "Tailnet", addressID: tailnetAddress["publicId"]},
+		{name: "LAN", addressID: lanAddress["publicId"], preferred: true, hostType: "ip"},
+		{name: "Tailnet DNS", addressID: tailnetAddress["publicId"], hostType: "dns"},
+		{name: "Tailnet IP", addressID: tailnetAddress["publicId"], hostType: "ip"},
 	} {
 		createAPIResource(t, handler, "/api/v1/instance-endpoints", map[string]any{
 			"instancePublicId": instance["publicId"], "addressPublicId": endpoint.addressID,
-			"name": endpoint.name, "scheme": "http", "port": 3000, "isPreferred": endpoint.preferred,
+			"name": endpoint.name, "scheme": "http", "port": 3000, "isPreferred": endpoint.preferred, "hostType": endpoint.hostType,
 		})
 	}
 
@@ -73,26 +75,32 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 		t.Fatalf("console did not render favorites: %s", body)
 	}
 	for _, expected := range []string{
-		"<!doctype html>", "HLIMS / Home Lab Information Management System", "Home", "Lab", "Information", "Management", "System", "Homelab", "Primary Home", "Badger", "Grafana",
-		`href="/badger/grafana/production"`, `hx-trigger="toggle once"`, "/console/static/htmx-4.0.0.min.js",
-		"/console/static/theme.js", "/console/static/favicon.svg", "data-theme-toggle",
+		"<!doctype html>", "HLIMS / Machine Topology", "<b>H</b>ome <b>L</b>ab <b>I</b>nformation <b>M</b>anagement <b>S</b>ystem", "Homelab", "Primary Home", "Badger", "Grafana",
+		`href="/badger/grafana/production" target="_blank" rel="noopener noreferrer"`, `hx-trigger="toggle once"`, "/console/static/htmx-4.0.0.min.js",
+		"/console/static/theme.js", "/console/static/route-menu.js", "/console/static/favicon.svg", "data-theme-toggle",
 		"expansion=all", "expansion=none", `class="provider-group"`,
 		"data-tooltip=\"Expand all\"", "/api/v1/machine-providers/" + providerID + "/logo",
 		"/api/v1/services/" + service["publicId"].(string) + "/logo",
 		`class="favorite-group"`, `class="favorite-machines"`, "2 machines",
 		`aria-label="Remove Badger from favorites"`, `aria-label="Remove Automation VM from favorites"`,
 		`hx-put="/console/machines/` + rootID + `/favorite?value=false"`,
-		`href="/badger/grafana/production?via=lan"`, `href="/badger/grafana/production?via=tailnet"`,
-		`aria-label="Choose route for Production"`,
+		`aria-label="Choose access path for Production"`,
 		`/console/static/reachability.js`,
 		`/console/static/copy-actions.js`, `data-copy-value="ssh admin@badger.lan"`,
 		`data-ssh-user="admin" data-ssh-host="badger.lan"`, `aria-label="Choose SSH user for Badger"`,
 		`data-ssh-user-option="admin"`, `data-ssh-user-option="guest"`, `aria-label="Choose SSH host for Badger"`,
-		`data-ssh-host-option="badger.lan"`, `data-ssh-host-option="192.168.1.10"`, `data-copy-value="ssh admin@badger.lan"`,
+		`data-ssh-host-option="badger.example.ts.net"`, `data-ssh-host-option="192.168.1.10"`, `data-copy-value="ssh admin@badger.lan"`,
 		`data-reachability-kind="instance" data-reachability-id="` + instance["publicId"].(string) + `" data-reachability-url="/badger/grafana/production"`,
-		`data-reachability-kind="route" data-reachability-id="` + instance["publicId"].(string) + `-lan" data-reachability-url="/badger/grafana/production?via=lan"`,
-		`data-reachability-kind="route" data-reachability-id="` + instance["publicId"].(string) + `-tailnet" data-reachability-url="/badger/grafana/production?via=tailnet"`,
+		`data-reachability-url="http://192.168.1.10:3000/"`,
+		`data-reachability-url="http://badger.example.ts.net:3000/"`,
 		`href="/api-docs/" target="_blank" rel="noopener"`,
+		`<details class="machine-addresses">`, `summary class="machine-addresses-label" aria-label="Network addresses for Badger"`, `class="machine-os machine-fact`, "192.168.1.10", "100.64.0.10", "badger.example.ts.net",
+		`data-copy-value="192.168.1.10" aria-label="Copy IP address 192.168.1.10"`,
+		`data-copy-value="badger.example.ts.net" aria-label="Copy DNS name badger.example.ts.net"`,
+		"Cores", "Threads", "Memory", "Storage",
+		`href="http://badger.example.ts.net:3000/" target="_blank" rel="noopener noreferrer"`,
+		`href="http://100.64.0.10:3000/" target="_blank" rel="noopener noreferrer"`,
+		`href="http://192.168.1.10:3000/" target="_blank" rel="noopener noreferrer"`,
 	} {
 		if !strings.Contains(body, expected) {
 			t.Errorf("console page does not contain %q", expected)
@@ -103,6 +111,12 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 	}
 	if strings.Contains(body, "machine-inspector") || strings.Contains(body, "inspect-action") {
 		t.Fatal("console still rendered the removed machine inspector")
+	}
+	if strings.Contains(body, "All access paths") || strings.Contains(body, "via lan") || strings.Contains(body, "via tailnet") {
+		t.Fatal("console rendered duplicate or ambiguous route menus")
+	}
+	if !strings.Contains(body, `<details class="machine-addresses">`) || strings.Contains(body, `<details class="machine-addresses" open`) {
+		t.Fatal("network addresses should use a closed, non-shifting details menu")
 	}
 	if strings.Contains(body, `data-reachability-kind="machine"`) {
 		t.Fatal("console rendered a Machine reachability indicator that browsers cannot verify")
@@ -156,6 +170,9 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 	assertStatus(t, children, http.StatusOK)
 	if !strings.Contains(children.Body.String(), child["name"].(string)) || !strings.Contains(children.Body.String(), "Hosted on") || !strings.Contains(children.Body.String(), "Badger") {
 		t.Fatalf("children fragment = %s", children.Body.String())
+	}
+	if strings.Contains(children.Body.String(), `class="machine-facts"`) {
+		t.Fatal("machine without recorded capacity should not render empty stat tiles")
 	}
 }
 

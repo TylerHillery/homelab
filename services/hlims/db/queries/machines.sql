@@ -18,6 +18,7 @@ insert into machines (
     kernel,
     architecture,
     cpu_count,
+    cpu_thread_count,
     cpu_allocation,
     cpu_vendor,
     memory_bytes,
@@ -29,7 +30,7 @@ insert into machines (
     notes
 )
 values (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 returning *;
 
@@ -60,6 +61,7 @@ select
     machines.kernel,
     machines.architecture,
     machines.cpu_count,
+    machines.cpu_thread_count,
     machines.cpu_allocation,
     machines.cpu_vendor,
     machines.memory_bytes,
@@ -109,6 +111,7 @@ select
     machines.kernel,
     machines.architecture,
     machines.cpu_count,
+    machines.cpu_thread_count,
     machines.cpu_allocation,
     machines.cpu_vendor,
     machines.memory_bytes,
@@ -150,6 +153,7 @@ set
     kernel = ?,
     architecture = ?,
     cpu_count = ?,
+    cpu_thread_count = ?,
     cpu_allocation = ?,
     cpu_vendor = ?,
     memory_bytes = ?,

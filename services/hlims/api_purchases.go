@@ -20,17 +20,21 @@ type normalizedPurchase struct {
 	currency        string
 	purchasedOn     sql.NullString
 	source          sql.NullString
+	orderReference  sql.NullString
 	notes           sql.NullString
 	assetPublicIDs  []string
 	assetIDs        []string
 	links           []api.PurchaseLink
+	lines           []api.PurchaseLine
 }
 
 type purchaseWriteRequest struct {
 	AssetPublicIds  []api.PublicId      `json:"assetPublicIds"`
 	Currency        string              `json:"currency"`
 	Links           *[]api.PurchaseLink `json:"links,omitempty"`
+	Lines           *[]api.PurchaseLine `json:"lines,omitempty"`
 	Notes           *string             `json:"notes,omitempty"`
+	OrderReference  *string             `json:"orderReference,omitempty"`
 	PurchasedOn     *openapi_types.Date `json:"purchasedOn,omitempty"`
 	Source          *string             `json:"source,omitempty"`
 	TotalPriceCents *int64              `json:"totalPriceCents"`
@@ -59,6 +63,11 @@ func (s apiServer) ListPurchases(w http.ResponseWriter, r *http.Request) {
 		writeDatabaseError(w, err)
 		return
 	}
+	lineRows, err := queries.ListPurchaseLines(r.Context())
+	if err != nil {
+		writeDatabaseError(w, err)
+		return
+	}
 	assetsByPurchase := make(map[string][]string)
 	for _, asset := range assetRows {
 		assetsByPurchase[asset.PurchaseID] = append(assetsByPurchase[asset.PurchaseID], asset.AssetPublicID)
@@ -67,9 +76,13 @@ func (s apiServer) ListPurchases(w http.ResponseWriter, r *http.Request) {
 	for _, link := range linkRows {
 		linksByPurchase[link.PurchaseID] = append(linksByPurchase[link.PurchaseID], link)
 	}
+	linesByPurchase := make(map[string][]api.PurchaseLine)
+	for _, line := range lineRows {
+		linesByPurchase[line.PurchaseID] = append(linesByPurchase[line.PurchaseID], purchaseLineResponse(line.ProductPublicID, line.Description, line.Quantity, line.SubtotalCents, line.IncludeInHomelabTotal))
+	}
 	items := make([]api.Purchase, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, purchaseResponse(row, assetsByPurchase[row.ID], linksByPurchase[row.ID]))
+		items = append(items, purchaseResponse(row, assetsByPurchase[row.ID], linksByPurchase[row.ID], linesByPurchase[row.ID]))
 	}
 	if err := tx.Commit(); err != nil {
 		writeDatabaseError(w, err)
@@ -110,7 +123,7 @@ func (s apiServer) CreatePurchase(w http.ResponseWriter, r *http.Request) {
 	row, err := queries.CreatePurchase(r.Context(), database.CreatePurchaseParams{
 		ID: id, PublicID: publicID, PrimaryAssetID: purchase.assetIDs[0],
 		TotalPriceCents: purchase.totalPriceCents, Currency: purchase.currency,
-		PurchasedOn: purchase.purchasedOn, Source: purchase.source, Notes: purchase.notes,
+		PurchasedOn: purchase.purchasedOn, Source: purchase.source, OrderReference: purchase.orderReference, Notes: purchase.notes,
 	})
 	if err == nil {
 		err = insertPurchaseChildren(r.Context(), queries, row.ID, purchase)
@@ -152,11 +165,20 @@ func (s apiServer) writePurchase(w http.ResponseWriter, r *http.Request, publicI
 		writeDatabaseError(w, err)
 		return
 	}
+	lineRows, err := queries.ListPurchaseLinesByPurchaseID(r.Context(), row.ID)
+	if err != nil {
+		writeDatabaseError(w, err)
+		return
+	}
+	lines := make([]api.PurchaseLine, 0, len(lineRows))
+	for _, line := range lineRows {
+		lines = append(lines, purchaseLineResponse(line.ProductPublicID, line.Description, line.Quantity, line.SubtotalCents, line.IncludeInHomelabTotal))
+	}
 	if err := tx.Commit(); err != nil {
 		writeDatabaseError(w, err)
 		return
 	}
-	writeJSON(w, status, purchaseResponse(row, assets, links))
+	writeJSON(w, status, purchaseResponse(row, assets, links, lines))
 }
 
 func (s apiServer) UpdatePurchase(w http.ResponseWriter, r *http.Request, publicID api.PublicId) {
@@ -186,13 +208,16 @@ func (s apiServer) UpdatePurchase(w http.ResponseWriter, r *http.Request, public
 		writeDatabaseError(w, err)
 		return
 	}
-	if _, err = queries.DeletePurchaseLinks(r.Context(), existing.ID); err == nil {
+	if _, err = queries.DeletePurchaseLines(r.Context(), existing.ID); err == nil {
+		_, err = queries.DeletePurchaseLinks(r.Context(), existing.ID)
+	}
+	if err == nil {
 		_, err = queries.DeletePurchaseAssets(r.Context(), existing.ID)
 	}
 	if err == nil {
 		_, err = queries.UpdatePurchase(r.Context(), database.UpdatePurchaseParams{
 			TotalPriceCents: purchase.totalPriceCents, PrimaryAssetID: purchase.assetIDs[0], Currency: purchase.currency,
-			PurchasedOn: purchase.purchasedOn, Source: purchase.source, Notes: purchase.notes, PublicID: publicID,
+			PurchasedOn: purchase.purchasedOn, Source: purchase.source, OrderReference: purchase.orderReference, Notes: purchase.notes, PublicID: publicID,
 		})
 	}
 	if err == nil {
@@ -262,9 +287,42 @@ func normalizePurchase(body purchaseWriteRequest) (normalizedPurchase, error) {
 		}
 		seenURLs[link.Url] = struct{}{}
 	}
+	lines := []api.PurchaseLine{}
+	if body.Lines != nil {
+		lines = append(lines, (*body.Lines)...)
+	}
+	var trackedTotal int64
+	allPriced := true
+	for index := range lines {
+		line := &lines[index]
+		line.Description = strings.TrimSpace(line.Description)
+		if line.IncludeInHomelabTotal == nil {
+			included := true
+			line.IncludeInHomelabTotal = &included
+		}
+		if line.Description == "" || line.Quantity < 1 {
+			return normalizedPurchase{}, errors.New("purchase lines require a description and positive quantity")
+		}
+		if line.SubtotalCents == nil {
+			allPriced = false
+			continue
+		}
+		if *line.SubtotalCents < 0 || *line.SubtotalCents > math.MaxInt64-trackedTotal {
+			return normalizedPurchase{}, errors.New("purchase line subtotal must be nonnegative and within range")
+		}
+		trackedTotal += *line.SubtotalCents
+	}
+	if allPriced && trackedTotal > *body.TotalPriceCents {
+		return normalizedPurchase{}, errors.New("tracked line subtotals cannot exceed the order total")
+	}
+	source := nullableTrimmed(body.Source)
+	orderReference := nullableTrimmed(body.OrderReference)
+	if orderReference.Valid && !source.Valid {
+		return normalizedPurchase{}, errors.New("orderReference requires source")
+	}
 	purchase := normalizedPurchase{
 		totalPriceCents: *body.TotalPriceCents, currency: currency, assetPublicIDs: assetPublicIDs,
-		source: nullableTrimmed(body.Source), notes: nullableTrimmed(body.Notes), links: links,
+		source: source, orderReference: orderReference, notes: nullableTrimmed(body.Notes), links: links, lines: lines,
 	}
 	if body.PurchasedOn != nil {
 		purchase.purchasedOn = sql.NullString{String: body.PurchasedOn.Format(time.DateOnly), Valid: true}
@@ -286,6 +344,23 @@ func insertPurchaseChildren(ctx context.Context, queries *database.Queries, purc
 			return err
 		}
 	}
+	for position, line := range purchase.lines {
+		var productID sql.NullString
+		if line.ProductPublicId != nil {
+			product, err := queries.GetProductByPublicID(ctx, *line.ProductPublicId)
+			if err != nil {
+				return err
+			}
+			productID = sql.NullString{String: product.ID, Valid: true}
+		}
+		if err := queries.CreatePurchaseLine(ctx, database.CreatePurchaseLineParams{
+			PurchaseID: purchaseID, Position: int64(position), ProductID: productID,
+			Description: line.Description, Quantity: int64(line.Quantity), SubtotalCents: nullInt64(line.SubtotalCents),
+			IncludeInHomelabTotal: boolInt(line.IncludeInHomelabTotal),
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -301,14 +376,48 @@ func resolvePurchaseAssets(ctx context.Context, queries *database.Queries, publi
 	return assetIDs, nil
 }
 
-func purchaseResponse(row database.Purchase, assetPublicIDs []string, linkRows []database.PurchaseLink) api.Purchase {
+func purchaseLineResponse(productID sql.NullString, description string, quantity int64, subtotal sql.NullInt64, included int64) api.PurchaseLine {
+	isIncluded := included == 1
+	return api.PurchaseLine{ProductPublicId: stringPointer(productID), Description: description, Quantity: int(quantity), SubtotalCents: int64Pointer(subtotal), IncludeInHomelabTotal: &isIncluded}
+}
+
+func purchaseResponse(row database.Purchase, assetPublicIDs []string, linkRows []database.PurchaseLink, lineRows []api.PurchaseLine) api.Purchase {
 	links := make([]api.PurchaseLink, 0, len(linkRows))
 	for _, link := range linkRows {
 		links = append(links, api.PurchaseLink{Kind: api.PurchaseLinkKind(link.Kind), Label: stringPointer(link.Label), Url: link.Url})
 	}
 	purchase := api.Purchase{
 		PublicId: row.PublicID, AssetPublicIds: assetPublicIDs, TotalPriceCents: row.TotalPriceCents,
-		Currency: row.Currency, Source: stringPointer(row.Source), Notes: stringPointer(row.Notes), Links: &links,
+		Currency: row.Currency, Source: stringPointer(row.Source), OrderReference: stringPointer(row.OrderReference),
+		Notes: stringPointer(row.Notes), Links: &links,
+	}
+	lines := append([]api.PurchaseLine{}, lineRows...)
+	purchase.Lines = &lines
+	if len(lines) > 0 {
+		var trackedTotal int64
+		var homelabTotal int64
+		complete := true
+		homelabComplete := true
+		for _, line := range lines {
+			included := line.IncludeInHomelabTotal == nil || *line.IncludeInHomelabTotal
+			if line.SubtotalCents == nil {
+				complete = false
+				if included {
+					homelabComplete = false
+				}
+				continue
+			}
+			trackedTotal += *line.SubtotalCents
+			if included {
+				homelabTotal += *line.SubtotalCents
+			}
+		}
+		if complete {
+			purchase.TrackedSubtotalCents = &trackedTotal
+		}
+		if homelabComplete {
+			purchase.HomelabSubtotalCents = &homelabTotal
+		}
 	}
 	if row.PurchasedOn.Valid {
 		parsed, _ := time.Parse(time.DateOnly, row.PurchasedOn.String)

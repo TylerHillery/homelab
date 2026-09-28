@@ -12,16 +12,25 @@ order by name;
 -- name: GetPreferredInstanceEndpoint :one
 select
     addresses.address,
-    addresses.dns_name,
     networks.kind as network_kind,
     instance_endpoints.scheme,
     instance_endpoints.port,
-    instance_endpoints.base_path
+    instance_endpoints.host_type,
+    instance_endpoints.base_path,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )             as dns_name
 from instances
 inner join services on instances.service_id = services.id
 inner join machines on instances.machine_id = machines.id
 inner join instance_endpoints on instances.id = instance_endpoints.instance_id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
 inner join networks on addresses.network_id = networks.id
 where
     machines.slug = @machine_slug
@@ -33,16 +42,25 @@ limit 1;
 -- name: GetInstanceEndpointByNetworkKind :one
 select
     addresses.address,
-    addresses.dns_name,
     networks.kind as network_kind,
     instance_endpoints.scheme,
     instance_endpoints.port,
-    instance_endpoints.base_path
+    instance_endpoints.host_type,
+    instance_endpoints.base_path,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )             as dns_name
 from instances
 inner join services on instances.service_id = services.id
 inner join machines on instances.machine_id = machines.id
 inner join instance_endpoints on instances.id = instance_endpoints.instance_id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
 inner join networks on addresses.network_id = networks.id
 where
     machines.slug = @machine_slug

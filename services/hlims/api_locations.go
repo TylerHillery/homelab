@@ -149,7 +149,7 @@ func machineDetailResponse(row database.GetMachineByPublicIDRow) api.Machine {
 		isFavorite: row.IsFavorite,
 		hostname:   row.Hostname, osMachineID: row.OsMachineID, operatingSystem: row.OperatingSystem,
 		operatingSystemVersion: row.OperatingSystemVersion, kernel: row.Kernel, architecture: row.Architecture,
-		cpuCount: row.CpuCount, cpuAllocation: row.CpuAllocation, cpuVendor: row.CpuVendor,
+		cpuCount: row.CpuCount, cpuThreadCount: row.CpuThreadCount, cpuAllocation: row.CpuAllocation, cpuVendor: row.CpuVendor,
 		memoryBytes: row.MemoryBytes, storageBytes: row.StorageBytes, storageMediaKind: row.StorageMediaKind,
 		storageInterfaceKind: row.StorageInterfaceKind, estimatedMonthlyCostCents: row.EstimatedMonthlyCostCents,
 		costCurrency: row.CostCurrency, notes: row.Notes,
@@ -204,6 +204,7 @@ type normalizedMachineValues struct {
 	kernel                    sql.NullString
 	architecture              sql.NullString
 	cpuCount                  sql.NullInt64
+	cpuThreadCount            sql.NullInt64
 	cpuAllocation             sql.NullString
 	cpuVendor                 sql.NullString
 	memoryBytes               sql.NullInt64
@@ -235,7 +236,7 @@ func (s apiServer) normalizedMachine(ctx context.Context, body api.MachineWrite,
 		virtualizationPlatform: nullableTrimmed(body.VirtualizationPlatform),
 		osMachineID:            nullableLower(body.OsMachineId), operatingSystem: nullableTrimmed(body.OperatingSystem),
 		operatingSystemVersion: nullableTrimmed(body.OperatingSystemVersion), kernel: nullableTrimmed(body.Kernel),
-		architecture: nullableLower(body.Architecture), cpuCount: nullInt(body.CpuCount),
+		architecture: nullableLower(body.Architecture), cpuCount: nullInt(body.CpuCount), cpuThreadCount: nullInt(body.CpuThreadCount),
 		cpuAllocation: nullableEnum(body.CpuAllocation), cpuVendor: nullableTrimmed(body.CpuVendor),
 		memoryBytes: nullInt64(body.MemoryBytes), storageBytes: nullInt64(body.StorageBytes),
 		storageMediaKind: nullableEnum(body.StorageMediaKind), storageInterfaceKind: nullableEnum(body.StorageInterfaceKind),
@@ -244,6 +245,9 @@ func (s apiServer) normalizedMachine(ctx context.Context, body api.MachineWrite,
 	}
 	if body.CpuCount != nil && *body.CpuCount < 1 {
 		return normalizedMachineValues{}, errors.New("cpuCount must be positive")
+	}
+	if body.CpuThreadCount != nil && *body.CpuThreadCount < 1 {
+		return normalizedMachineValues{}, errors.New("cpuThreadCount must be positive")
 	}
 	if body.CpuAllocation != nil && !body.CpuAllocation.Valid() {
 		return normalizedMachineValues{}, errors.New("cpuAllocation must be shared or dedicated")
@@ -320,7 +324,7 @@ func (v normalizedMachineValues) createParams(id, publicID, name, slug string) d
 		IsFavorite:             v.isFavorite,
 		VirtualizationPlatform: v.virtualizationPlatform, Hostname: v.hostname, OsMachineID: v.osMachineID,
 		OperatingSystem: v.operatingSystem, OperatingSystemVersion: v.operatingSystemVersion,
-		Kernel: v.kernel, Architecture: v.architecture, CpuCount: v.cpuCount, CpuAllocation: v.cpuAllocation,
+		Kernel: v.kernel, Architecture: v.architecture, CpuCount: v.cpuCount, CpuThreadCount: v.cpuThreadCount, CpuAllocation: v.cpuAllocation,
 		CpuVendor: v.cpuVendor, MemoryBytes: v.memoryBytes, StorageBytes: v.storageBytes,
 		StorageMediaKind: v.storageMediaKind, StorageInterfaceKind: v.storageInterfaceKind,
 		EstimatedMonthlyCostCents: v.estimatedMonthlyCostCents, CostCurrency: v.costCurrency, Notes: v.notes,
@@ -334,7 +338,7 @@ func (v normalizedMachineValues) updateParams(publicID, name, slug string) datab
 		IsFavorite: v.isFavorite,
 		Hostname:   v.hostname, OsMachineID: v.osMachineID, OperatingSystem: v.operatingSystem,
 		OperatingSystemVersion: v.operatingSystemVersion, Kernel: v.kernel, Architecture: v.architecture,
-		CpuCount: v.cpuCount, CpuAllocation: v.cpuAllocation, CpuVendor: v.cpuVendor,
+		CpuCount: v.cpuCount, CpuThreadCount: v.cpuThreadCount, CpuAllocation: v.cpuAllocation, CpuVendor: v.cpuVendor,
 		MemoryBytes: v.memoryBytes, StorageBytes: v.storageBytes, StorageMediaKind: v.storageMediaKind,
 		StorageInterfaceKind: v.storageInterfaceKind, EstimatedMonthlyCostCents: v.estimatedMonthlyCostCents,
 		CostCurrency: v.costCurrency, Notes: v.notes, PublicID: publicID,
@@ -349,7 +353,7 @@ type machineRecord struct {
 	virtualizationPlatform, hostname, osMachineID   sql.NullString
 	operatingSystem, operatingSystemVersion         sql.NullString
 	kernel, architecture                            sql.NullString
-	cpuCount                                        sql.NullInt64
+	cpuCount, cpuThreadCount                        sql.NullInt64
 	cpuAllocation, cpuVendor                        sql.NullString
 	memoryBytes, storageBytes                       sql.NullInt64
 	storageMediaKind, storageInterfaceKind          sql.NullString
@@ -365,7 +369,7 @@ func machineListResponse(row database.ListMachineDetailsRow) api.Machine {
 		isFavorite: row.IsFavorite,
 		hostname:   row.Hostname, osMachineID: row.OsMachineID, operatingSystem: row.OperatingSystem,
 		operatingSystemVersion: row.OperatingSystemVersion, kernel: row.Kernel, architecture: row.Architecture,
-		cpuCount: row.CpuCount, cpuAllocation: row.CpuAllocation, cpuVendor: row.CpuVendor,
+		cpuCount: row.CpuCount, cpuThreadCount: row.CpuThreadCount, cpuAllocation: row.CpuAllocation, cpuVendor: row.CpuVendor,
 		memoryBytes: row.MemoryBytes, storageBytes: row.StorageBytes, storageMediaKind: row.StorageMediaKind,
 		storageInterfaceKind: row.StorageInterfaceKind, estimatedMonthlyCostCents: row.EstimatedMonthlyCostCents,
 		costCurrency: row.CostCurrency, notes: row.Notes,
@@ -380,7 +384,7 @@ func machineResponse(row machineRecord) api.Machine {
 		VirtualizationPlatform: stringPointer(row.virtualizationPlatform), Hostname: stringPointer(row.hostname),
 		OsMachineId: stringPointer(row.osMachineID), OperatingSystem: stringPointer(row.operatingSystem),
 		OperatingSystemVersion: stringPointer(row.operatingSystemVersion), Kernel: stringPointer(row.kernel),
-		Architecture: stringPointer(row.architecture), CpuCount: intPointer(row.cpuCount),
+		Architecture: stringPointer(row.architecture), CpuCount: intPointer(row.cpuCount), CpuThreadCount: intPointer(row.cpuThreadCount),
 		CpuAllocation: cpuAllocationPointer(row.cpuAllocation), CpuVendor: stringPointer(row.cpuVendor),
 		MemoryBytes: int64Pointer(row.memoryBytes), StorageBytes: int64Pointer(row.storageBytes),
 		StorageMediaKind:          storageMediaPointer(row.storageMediaKind),

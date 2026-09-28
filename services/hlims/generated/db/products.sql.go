@@ -79,10 +79,10 @@ func (q *Queries) CreateMemorySpec(ctx context.Context, arg CreateMemorySpecPara
 
 const createProcessorSpec = `-- name: CreateProcessorSpec :one
 insert into processor_specs (
-    product_id, core_count, thread_count, base_clock_mhz, virtualization
+    product_id, core_count, thread_count, base_clock_mhz, generation, codename, virtualization
 )
-values (?, ?, ?, ?, ?)
-returning product_id, core_count, thread_count, base_clock_mhz, virtualization
+values (?, ?, ?, ?, ?, ?, ?)
+returning product_id, core_count, thread_count, base_clock_mhz, generation, codename, virtualization
 `
 
 type CreateProcessorSpecParams struct {
@@ -90,6 +90,8 @@ type CreateProcessorSpecParams struct {
 	CoreCount      int64          `json:"core_count"`
 	ThreadCount    int64          `json:"thread_count"`
 	BaseClockMhz   sql.NullInt64  `json:"base_clock_mhz"`
+	Generation     sql.NullString `json:"generation"`
+	Codename       sql.NullString `json:"codename"`
 	Virtualization sql.NullString `json:"virtualization"`
 }
 
@@ -99,6 +101,8 @@ func (q *Queries) CreateProcessorSpec(ctx context.Context, arg CreateProcessorSp
 		arg.CoreCount,
 		arg.ThreadCount,
 		arg.BaseClockMhz,
+		arg.Generation,
+		arg.Codename,
 		arg.Virtualization,
 	)
 	var i ProcessorSpec
@@ -107,6 +111,8 @@ func (q *Queries) CreateProcessorSpec(ctx context.Context, arg CreateProcessorSp
 		&i.CoreCount,
 		&i.ThreadCount,
 		&i.BaseClockMhz,
+		&i.Generation,
+		&i.Codename,
 		&i.Virtualization,
 	)
 	return i, err
@@ -245,6 +251,55 @@ func (q *Queries) CreateRackSpec(ctx context.Context, arg CreateRackSpecParams) 
 	return i, err
 }
 
+const createWiFiBand = `-- name: CreateWiFiBand :exec
+insert into wifi_band_specs (product_id, band_ghz, max_link_mbps)
+values (?, ?, ?)
+`
+
+type CreateWiFiBandParams struct {
+	ProductID   string `json:"product_id"`
+	BandGhz     string `json:"band_ghz"`
+	MaxLinkMbps int64  `json:"max_link_mbps"`
+}
+
+func (q *Queries) CreateWiFiBand(ctx context.Context, arg CreateWiFiBandParams) error {
+	_, err := q.db.ExecContext(ctx, createWiFiBand, arg.ProductID, arg.BandGhz, arg.MaxLinkMbps)
+	return err
+}
+
+const createWiFiSpec = `-- name: CreateWiFiSpec :one
+insert into wifi_specs (product_id, generation, ieee_standard, wifi_class, max_channel_width_mhz)
+values (?, ?, ?, ?, ?)
+returning product_id, generation, ieee_standard, wifi_class, max_channel_width_mhz
+`
+
+type CreateWiFiSpecParams struct {
+	ProductID          string         `json:"product_id"`
+	Generation         int64          `json:"generation"`
+	IeeeStandard       string         `json:"ieee_standard"`
+	WifiClass          sql.NullString `json:"wifi_class"`
+	MaxChannelWidthMhz sql.NullInt64  `json:"max_channel_width_mhz"`
+}
+
+func (q *Queries) CreateWiFiSpec(ctx context.Context, arg CreateWiFiSpecParams) (WifiSpec, error) {
+	row := q.db.QueryRowContext(ctx, createWiFiSpec,
+		arg.ProductID,
+		arg.Generation,
+		arg.IeeeStandard,
+		arg.WifiClass,
+		arg.MaxChannelWidthMhz,
+	)
+	var i WifiSpec
+	err := row.Scan(
+		&i.ProductID,
+		&i.Generation,
+		&i.IeeeStandard,
+		&i.WifiClass,
+		&i.MaxChannelWidthMhz,
+	)
+	return i, err
+}
+
 const deleteDriveSpec = `-- name: DeleteDriveSpec :execrows
 delete from drive_specs
 where product_id = ?
@@ -336,6 +391,19 @@ func (q *Queries) DeleteRackSpec(ctx context.Context, productID string) (int64, 
 	return result.RowsAffected()
 }
 
+const deleteWiFiSpec = `-- name: DeleteWiFiSpec :execrows
+delete from wifi_specs
+where product_id = ?
+`
+
+func (q *Queries) DeleteWiFiSpec(ctx context.Context, productID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteWiFiSpec, productID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getProductByPublicID = `-- name: GetProductByPublicID :one
 select
     products.id,
@@ -351,6 +419,8 @@ select
     processor_specs.core_count,
     processor_specs.thread_count,
     processor_specs.base_clock_mhz,
+    processor_specs.generation,
+    processor_specs.codename,
     processor_specs.virtualization,
     memory_specs.capacity_bytes as memory_capacity_bytes,
     memory_specs.memory_type,
@@ -360,13 +430,18 @@ select
     drive_specs.media_kind,
     drive_specs.interface_kind,
     rack_specs.rack_units,
-    rack_specs.mounting_standard
+    rack_specs.mounting_standard,
+    wifi_specs.generation       as wifi_generation,
+    wifi_specs.ieee_standard,
+    wifi_specs.wifi_class,
+    wifi_specs.max_channel_width_mhz
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
 left join rack_specs on products.id = rack_specs.product_id
+left join wifi_specs on products.id = wifi_specs.product_id
 where products.public_id = ?
 `
 
@@ -384,6 +459,8 @@ type GetProductByPublicIDRow struct {
 	CoreCount            sql.NullInt64  `json:"core_count"`
 	ThreadCount          sql.NullInt64  `json:"thread_count"`
 	BaseClockMhz         sql.NullInt64  `json:"base_clock_mhz"`
+	Generation           sql.NullString `json:"generation"`
+	Codename             sql.NullString `json:"codename"`
 	Virtualization       sql.NullString `json:"virtualization"`
 	MemoryCapacityBytes  sql.NullInt64  `json:"memory_capacity_bytes"`
 	MemoryType           sql.NullString `json:"memory_type"`
@@ -394,6 +471,10 @@ type GetProductByPublicIDRow struct {
 	InterfaceKind        sql.NullString `json:"interface_kind"`
 	RackUnits            sql.NullInt64  `json:"rack_units"`
 	MountingStandard     sql.NullString `json:"mounting_standard"`
+	WifiGeneration       sql.NullInt64  `json:"wifi_generation"`
+	IeeeStandard         sql.NullString `json:"ieee_standard"`
+	WifiClass            sql.NullString `json:"wifi_class"`
+	MaxChannelWidthMhz   sql.NullInt64  `json:"max_channel_width_mhz"`
 }
 
 func (q *Queries) GetProductByPublicID(ctx context.Context, publicID string) (GetProductByPublicIDRow, error) {
@@ -413,6 +494,8 @@ func (q *Queries) GetProductByPublicID(ctx context.Context, publicID string) (Ge
 		&i.CoreCount,
 		&i.ThreadCount,
 		&i.BaseClockMhz,
+		&i.Generation,
+		&i.Codename,
 		&i.Virtualization,
 		&i.MemoryCapacityBytes,
 		&i.MemoryType,
@@ -423,6 +506,10 @@ func (q *Queries) GetProductByPublicID(ctx context.Context, publicID string) (Ge
 		&i.InterfaceKind,
 		&i.RackUnits,
 		&i.MountingStandard,
+		&i.WifiGeneration,
+		&i.IeeeStandard,
+		&i.WifiClass,
+		&i.MaxChannelWidthMhz,
 	)
 	return i, err
 }
@@ -442,6 +529,8 @@ select
     processor_specs.core_count,
     processor_specs.thread_count,
     processor_specs.base_clock_mhz,
+    processor_specs.generation,
+    processor_specs.codename,
     processor_specs.virtualization,
     memory_specs.capacity_bytes as memory_capacity_bytes,
     memory_specs.memory_type,
@@ -451,13 +540,18 @@ select
     drive_specs.media_kind,
     drive_specs.interface_kind,
     rack_specs.rack_units,
-    rack_specs.mounting_standard
+    rack_specs.mounting_standard,
+    wifi_specs.generation       as wifi_generation,
+    wifi_specs.ieee_standard,
+    wifi_specs.wifi_class,
+    wifi_specs.max_channel_width_mhz
 from products
 inner join manufacturers on products.manufacturer_id = manufacturers.id
 left join processor_specs on products.id = processor_specs.product_id
 left join memory_specs on products.id = memory_specs.product_id
 left join drive_specs on products.id = drive_specs.product_id
 left join rack_specs on products.id = rack_specs.product_id
+left join wifi_specs on products.id = wifi_specs.product_id
 order by manufacturers.name, products.name
 `
 
@@ -475,6 +569,8 @@ type ListProductDetailsRow struct {
 	CoreCount            sql.NullInt64  `json:"core_count"`
 	ThreadCount          sql.NullInt64  `json:"thread_count"`
 	BaseClockMhz         sql.NullInt64  `json:"base_clock_mhz"`
+	Generation           sql.NullString `json:"generation"`
+	Codename             sql.NullString `json:"codename"`
 	Virtualization       sql.NullString `json:"virtualization"`
 	MemoryCapacityBytes  sql.NullInt64  `json:"memory_capacity_bytes"`
 	MemoryType           sql.NullString `json:"memory_type"`
@@ -485,6 +581,10 @@ type ListProductDetailsRow struct {
 	InterfaceKind        sql.NullString `json:"interface_kind"`
 	RackUnits            sql.NullInt64  `json:"rack_units"`
 	MountingStandard     sql.NullString `json:"mounting_standard"`
+	WifiGeneration       sql.NullInt64  `json:"wifi_generation"`
+	IeeeStandard         sql.NullString `json:"ieee_standard"`
+	WifiClass            sql.NullString `json:"wifi_class"`
+	MaxChannelWidthMhz   sql.NullInt64  `json:"max_channel_width_mhz"`
 }
 
 func (q *Queries) ListProductDetails(ctx context.Context) ([]ListProductDetailsRow, error) {
@@ -510,6 +610,8 @@ func (q *Queries) ListProductDetails(ctx context.Context) ([]ListProductDetailsR
 			&i.CoreCount,
 			&i.ThreadCount,
 			&i.BaseClockMhz,
+			&i.Generation,
+			&i.Codename,
 			&i.Virtualization,
 			&i.MemoryCapacityBytes,
 			&i.MemoryType,
@@ -520,6 +622,10 @@ func (q *Queries) ListProductDetails(ctx context.Context) ([]ListProductDetailsR
 			&i.InterfaceKind,
 			&i.RackUnits,
 			&i.MountingStandard,
+			&i.WifiGeneration,
+			&i.IeeeStandard,
+			&i.WifiClass,
+			&i.MaxChannelWidthMhz,
 		); err != nil {
 			return nil, err
 		}
@@ -687,6 +793,71 @@ func (q *Queries) ListProductPortProfilesByProductID(ctx context.Context, produc
 			&i.Connector,
 			&i.SpeedMbps,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWiFiBands = `-- name: ListWiFiBands :many
+select
+    product_id,
+    band_ghz,
+    max_link_mbps
+from wifi_band_specs
+order by product_id, band_ghz
+`
+
+func (q *Queries) ListWiFiBands(ctx context.Context) ([]WifiBandSpec, error) {
+	rows, err := q.db.QueryContext(ctx, listWiFiBands)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WifiBandSpec{}
+	for rows.Next() {
+		var i WifiBandSpec
+		if err := rows.Scan(&i.ProductID, &i.BandGhz, &i.MaxLinkMbps); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWiFiBandsByProductID = `-- name: ListWiFiBandsByProductID :many
+select
+    product_id,
+    band_ghz,
+    max_link_mbps
+from wifi_band_specs
+where product_id = ?
+order by band_ghz
+`
+
+func (q *Queries) ListWiFiBandsByProductID(ctx context.Context, productID string) ([]WifiBandSpec, error) {
+	rows, err := q.db.QueryContext(ctx, listWiFiBandsByProductID, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WifiBandSpec{}
+	for rows.Next() {
+		var i WifiBandSpec
+		if err := rows.Scan(&i.ProductID, &i.BandGhz, &i.MaxLinkMbps); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

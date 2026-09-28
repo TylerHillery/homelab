@@ -206,23 +206,27 @@ insert into instance_endpoints (
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes,
     created_at,
@@ -235,15 +239,18 @@ select
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
+    instance_endpoints.host_type,
     instance_endpoints.is_preferred,
     instance_endpoints.notes,
     instance_endpoints.created_at,
     instance_endpoints.updated_at,
-    instances.public_id as instance_public_id,
-    addresses.public_id as address_public_id
+    instances.public_id   as instance_public_id,
+    addresses.public_id   as address_public_id,
+    dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 where instance_endpoints.public_id = ?;
 
 -- name: ListInstanceEndpoints :many
@@ -253,26 +260,59 @@ select
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
+    instance_endpoints.host_type,
     instance_endpoints.is_preferred,
     instance_endpoints.notes,
     instance_endpoints.created_at,
     instance_endpoints.updated_at,
-    instances.public_id as instance_public_id,
-    addresses.public_id as address_public_id
+    instances.public_id   as instance_public_id,
+    addresses.public_id   as address_public_id,
+    dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 order by instances.name, instance_endpoints.name;
+
+-- name: ListTopologyInstanceEndpoints :many
+select
+    instance_endpoints.public_id,
+    instances.public_id   as instance_public_id,
+    instance_endpoints.name,
+    instance_endpoints.scheme,
+    instance_endpoints.port,
+    instance_endpoints.base_path,
+    instance_endpoints.host_type,
+    instance_endpoints.is_preferred,
+    addresses.address,
+    dns_records.public_id as dns_record_public_id,
+    networks.kind         as network_kind,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )                     as dns_name
+from instance_endpoints
+inner join instances on instance_endpoints.instance_id = instances.id
+inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
+inner join networks on addresses.network_id = networks.id
+order by instances.public_id asc, instance_endpoints.is_preferred desc, instance_endpoints.name asc;
 
 -- name: UpdateInstanceEndpoint :one
 update instance_endpoints
 set
     instance_id = ?,
     address_id = ?,
+    dns_record_id = ?,
     name = ?,
     scheme = ?,
     port = ?,
     base_path = ?,
+    host_type = ?,
     is_preferred = ?,
     notes = ?,
     updated_at = strftime('%s', 'now')
@@ -282,10 +322,12 @@ returning
     public_id,
     instance_id,
     address_id,
+    dns_record_id,
     name,
     scheme,
     port,
     base_path,
+    host_type,
     is_preferred,
     notes,
     created_at,

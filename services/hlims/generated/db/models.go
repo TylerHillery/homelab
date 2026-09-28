@@ -59,11 +59,39 @@ type AssetLink struct {
 	Url      string         `json:"url"`
 }
 
+type DnsRecord struct {
+	ID        string `json:"id"`
+	PublicID  string `json:"public_id"`
+	ZoneID    string `json:"zone_id"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+	AddressID string `json:"address_id"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type DnsZone struct {
+	ID        string         `json:"id"`
+	PublicID  string         `json:"public_id"`
+	Name      string         `json:"name"`
+	Registrar sql.NullString `json:"registrar"`
+	Notes     sql.NullString `json:"notes"`
+	CreatedAt int64          `json:"created_at"`
+	UpdatedAt int64          `json:"updated_at"`
+}
+
 type DriveSpec struct {
 	ProductID     string         `json:"product_id"`
 	CapacityBytes int64          `json:"capacity_bytes"`
 	MediaKind     string         `json:"media_kind"`
 	InterfaceKind sql.NullString `json:"interface_kind"`
+}
+
+type IngressRoute struct {
+	EndpointID        string `json:"endpoint_id"`
+	IngressInstanceID string `json:"ingress_instance_id"`
+	Kind              string `json:"kind"`
+	Target            string `json:"target"`
 }
 
 type Instance struct {
@@ -84,10 +112,12 @@ type InstanceEndpoint struct {
 	PublicID    string         `json:"public_id"`
 	InstanceID  string         `json:"instance_id"`
 	AddressID   string         `json:"address_id"`
+	DnsRecordID sql.NullString `json:"dns_record_id"`
 	Name        string         `json:"name"`
 	Scheme      string         `json:"scheme"`
 	Port        int64          `json:"port"`
 	BasePath    string         `json:"base_path"`
+	HostType    string         `json:"host_type"`
 	IsPreferred int64          `json:"is_preferred"`
 	Notes       sql.NullString `json:"notes"`
 	CreatedAt   int64          `json:"created_at"`
@@ -113,6 +143,7 @@ type Machine struct {
 	Kernel                    sql.NullString `json:"kernel"`
 	Architecture              sql.NullString `json:"architecture"`
 	CpuCount                  sql.NullInt64  `json:"cpu_count"`
+	CpuThreadCount            sql.NullInt64  `json:"cpu_thread_count"`
 	CpuAllocation             sql.NullString `json:"cpu_allocation"`
 	CpuVendor                 sql.NullString `json:"cpu_vendor"`
 	MemoryBytes               sql.NullInt64  `json:"memory_bytes"`
@@ -189,6 +220,8 @@ type ProcessorSpec struct {
 	CoreCount      int64          `json:"core_count"`
 	ThreadCount    int64          `json:"thread_count"`
 	BaseClockMhz   sql.NullInt64  `json:"base_clock_mhz"`
+	Generation     sql.NullString `json:"generation"`
+	Codename       sql.NullString `json:"codename"`
 	Virtualization sql.NullString `json:"virtualization"`
 }
 
@@ -229,6 +262,7 @@ type Purchase struct {
 	Currency        string         `json:"currency"`
 	PurchasedOn     sql.NullString `json:"purchased_on"`
 	Source          sql.NullString `json:"source"`
+	OrderReference  sql.NullString `json:"order_reference"`
 	Notes           sql.NullString `json:"notes"`
 	CreatedAt       int64          `json:"created_at"`
 	UpdatedAt       int64          `json:"updated_at"`
@@ -237,6 +271,16 @@ type Purchase struct {
 type PurchaseAsset struct {
 	PurchaseID string `json:"purchase_id"`
 	AssetID    string `json:"asset_id"`
+}
+
+type PurchaseLine struct {
+	PurchaseID            string         `json:"purchase_id"`
+	Position              int64          `json:"position"`
+	ProductID             sql.NullString `json:"product_id"`
+	Description           string         `json:"description"`
+	Quantity              int64          `json:"quantity"`
+	SubtotalCents         sql.NullInt64  `json:"subtotal_cents"`
+	IncludeInHomelabTotal int64          `json:"include_in_homelab_total"`
 }
 
 type PurchaseLink struct {
@@ -269,4 +313,18 @@ type ServiceLogo struct {
 	ImageData   []byte `json:"image_data"`
 	CreatedAt   int64  `json:"created_at"`
 	UpdatedAt   int64  `json:"updated_at"`
+}
+
+type WifiBandSpec struct {
+	ProductID   string `json:"product_id"`
+	BandGhz     string `json:"band_ghz"`
+	MaxLinkMbps int64  `json:"max_link_mbps"`
+}
+
+type WifiSpec struct {
+	ProductID          string         `json:"product_id"`
+	Generation         int64          `json:"generation"`
+	IeeeStandard       string         `json:"ieee_standard"`
+	WifiClass          sql.NullString `json:"wifi_class"`
+	MaxChannelWidthMhz sql.NullInt64  `json:"max_channel_width_mhz"`
 }

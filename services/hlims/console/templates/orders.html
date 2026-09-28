@@ -1,0 +1,42 @@
+{{define "orders"}}
+{{if not .Groups}}<div class="catalog-empty">No purchases recorded yet. A Purchase connects a transaction to one or more physical Assets.</div>{{end}}
+{{range .Totals}}
+<div class="order-summary" aria-label="{{.Currency}} homelab item subtotals">
+  <div><span>Homelab item subtotals</span><strong>{{.HomelabSubtotal}}</strong></div>
+  <small>Before tax and shipping; home/shared purchases and omitted items excluded{{if .UnknownCount}} · {{.UnknownCount}} not itemized{{end}}</small>
+</div>
+{{end}}
+
+{{range .Groups}}
+<section class="orders-year" aria-label="Orders from {{.Label}}">
+  <header class="catalog-group-header"><h2>{{.Label}}</h2><span>{{len .Orders}} orders</span></header>
+  <div class="orders-grid">
+    {{range .Orders}}
+    <article class="order-card" id="order-{{.PublicID}}">
+      <header class="order-card-header">
+        <div><span class="order-date">{{.Date}}</span><h3>{{.Source}}</h3>{{if .Reference}}<code>Order {{.Reference}}</code>{{end}}</div>
+        <div class="order-total"><span>Order total</span><strong>{{.Total}}</strong></div>
+      </header>
+      <div class="order-tracked"><span>Tracked items, pre-tax</span><strong>{{if .TrackedSubtotal}}{{.TrackedSubtotal}}{{else}}Not itemized{{end}}</strong></div>
+      {{if .Lines}}
+      <ul class="order-lines">
+        {{range .Lines}}
+        <li><span class="order-line-qty">{{.Quantity}}×</span><span class="order-line-name">{{if .ProductPublicID}}<a href="/console/inventory/?product={{.ProductPublicID}}#product-{{.ProductPublicID}}">{{.Description}}</a>{{else}}{{.Description}}{{end}}{{if not .IncludedInHomelab}}<small class="order-line-scope">Shared home · excluded from homelab total</small>{{end}}</span><strong>{{if .Subtotal}}{{.Subtotal}}{{else}}Unknown{{end}}</strong></li>
+        {{end}}
+      </ul>
+      {{end}}
+      {{if .ExcludedCount}}<p class="order-homelab">Counts toward homelab subtotal: <strong>{{.HomelabSubtotal}}</strong></p>{{end}}
+      {{if .UntrackedRemainder}}<p class="order-remainder">Other items, tax, or shipping: <strong>{{.UntrackedRemainder}}</strong></p>{{end}}
+      <div class="order-assets"><span class="section-label">{{len .Assets}} associated Assets</span>
+        {{range .Assets}}<a href="/console/inventory/?asset={{.PublicID}}#asset-{{.PublicID}}">{{.Name}}</a>{{end}}
+      </div>
+      {{if or .Notes .Links}}<footer class="order-card-footer">
+        {{if .Notes}}<p>{{.Notes}}</p>{{end}}
+        {{range .Links}}<a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.Label}} ↗</a>{{end}}
+      </footer>{{end}}
+    </article>
+    {{end}}
+  </div>
+</section>
+{{end}}
+{{end}}

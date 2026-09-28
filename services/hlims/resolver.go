@@ -28,6 +28,7 @@ type resolvedDestination struct {
 type endpoint struct {
 	address     string
 	dnsName     sql.NullString
+	hostType    string
 	networkKind string
 	scheme      string
 	port        int64
@@ -56,6 +57,7 @@ func (r resolver) instance(
 		target = endpoint{
 			address:     row.Address,
 			dnsName:     row.DnsName,
+			hostType:    row.HostType,
 			networkKind: row.NetworkKind,
 			scheme:      row.Scheme,
 			port:        row.Port,
@@ -77,6 +79,7 @@ func (r resolver) instance(
 		target = endpoint{
 			address:     row.Address,
 			dnsName:     row.DnsName,
+			hostType:    row.HostType,
 			networkKind: row.NetworkKind,
 			scheme:      row.Scheme,
 			port:        row.Port,
@@ -157,7 +160,10 @@ func endpointURL(target endpoint, remainder string, query url.Values) (string, e
 	}
 
 	host := target.address
-	if target.dnsName.Valid && target.dnsName.String != "" {
+	if target.hostType == "dns" && (!target.dnsName.Valid || target.dnsName.String == "") {
+		return "", errors.New("DNS endpoint has no DNS name")
+	}
+	if target.hostType != "ip" && target.dnsName.Valid && target.dnsName.String != "" {
 		host = strings.TrimSuffix(target.dnsName.String, ".")
 	}
 	if !defaultPort(target.scheme, target.port) {
@@ -204,7 +210,7 @@ func resolverQuery(query url.Values) url.Values {
 }
 
 func validVia(via string) bool {
-	return via == string(NetworkKindLAN) || via == string(NetworkKindTailnet)
+	return NetworkKind(via).Valid()
 }
 
 func defaultPort(scheme string, port int64) bool {

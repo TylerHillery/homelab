@@ -127,6 +127,7 @@ func TestInventorySchema(t *testing.T) {
 		Scheme:      string(InstanceSchemeHTTPS),
 		Port:        443,
 		BasePath:    "/opencode",
+		HostType:    "auto",
 		IsPreferred: 1,
 	}); err != nil {
 		t.Fatal(err)
@@ -418,6 +419,13 @@ func TestEquipmentInventorySchema(t *testing.T) {
 	assertInventorySQLFails(t, store, "attached ports to a system product", `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 0, 1, 'RJ45', 1000)`, systemProductID)
 	assertInventorySQLFails(t, store, "created an invalid port profile", `insert into product_port_profiles (product_id, position, port_count, connector, speed_mbps) values (?, 1, 0, 'RJ45', 1000)`, switchProductID)
 	assertInventorySQLFails(t, store, "created a duplicate product link URL", `insert into product_links (product_id, position, kind, url) values (?, 1, 'support', 'https://example.com/switch')`, switchProductID)
+	routerID, routerPublicID := testIdentifiers(t)
+	execInventorySQL(t, store, `insert into products (id, public_id, manufacturer_id, kind, name) values (?, ?, ?, 'router', 'Wi-Fi Router')`, routerID, routerPublicID, manufacturerID)
+	execInventorySQL(t, store, `insert into wifi_specs (product_id, generation, ieee_standard, wifi_class) values (?, 7, '802.11be', 'BE11000')`, routerID)
+	execInventorySQL(t, store, `insert into wifi_band_specs (product_id, band_ghz, max_link_mbps) values (?, '6', 5765)`, routerID)
+	assertInventorySQLFails(t, store, "attached Wi-Fi specs to a switch", `insert into wifi_specs (product_id, generation, ieee_standard) values (?, 7, '802.11be')`, switchProductID)
+	assertInventorySQLFails(t, store, "duplicated a Wi-Fi band", `insert into wifi_band_specs (product_id, band_ghz, max_link_mbps) values (?, '6', 5000)`, routerID)
+	assertInventorySQLFails(t, store, "changed a router with Wi-Fi specs into a switch", `update products set kind = 'switch' where id = ?`, routerID)
 
 	adapterProductID, adapterProductPublicID := testIdentifiers(t)
 	computerAssetID, computerAssetPublicID := testIdentifiers(t)

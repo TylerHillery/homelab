@@ -350,7 +350,7 @@ func createDemoInstance(ctx context.Context, queries *database.Queries, service,
 	}
 	_, err = queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{
 		ID: endpoint.id, PublicID: endpoint.publicID, InstanceID: instance.id, AddressID: address.id,
-		Name: "Preferred", Scheme: scheme, Port: port, IsPreferred: 1,
+		Name: "Preferred", Scheme: scheme, Port: port, HostType: "auto", IsPreferred: 1,
 	})
 	if err != nil {
 		return fmt.Errorf("create endpoint for %s: %w", name, err)

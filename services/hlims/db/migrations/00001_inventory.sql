@@ -122,10 +122,14 @@ create table processor_specs (
     core_count     integer not null,
     thread_count   integer not null,
     base_clock_mhz integer,
+    generation     text,
+    codename       text,
     virtualization text,
     check (core_count > 0),
     check (thread_count >= core_count),
-    check (base_clock_mhz is null or base_clock_mhz > 0)
+    check (base_clock_mhz is null or base_clock_mhz > 0),
+    check (generation is null or length(trim(generation)) > 0),
+    check (codename is null or length(trim(codename)) > 0)
 );
 
 create table memory_specs (
@@ -161,6 +165,53 @@ create table rack_specs (
     check (rack_units > 0),
     check (length(trim(mounting_standard)) > 0)
 );
+
+create table wifi_specs (
+    product_id            text    not null primary key
+        references products (id) on delete cascade,
+    generation            integer not null,
+    ieee_standard         text    not null,
+    wifi_class            text,
+    max_channel_width_mhz integer,
+    check (generation > 0),
+    check (length(trim(ieee_standard)) > 0),
+    check (wifi_class is null or length(trim(wifi_class)) > 0),
+    check (max_channel_width_mhz is null or max_channel_width_mhz > 0)
+);
+
+create table wifi_band_specs (
+    product_id    text    not null
+        references wifi_specs (product_id) on delete cascade,
+    band_ghz      text    not null,
+    max_link_mbps integer not null,
+    primary key (product_id, band_ghz),
+    check (band_ghz in ('2.4', '5', '6')),
+    check (max_link_mbps > 0)
+);
+
+-- +goose StatementBegin
+create trigger wifi_specs_product_kind_insert
+before insert on wifi_specs
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id and products.kind in ('router', 'access_point')
+)
+begin
+    select raise(abort, 'Wi-Fi specifications require a router or access point product') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger wifi_specs_product_kind_update
+before update of product_id on wifi_specs
+when not exists (
+    select 1 as result from products
+    where products.id = new.product_id and products.kind in ('router', 'access_point')
+)
+begin
+    select raise(abort, 'Wi-Fi specifications require a router or access point product') as result;
+end;
+-- +goose StatementEnd
 
 create table product_port_profiles (
     product_id text    not null
@@ -543,6 +594,7 @@ create table purchases (
     currency          text    not null,
     purchased_on      text,
     source            text,
+    order_reference   text,
     notes             text,
     created_at        integer not null default (strftime('%s', 'now')),
     updated_at        integer not null default (strftime('%s', 'now')),
@@ -559,10 +611,14 @@ create table purchases (
             and date(purchased_on, '+0 days') = purchased_on
         )
     ),
-    check (source is null or length(trim(source)) > 0)
+    check (source is null or length(trim(source)) > 0),
+    check (order_reference is null or (source is not null and length(trim(order_reference)) > 0))
 );
 
 create index purchases_currency_idx on purchases (currency);
+create unique index purchases_source_order_reference_idx
+    on purchases (source, order_reference)
+    where order_reference is not null;
 
 create table purchase_assets (
     purchase_id text not null
@@ -571,6 +627,28 @@ create table purchase_assets (
         references assets (id) on delete restrict,
     primary key (purchase_id, asset_id)
 );
+
+-- Lines describe selected owned items, including shared-home equipment. Other
+-- retailer line items need not be inventoried or assigned to an Asset.
+create table purchase_lines (
+    purchase_id    text    not null
+        references purchases (id) on delete cascade,
+    position       integer not null,
+    product_id     text
+        references products (id) on delete restrict,
+    description    text    not null,
+    quantity       integer not null,
+    subtotal_cents integer,
+    include_in_homelab_total integer not null default 1,
+    primary key (purchase_id, position),
+    check (position >= 0),
+    check (length(trim(description)) > 0),
+    check (quantity > 0),
+    check (subtotal_cents is null or subtotal_cents >= 0),
+    check (include_in_homelab_total in (0, 1))
+);
+
+create index purchase_lines_product_id_idx on purchase_lines (product_id);
 
 -- +goose StatementBegin
 create trigger purchases_primary_asset_insert
@@ -658,6 +736,7 @@ create table machines (
     kernel                       text,
     architecture                 text,
     cpu_count                    integer,
+    cpu_thread_count             integer,
     cpu_allocation               text,
     cpu_vendor                   text,
     memory_bytes                 integer,
@@ -688,6 +767,7 @@ create table machines (
     ),
     check (kind != 'virtual_machine' or asset_id is null),
     check (cpu_count is null or cpu_count > 0),
+    check (cpu_thread_count is null or cpu_thread_count > 0),
     check (cpu_allocation is null or cpu_allocation in ('shared', 'dedicated')),
     check (memory_bytes is null or memory_bytes > 0),
     check (storage_bytes is null or storage_bytes > 0),
@@ -772,6 +852,10 @@ when (
     or (new.kind != 'rack' and exists (
         select 1 as result from rack_specs
         where rack_specs.product_id = old.id
+    ))
+    or (new.kind not in ('router', 'access_point') and exists (
+        select 1 as result from wifi_specs
+        where wifi_specs.product_id = old.id
     ))
     or (new.kind not in ('router', 'switch', 'access_point', 'network_adapter') and exists (
         select 1 as result from product_port_profiles
@@ -1045,7 +1129,7 @@ create table networks (
     check (slug not glob '*[^0-9a-z-]*'),
     check (slug not like '-%' and slug not like '%-'),
     check (instr(slug, '--') = 0),
-    check (kind in ('lan', 'tailnet', 'cloud_vpc', 'public'))
+    check (kind in ('lan', 'tailnet', 'cloud_vpc', 'public', 'loopback'))
 );
 
 create index networks_area_id_idx on networks (area_id);
@@ -1088,6 +1172,51 @@ create index addresses_area_id_idx on addresses (area_id);
 create index addresses_asset_id_idx on addresses (asset_id);
 
 create unique index addresses_network_address_idx on addresses (network_id, address);
+
+create table dns_zones (
+    id         text    not null primary key,
+    public_id  text    not null unique,
+    name       text    not null collate nocase unique,
+    registrar  text,
+    notes      text,
+    created_at integer not null default (strftime('%s', 'now')),
+    updated_at integer not null default (strftime('%s', 'now')),
+    check (length(id) = 36),
+    check (length(public_id) = 12),
+    check (public_id not glob '*[^0-9a-z]*')
+);
+
+create table dns_records (
+    id         text    not null primary key,
+    public_id  text    not null unique,
+    zone_id    text    not null references dns_zones (id) on delete restrict,
+    name       text    not null collate nocase,
+    kind       text    not null,
+    address_id text    not null references addresses (id) on delete restrict,
+    created_at integer not null default (strftime('%s', 'now')),
+    updated_at integer not null default (strftime('%s', 'now')),
+    unique (zone_id, name, kind, address_id),
+    check (length(id) = 36),
+    check (length(public_id) = 12),
+    check (public_id not glob '*[^0-9a-z]*'),
+    check (name = '@' or length(trim(name)) > 0),
+    check (kind in ('A', 'AAAA'))
+);
+
+create index dns_records_address_id_idx on dns_records (address_id);
+
+-- +goose StatementBegin
+create trigger dns_records_address_update
+before update of address_id on dns_records
+when exists (
+    select 1 as result from instance_endpoints
+    where instance_endpoints.dns_record_id = old.id
+        and instance_endpoints.address_id != new.address_id
+)
+begin
+    select raise(abort, 'DNS record address is used by an endpoint') as result;
+end;
+-- +goose StatementEnd
 
 -- +goose StatementBegin
 create trigger addresses_asset_kind_insert
@@ -1189,10 +1318,13 @@ create table instance_endpoints (
         references instances (id) on delete cascade,
     address_id   text    not null
         references addresses (id) on delete restrict,
+    dns_record_id text
+        references dns_records (id) on delete restrict,
     name         text    not null collate nocase,
     scheme       text    not null,
     port         integer not null,
     base_path    text    not null default '',
+    host_type    text    not null default 'auto',
     is_preferred integer not null default 0,
     notes        text,
     created_at   integer not null default (strftime('%s', 'now')),
@@ -1203,6 +1335,8 @@ create table instance_endpoints (
     check (scheme in ('http', 'https')),
     check (port between 1 and 65535),
     check (base_path = '' or substr(base_path, 1, 1) = '/'),
+    check (host_type in ('auto', 'dns', 'ip')),
+    check (dns_record_id is null or host_type = 'dns'),
     check (is_preferred in (0, 1))
 );
 
@@ -1218,6 +1352,67 @@ create unique index instance_endpoints_name_idx
 create unique index instance_endpoints_preferred_idx
     on instance_endpoints (instance_id)
     where is_preferred = 1;
+
+-- +goose StatementBegin
+create trigger instance_endpoints_dns_host_insert
+before insert on instance_endpoints
+when new.host_type = 'dns' and new.dns_record_id is null and not exists (
+    select 1 as result from addresses
+    where addresses.id = new.address_id and addresses.dns_name is not null
+)
+begin
+    select raise(abort, 'DNS endpoint requires a DNS name') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instance_endpoints_dns_host_update
+before update of host_type, address_id, dns_record_id on instance_endpoints
+when new.host_type = 'dns' and new.dns_record_id is null and not exists (
+    select 1 as result from addresses
+    where addresses.id = new.address_id and addresses.dns_name is not null
+)
+begin
+    select raise(abort, 'DNS endpoint requires a DNS name') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instance_endpoints_dns_record_insert
+before insert on instance_endpoints
+when new.dns_record_id is not null and not exists (
+    select 1 as result from dns_records
+    where dns_records.id = new.dns_record_id and dns_records.address_id = new.address_id
+)
+begin
+    select raise(abort, 'DNS record must point to the endpoint address') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instance_endpoints_dns_record_update
+before update of dns_record_id, address_id on instance_endpoints
+when new.dns_record_id is not null and not exists (
+    select 1 as result from dns_records
+    where dns_records.id = new.dns_record_id and dns_records.address_id = new.address_id
+)
+begin
+    select raise(abort, 'DNS record must point to the endpoint address') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger addresses_dns_host_update
+before update of dns_name on addresses
+when new.dns_name is null and exists (
+    select 1 as result from instance_endpoints
+    where instance_endpoints.address_id = new.id and instance_endpoints.host_type = 'dns'
+        and instance_endpoints.dns_record_id is null
+)
+begin
+    select raise(abort, 'address is used by a DNS endpoint') as result;
+end;
+-- +goose StatementEnd
 
 -- +goose StatementBegin
 create trigger addresses_endpoint_machine_update
@@ -1279,23 +1474,56 @@ begin
 end;
 -- +goose StatementEnd
 
+create table ingress_routes (
+    endpoint_id         text not null primary key
+        references instance_endpoints (id) on delete cascade,
+    ingress_instance_id text not null
+        references instances (id) on delete restrict,
+    kind                text not null,
+    target              text not null,
+    check (kind in ('proxy', 'static', 'redirect')),
+    check (length(trim(target)) > 0)
+);
+
+-- +goose StatementBegin
+create trigger ingress_routes_machine_insert
+before insert on ingress_routes
+when not exists (
+    select 1 as result
+    from instance_endpoints
+    inner join instances as served on instance_endpoints.instance_id = served.id
+    inner join instances as ingress on ingress.id = new.ingress_instance_id
+    where instance_endpoints.id = new.endpoint_id
+        and served.machine_id = ingress.machine_id
+)
+begin
+    select raise(abort, 'ingress and served instance must share a machine') as result;
+end;
+-- +goose StatementEnd
+
 -- +goose Down
 
+drop table ingress_routes;
 drop table instance_endpoints;
 drop table instances;
 drop table service_logos;
 drop table services;
+drop table dns_records;
+drop table dns_zones;
 drop table addresses;
 drop table networks;
 drop table machine_users;
 drop table machines;
 drop table purchase_links;
+drop table purchase_lines;
 drop table purchase_assets;
 drop table purchases;
 drop table asset_links;
 drop table assets;
 drop table product_links;
 drop table product_port_profiles;
+drop table wifi_band_specs;
+drop table wifi_specs;
 drop table rack_specs;
 drop table drive_specs;
 drop table memory_specs;

@@ -13,16 +13,25 @@ import (
 const getInstanceEndpointByNetworkKind = `-- name: GetInstanceEndpointByNetworkKind :one
 select
     addresses.address,
-    addresses.dns_name,
     networks.kind as network_kind,
     instance_endpoints.scheme,
     instance_endpoints.port,
-    instance_endpoints.base_path
+    instance_endpoints.host_type,
+    instance_endpoints.base_path,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )             as dns_name
 from instances
 inner join services on instances.service_id = services.id
 inner join machines on instances.machine_id = machines.id
 inner join instance_endpoints on instances.id = instance_endpoints.instance_id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
 inner join networks on addresses.network_id = networks.id
 where
     machines.slug = ?1
@@ -42,11 +51,12 @@ type GetInstanceEndpointByNetworkKindParams struct {
 
 type GetInstanceEndpointByNetworkKindRow struct {
 	Address     string         `json:"address"`
-	DnsName     sql.NullString `json:"dns_name"`
 	NetworkKind string         `json:"network_kind"`
 	Scheme      string         `json:"scheme"`
 	Port        int64          `json:"port"`
+	HostType    string         `json:"host_type"`
 	BasePath    string         `json:"base_path"`
+	DnsName     sql.NullString `json:"dns_name"`
 }
 
 func (q *Queries) GetInstanceEndpointByNetworkKind(ctx context.Context, arg GetInstanceEndpointByNetworkKindParams) (GetInstanceEndpointByNetworkKindRow, error) {
@@ -59,11 +69,12 @@ func (q *Queries) GetInstanceEndpointByNetworkKind(ctx context.Context, arg GetI
 	var i GetInstanceEndpointByNetworkKindRow
 	err := row.Scan(
 		&i.Address,
-		&i.DnsName,
 		&i.NetworkKind,
 		&i.Scheme,
 		&i.Port,
+		&i.HostType,
 		&i.BasePath,
+		&i.DnsName,
 	)
 	return i, err
 }
@@ -104,16 +115,25 @@ func (q *Queries) GetMachineAddressByNetworkKind(ctx context.Context, arg GetMac
 const getPreferredInstanceEndpoint = `-- name: GetPreferredInstanceEndpoint :one
 select
     addresses.address,
-    addresses.dns_name,
     networks.kind as network_kind,
     instance_endpoints.scheme,
     instance_endpoints.port,
-    instance_endpoints.base_path
+    instance_endpoints.host_type,
+    instance_endpoints.base_path,
+    coalesce(
+        case
+            when dns_records.name = '@' then dns_zones.name
+            else dns_records.name || '.' || dns_zones.name
+        end,
+        addresses.dns_name
+    )             as dns_name
 from instances
 inner join services on instances.service_id = services.id
 inner join machines on instances.machine_id = machines.id
 inner join instance_endpoints on instances.id = instance_endpoints.instance_id
 inner join addresses on instance_endpoints.address_id = addresses.id
+left join dns_records on instance_endpoints.dns_record_id = dns_records.id
+left join dns_zones on dns_records.zone_id = dns_zones.id
 inner join networks on addresses.network_id = networks.id
 where
     machines.slug = ?1
@@ -131,11 +151,12 @@ type GetPreferredInstanceEndpointParams struct {
 
 type GetPreferredInstanceEndpointRow struct {
 	Address     string         `json:"address"`
-	DnsName     sql.NullString `json:"dns_name"`
 	NetworkKind string         `json:"network_kind"`
 	Scheme      string         `json:"scheme"`
 	Port        int64          `json:"port"`
+	HostType    string         `json:"host_type"`
 	BasePath    string         `json:"base_path"`
+	DnsName     sql.NullString `json:"dns_name"`
 }
 
 func (q *Queries) GetPreferredInstanceEndpoint(ctx context.Context, arg GetPreferredInstanceEndpointParams) (GetPreferredInstanceEndpointRow, error) {
@@ -143,11 +164,12 @@ func (q *Queries) GetPreferredInstanceEndpoint(ctx context.Context, arg GetPrefe
 	var i GetPreferredInstanceEndpointRow
 	err := row.Scan(
 		&i.Address,
-		&i.DnsName,
 		&i.NetworkKind,
 		&i.Scheme,
 		&i.Port,
+		&i.HostType,
 		&i.BasePath,
+		&i.DnsName,
 	)
 	return i, err
 }
