@@ -125,12 +125,12 @@ func TestNormalizedCRUDAndResolver(t *testing.T) {
 		t.Fatal("creating a new preferred endpoint did not demote the old endpoint")
 	}
 
-	resolved := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/badger/opencode/production", nil, "")
+	resolved := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/opencode/production", nil, "")
 	assertStatus(t, resolved, http.StatusOK)
 	if got := decodeObject(t, resolved)["url"]; got != "https://badger.lan/" {
 		t.Fatalf("resolved URL = %v", got)
 	}
-	redirect := apiRequest(t, handler, http.MethodGet, "/badger/opencode/production/dashboard", nil, "")
+	redirect := apiRequest(t, handler, http.MethodGet, "/opencode/production/dashboard", nil, "")
 	assertStatus(t, redirect, http.StatusFound)
 	if redirect.Header().Get("Location") != "https://badger.lan/dashboard" {
 		t.Fatalf("redirect Location = %q", redirect.Header().Get("Location"))

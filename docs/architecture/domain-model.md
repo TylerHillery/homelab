@@ -11,8 +11,12 @@ and reachable endpoints.
 - Public NanoIDs identify API resources.
 - Editable names are display values.
 - Stable lowercase slugs identify named resources in routes and automation.
-- Service and Instance names should match their lowercase, hyphenated slugs so
-  CLI listings and `go/<machine>/<service>/<instance>` paths use the same names.
+- Service and Instance display names may preserve product branding, such as
+  `OpenCode`, `cAdvisor`, or `HLIMS`. Lowercase, hyphenated slugs are the stable
+  identifiers used in CLI lookups and resolver paths.
+- Canonical `go/<service>/<instance>` links identify a deployment without
+  assuming it has a Machine. Use `?host=<machine-slug>` or `?host=managed` only
+  when the same Service and Instance slugs identify multiple deployments.
 - External serial numbers, provider IDs, and system UUIDs remain attributes.
 
 ## Inventory
@@ -82,13 +86,19 @@ only when a real consumer needs them. See the [HLIMS Roadmap](hlims-roadmap.md).
 
 ## Services
 
-A Service is a conceptual application. An Instance places one Service on one
-Machine and records its backend port. An Instance Endpoint records one
-client-facing scheme, address, port, and path. The resolver redirects clients to
-an endpoint and never proxies traffic. Its host selection is explicit: DNS or
-direct IP; legacy `auto` endpoints use DNS when available. An Address records a
-device's IP and optional DNS name, but does not imply a service listens on both.
-Record separate endpoints only for URLs that actually serve the application.
+A Service is a conceptual application. A machine-hosted Instance associates it
+with one Machine and optionally records a backend port when it listens on one.
+Workers and ingress-only processes need no port or client-facing URL, but remain
+visible on their Machine and in the Services catalog. A managed Instance has no
+Machine or backend port; it records the external provider instead. A
+machine-hosted Instance Endpoint records a verified scheme, machine Address,
+port, and path.
+A managed Endpoint records a verified direct HTTPS URL, including any project
+path or query, without inventing a Machine, Address, or owned DNS Zone. Multiple
+labeled managed URLs can link to a tenant and a particular project. The resolver
+redirects clients to a preferred Endpoint when one exists and never proxies
+traffic. Machine endpoints select DNS or direct IP; `auto` uses DNS when
+available. An Address does not imply a service listens on both names and IPs.
 
 An Ingress Route associates a client-facing Instance Endpoint with an ingress
 Instance (such as Caddy), distinguishing a proxy upstream, static document root,
@@ -102,7 +112,7 @@ inventory snapshots, not deployed web-server configuration.
 Manufacturer -> Product -> Asset -> Machine
 Machine Provider -> Area -> Machine
 Network -> Address -> Machine, Area, or network Asset
-Service -> Instance -> Instance Endpoint -> Address
+Service -> Instance (Machine or managed provider) -> Instance Endpoint (Address or direct URL)
 DNS Zone -> DNS Record -> Address; Instance Endpoint -> DNS Record
 Instance Endpoint -> Ingress Route -> ingress Instance
 Purchase -> one or more Assets

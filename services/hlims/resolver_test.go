@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TylerHillery/homelab/services/hlims/generated/api"
@@ -21,9 +23,9 @@ func TestResolver(t *testing.T) {
 	t.Run("preferred instance endpoint", func(t *testing.T) {
 		destination, err := resolver.instance(
 			context.Background(),
-			"badger",
 			"opencode",
 			"production",
+			"badger",
 			"",
 			"session",
 			url.Values{"view": {"full"}, "via": {"tailnet"}},
@@ -42,9 +44,9 @@ func TestResolver(t *testing.T) {
 	t.Run("LAN instance endpoint", func(t *testing.T) {
 		destination, err := resolver.instance(
 			context.Background(),
-			"badger",
 			"opencode",
 			"production",
+			"",
 			"lan",
 			"",
 			nil,
@@ -74,6 +76,60 @@ func TestResolver(t *testing.T) {
 			t.Fatalf("URL = %q", destination.URL)
 		}
 	})
+}
+
+func TestServiceFirstResolverSelectsHostWhenNamesOverlap(t *testing.T) {
+	handler := newAPITestHandler(t)
+	provider := createAPIResource(t, handler, "/api/v1/machine-providers", map[string]any{"name": "Lab"})
+	area := createAPIResource(t, handler, "/api/v1/areas", map[string]any{"machineProviderPublicId": provider["publicId"], "name": "Home"})
+	network := createAPIResource(t, handler, "/api/v1/networks", map[string]any{"name": "LAN", "kind": "lan"})
+	service := createAPIResource(t, handler, "/api/v1/services", map[string]any{"name": "Example app"})
+	for index, host := range []string{"alpha", "beta"} {
+		machine := createAPIResource(t, handler, "/api/v1/machines", map[string]any{
+			"machineProviderPublicId": provider["publicId"], "areaPublicId": area["publicId"], "kind": "bare_metal", "name": host,
+		})
+		address := createAPIResource(t, handler, "/api/v1/addresses", map[string]any{
+			"networkPublicId": network["publicId"], "machinePublicId": machine["publicId"], "address": fmt.Sprintf("192.0.2.%d", index+10),
+		})
+		instance := createAPIResource(t, handler, "/api/v1/instances", map[string]any{
+			"servicePublicId": service["publicId"], "machinePublicId": machine["publicId"], "name": "production", "port": 8080,
+		})
+		createAPIResource(t, handler, "/api/v1/instance-endpoints", map[string]any{
+			"instancePublicId": instance["publicId"], "addressPublicId": address["publicId"], "name": "LAN", "scheme": "http", "port": 8080, "isPreferred": true,
+		})
+	}
+	ambiguous := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/example-app/production", nil, "")
+	assertStatus(t, ambiguous, http.StatusBadRequest)
+	if !strings.Contains(ambiguous.Body.String(), "host=") {
+		t.Fatalf("ambiguous resolver error = %s", ambiguous.Body.String())
+	}
+	for host, destination := range map[string]string{"alpha": "http://192.0.2.10:8080/", "beta": "http://192.0.2.11:8080/"} {
+		resolved := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/example-app/production?host="+host, nil, "")
+		assertStatus(t, resolved, http.StatusOK)
+		if got := decodeObject(t, resolved)["url"]; got != destination {
+			t.Fatalf("host %q URL = %v; want %q", host, got, destination)
+		}
+	}
+	assertStatus(t, apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/example-app/production?host=missing", nil, ""), http.StatusNotFound)
+	managed := createAPIResource(t, handler, "/api/v1/instances", map[string]any{
+		"servicePublicId": service["publicId"], "hostingKind": "managed", "managedProvider": "Example Cloud", "name": "production",
+	})
+	createAPIResource(t, handler, "/api/v1/instance-endpoints", map[string]any{
+		"instancePublicId": managed["publicId"], "name": "Tenant", "directUrl": "https://tenant.example.test/dashboard", "isPreferred": true,
+	})
+	cloud := apiRequest(t, handler, http.MethodGet, "/example-app/production?host=managed&view=summary", nil, "")
+	assertStatus(t, cloud, http.StatusFound)
+	if got := cloud.Header().Get("Location"); got != "https://tenant.example.test/dashboard?view=summary" {
+		t.Fatalf("cloud route = %q", got)
+	}
+	page := consoleRequest(handler, http.MethodGet, "/console/services/", false)
+	assertStatus(t, page, http.StatusOK)
+	for _, path := range []string{"/example-app/production?host=alpha", "/example-app/production?host=beta", "/example-app/production?host=managed"} {
+		if !strings.Contains(page.Body.String(), path) {
+			t.Errorf("catalog did not select an individual deployment with %q", path)
+		}
+	}
+	assertStatus(t, apiRequest(t, handler, http.MethodGet, "/alpha/example-app/production", nil, ""), http.StatusNotFound)
 }
 
 func TestEndpointURLHostSelection(t *testing.T) {
@@ -107,11 +163,11 @@ func TestRedirectAndAPIHandlers(t *testing.T) {
 	handler := newHandler(db)
 	root := httptest.NewRecorder()
 	handler.ServeHTTP(root, httptest.NewRequest(http.MethodGet, "/", nil))
-	if root.Code != http.StatusPermanentRedirect || root.Header().Get("Location") != "/console/" {
-		t.Fatalf("root redirect = %d %q; want 308 /console/", root.Code, root.Header().Get("Location"))
+	if root.Code != http.StatusPermanentRedirect || root.Header().Get("Location") != "/console/machines/" {
+		t.Fatalf("root redirect = %d %q; want 308 /console/machines/", root.Code, root.Header().Get("Location"))
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/badger/opencode/production/dashboard?via=lan&org=1", nil)
+	request := httptest.NewRequest(http.MethodGet, "/opencode/production/dashboard?host=badger&via=lan&org=1", nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusFound {
@@ -121,7 +177,7 @@ func TestRedirectAndAPIHandlers(t *testing.T) {
 		t.Fatalf("Location = %q", location)
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/api/v1/resolve/badger/5173?via=tailnet", nil)
+	request = httptest.NewRequest(http.MethodGet, "/api/v1/resolve/port/badger/5173?via=tailnet", nil)
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -173,11 +229,11 @@ func newResolverTestDB(t *testing.T) *SQLiteDB {
 	mustSucceed(t, err)
 	_, err = db.queries.CreateService(ctx, database.CreateServiceParams{ID: serviceID, PublicID: servicePublicID, Name: "OpenCode", Slug: "opencode"})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instanceID, PublicID: instancePublicID, ServiceID: serviceID, MachineID: machineID, Name: "Production", Slug: "production", Port: 4096})
+	_, err = db.queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instanceID, PublicID: instancePublicID, ServiceID: serviceID, MachineID: sql.NullString{String: machineID, Valid: true}, HostingKind: "machine", Name: "Production", Slug: "production", Port: sql.NullInt64{Int64: 4096, Valid: true}})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: lanEndpointID, PublicID: lanEndpointPublicID, InstanceID: instanceID, AddressID: lanAddressID, Name: "LAN", Scheme: "http", Port: 4096, HostType: "auto"})
+	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: lanEndpointID, PublicID: lanEndpointPublicID, InstanceID: instanceID, AddressID: sql.NullString{String: lanAddressID, Valid: true}, Name: "LAN", Scheme: sql.NullString{String: "http", Valid: true}, Port: sql.NullInt64{Int64: 4096, Valid: true}, HostType: "auto"})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: tailnetEndpointID, PublicID: tailnetEndpointPublicID, InstanceID: instanceID, AddressID: tailnetAddressID, Name: "Tailscale Serve", Scheme: "https", Port: 443, BasePath: "/opencode", HostType: "auto", IsPreferred: 1})
+	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: tailnetEndpointID, PublicID: tailnetEndpointPublicID, InstanceID: instanceID, AddressID: sql.NullString{String: tailnetAddressID, Valid: true}, Name: "Tailscale Serve", Scheme: sql.NullString{String: "https", Valid: true}, Port: sql.NullInt64{Int64: 443, Valid: true}, BasePath: "/opencode", HostType: "auto", IsPreferred: 1})
 	mustSucceed(t, err)
 
 	return db

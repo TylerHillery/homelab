@@ -84,7 +84,7 @@ func TestDNSAndIngressInventorySharesOnePublicAddress(t *testing.T) {
 	if len(urls) != 3 || urls["https://example.com/"].Ingress == nil || urls["https://example.com/"].Ingress.Kind != "proxy" || urls["https://dbtdocs.example.com/"].Ingress == nil || urls["https://dbtdocs.example.com/"].Ingress.Kind != "static" || urls["https://www.example.com/"].Ingress == nil || urls["https://www.example.com/"].Ingress.Kind != "redirect" {
 		t.Fatalf("public URLs and ingress routes = %#v", urls)
 	}
-	page := consoleRequest(handler, http.MethodGet, "/console/", false)
+	page := consoleRequest(handler, http.MethodGet, "/console/machines/", false)
 	assertStatus(t, page, http.StatusOK)
 	for _, want := range []string{"example.com", "dbtdocs.example.com", "www.example.com", "Caddy", "FastAPI", "dbt Docs"} {
 		if !strings.Contains(page.Body.String(), want) {
@@ -143,14 +143,15 @@ func TestLoopbackInstanceEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	endpoints := topology.Providers[0].Areas[0].Machines[0].Services[0].Instances[0].Endpoints
-	if len(topology.Providers[0].Areas[0].Machines[0].Services) != 1 {
-		t.Fatal("ingress-only Tailscale Serve should not be shown as a service card")
+	services := topology.Providers[0].Areas[0].Machines[0].Services
+	if len(services) != 2 || services[1].Name != "Tailscale Serve" || len(services[1].Instances) != 1 || services[1].Instances[0].ResolverPath != nil {
+		t.Fatalf("ingress-only workload should be inventoried without a dead link: %#v", services)
 	}
 	if len(endpoints) != 2 || endpoints[0].Url != "https://wsl.example.ts.net/" || !endpoints[0].IsPreferred || endpoints[0].Ingress == nil || endpoints[0].Ingress.IngressServiceName != "Tailscale Serve" || endpoints[1].Url != "http://127.0.0.1:8081/" || endpoints[1].NetworkKind != "loopback" {
 		t.Fatalf("Tailscale Serve and loopback endpoints = %#v", endpoints)
 	}
-	page := consoleRequest(handler, http.MethodGet, "/console/", false)
-	if strings.Contains(page.Body.String(), "<h5>Tailscale Serve</h5>") || !strings.Contains(page.Body.String(), "Tailscale Serve · proxy") {
-		t.Fatal("Tailscale Serve should be visible on the OpenCode endpoint, not as a separate card")
+	page := consoleRequest(handler, http.MethodGet, "/console/machines/", false)
+	if !strings.Contains(page.Body.String(), "<h5>Tailscale Serve</h5>") || !strings.Contains(page.Body.String(), "Tracked · no URL") || !strings.Contains(page.Body.String(), "Tailscale Serve · proxy") {
+		t.Fatal("Tailscale Serve should appear as a tracked ingress workload without a direct URL")
 	}
 }

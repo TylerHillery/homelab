@@ -1,0 +1,35 @@
+{{define "services"}}
+<div class="services-heading"><div><small class="section-label">Service catalog</small><h1>Services</h1><p>Applications and their verified access routes, whether hosted on a machine or managed elsewhere.</p></div><span>{{len .Services}} services · {{.ManagedCount}} managed instances</span></div>
+{{if not .Services}}<p class="catalog-empty">No services recorded yet.</p>{{end}}
+<div class="services-catalog">
+{{range .Services}}
+<article class="service-catalog-card" id="service-{{.PublicID}}">
+  <header class="service-catalog-head">
+    <span class="service-logo{{if .HasLogo}} has-image{{end}}" aria-hidden="true">{{if .HasLogo}}<img src="/api/v1/services/{{.PublicID}}/logo" alt="">{{else}}{{initials .Name}}{{end}}</span>
+    <div><h2>{{.Name}}</h2>{{if .Description}}<p>{{.Description}}</p>{{end}}</div>
+    <small>{{len .Instances}} {{if eq (len .Instances) 1}}instance{{else}}instances{{end}}</small>
+  </header>
+  <div class="service-catalog-overview">
+    {{if .PrimaryPath}}<span>Preferred instance: {{.PrimaryName}}</span><a href="{{.PrimaryPath}}" target="_blank" rel="noopener noreferrer">Open service ↗</a>{{else}}<span>Tracked · no URL recorded</span>{{end}}
+  </div>
+  <details class="service-catalog-details" name="service-catalog">
+    <summary aria-label="Show instances and endpoints for {{.Name}}">Instances &amp; endpoints <span>({{len .Instances}})</span></summary>
+    <div class="service-catalog-popover">
+      {{if .Description}}<p class="service-catalog-description">{{.Description}}</p>{{end}}
+      {{if not .Instances}}<p class="service-empty">No instances recorded.</p>{{end}}
+      {{range .Instances}}
+      <section class="service-deployment">
+        <div class="service-deployment-title"><h3>{{.Name}}</h3><span>{{if eq .Kind "managed"}}Managed · {{.Provider}}{{else}}Machine-hosted{{end}}</span></div>
+        {{if .MachinePublicID}}<p class="service-location">Machine: <a href="/console/machines/#machine-{{.MachinePublicID}}">{{.MachineName}}</a></p>{{end}}
+        {{if .Links}}
+          <ul class="service-links">{{range .Links}}<li><span>{{.Name}}{{if .Preferred}} · preferred{{end}} <small>{{.Network}}</small></span><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}} ↗</a></li>{{end}}</ul>
+          <a class="service-resolve" href="{{.ResolverPath}}" target="_blank" rel="noopener noreferrer">Open preferred route ↗</a>
+        {{else}}<p class="service-empty">Internal service · no URL recorded.</p>{{end}}
+      </section>
+      {{end}}
+    </div>
+  </details>
+</article>
+{{end}}
+</div>
+{{end}}

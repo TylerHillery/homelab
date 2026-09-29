@@ -9,6 +9,18 @@ select
 from machines
 order by name;
 
+-- name: ListInstanceHostsByServiceAndSlug :many
+select
+    instances.hosting_kind,
+    machines.slug as machine_slug
+from instances
+inner join services on instances.service_id = services.id
+left join machines on instances.machine_id = machines.id
+where
+    services.slug = @service_slug
+    and instances.slug = @instance_slug
+order by instances.hosting_kind, machines.slug;
+
 -- name: GetPreferredInstanceEndpoint :one
 select
     addresses.address,
@@ -67,6 +79,18 @@ where
     and services.slug = @service_slug
     and instances.slug = @instance_slug
     and networks.kind = @network_kind
+order by instance_endpoints.is_preferred desc, instance_endpoints.name asc
+limit 1;
+
+-- name: GetManagedInstanceEndpoint :one
+select instance_endpoints.direct_url
+from instances
+inner join services on instances.service_id = services.id
+inner join instance_endpoints on instances.id = instance_endpoints.instance_id
+where
+    instances.hosting_kind = 'managed'
+    and services.slug = @service_slug
+    and instances.slug = @instance_slug
 order by instance_endpoints.is_preferred desc, instance_endpoints.name asc
 limit 1;
 

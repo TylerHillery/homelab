@@ -428,10 +428,15 @@ func renderServices(services []apiclient.TopologyService, width int) string {
 				lines = append(lines, mutedStyle.Render("No instances."))
 			}
 			for _, instance := range service.Instances {
-				lines = append(lines,
-					healthyStyle.Render(truncate(fmt.Sprintf("%s  :%d", instance.Name, instance.Port), contentWidth)),
-					mutedStyle.Render(truncate(instance.ResolverPath, contentWidth)),
-				)
+				label := instance.Name
+				if instance.Port != nil {
+					label = fmt.Sprintf("%s  :%d", label, *instance.Port)
+				}
+				if instance.ResolverPath == nil {
+					lines = append(lines, mutedStyle.Render(truncate(label, contentWidth)), mutedStyle.Render("No URL recorded"))
+				} else {
+					lines = append(lines, healthyStyle.Render(truncate(label, contentWidth)), mutedStyle.Render(truncate(*instance.ResolverPath, contentWidth)))
+				}
 			}
 			cards = append(cards, serviceStyle.Width(contentWidth).Render(strings.Join(lines, "\n")))
 		}

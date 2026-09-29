@@ -96,13 +96,14 @@ func TestInventorySchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := store.queries.CreateInstance(context.Background(), database.CreateInstanceParams{
-		ID:        instanceID,
-		PublicID:  instancePublicID,
-		ServiceID: serviceID,
-		MachineID: machineID,
-		Name:      "Production",
-		Slug:      "production",
-		Port:      4096,
+		ID:          instanceID,
+		PublicID:    instancePublicID,
+		ServiceID:   serviceID,
+		MachineID:   sql.NullString{String: machineID, Valid: true},
+		HostingKind: "machine",
+		Name:        "Production",
+		Slug:        "production",
+		Port:        sql.NullInt64{Int64: 4096, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -122,10 +123,10 @@ func TestInventorySchema(t *testing.T) {
 		ID:          endpointID,
 		PublicID:    endpointPublicID,
 		InstanceID:  instanceID,
-		AddressID:   addressID,
+		AddressID:   sql.NullString{String: addressID, Valid: true},
 		Name:        "Tailnet Serve",
-		Scheme:      string(InstanceSchemeHTTPS),
-		Port:        443,
+		Scheme:      sql.NullString{String: string(InstanceSchemeHTTPS), Valid: true},
+		Port:        sql.NullInt64{Int64: 443, Valid: true},
 		BasePath:    "/opencode",
 		HostType:    "auto",
 		IsPreferred: 1,

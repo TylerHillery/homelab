@@ -302,9 +302,7 @@ func buildTopology(
 	}
 	endpointsByInstance := make(map[string][]api.TopologyInstanceEndpoint)
 	ingressByEndpoint := make(map[string]api.IngressRoute, len(ingressRows))
-	ingressInstances := make(map[string]bool, len(ingressRows))
 	for _, row := range ingressRows {
-		ingressInstances[row.IngressInstancePublicID] = true
 		ingressByEndpoint[row.EndpointPublicID] = api.IngressRoute{
 			EndpointPublicId: row.EndpointPublicID, IngressInstancePublicId: row.IngressInstancePublicID,
 			IngressServiceName: row.IngressServiceName, Kind: api.IngressRouteKind(row.Kind), Target: row.Target,
@@ -312,7 +310,7 @@ func buildTopology(
 	}
 	for _, row := range endpointRows {
 		kind := api.NetworkKind(row.NetworkKind)
-		if !kind.Valid() || !api.Scheme(row.Scheme).Valid() {
+		if !kind.Valid() || !api.Scheme(row.Scheme.String).Valid() {
 			return api.Topology{}, fmt.Errorf("endpoint %q has invalid network kind or scheme", row.PublicID)
 		}
 		if row.HostType != "auto" && row.HostType != "dns" && row.HostType != "ip" {
@@ -320,7 +318,7 @@ func buildTopology(
 		}
 		value, err := endpointURL(endpoint{
 			address: row.Address, dnsName: row.DnsName, hostType: row.HostType,
-			scheme: row.Scheme, port: row.Port, basePath: row.BasePath,
+			scheme: row.Scheme.String, port: row.Port.Int64, basePath: row.BasePath,
 		}, "", nil)
 		if err != nil {
 			return api.Topology{}, fmt.Errorf("endpoint %q URL: %w", row.PublicID, err)
@@ -332,7 +330,7 @@ func buildTopology(
 		}
 		endpointsByInstance[row.InstancePublicID] = append(endpointsByInstance[row.InstancePublicID], api.TopologyInstanceEndpoint{
 			PublicId: row.PublicID, Name: row.Name, NetworkKind: kind, Address: row.Address,
-			DnsName: stringPointer(row.DnsName), Scheme: api.Scheme(row.Scheme), Port: int(row.Port),
+			DnsName: stringPointer(row.DnsName), Scheme: api.Scheme(row.Scheme.String), Port: int(row.Port.Int64),
 			DnsRecordPublicId: stringPointer(row.DnsRecordPublicID), Ingress: ingress,
 			HostType: api.EndpointHostType(row.HostType), Url: value, IsPreferred: row.IsPreferred == 1,
 		})
@@ -341,32 +339,36 @@ func buildTopology(
 		return api.Topology{}, fmt.Errorf("ingress route references a missing endpoint")
 	}
 	for _, row := range instanceRows {
-		machine := machines[row.MachinePublicID]
+		if row.HostingKind == "managed" {
+			continue
+		}
+		machine := machines[row.MachinePublicID.String]
 		if machine == nil {
-			return api.Topology{}, fmt.Errorf("instance %q references missing machine %q", row.PublicID, row.MachinePublicID)
+			return api.Topology{}, fmt.Errorf("instance %q references missing machine %q", row.PublicID, row.MachinePublicID.String)
 		}
 		service, exists := services[row.ServicePublicID]
 		if !exists {
 			return api.Topology{}, fmt.Errorf("instance %q references missing service %q", row.PublicID, row.ServicePublicID)
-		}
-		// Ingress-only infrastructure stays in the API and endpoint relationships,
-		// but has no separate action to offer in Machine Topology.
-		if len(endpointsByInstance[row.PublicID]) == 0 && ingressInstances[row.PublicID] {
-			continue
 		}
 		group := machine.services[row.ServicePublicID]
 		if group == nil {
 			group = &topologyServiceBuilder{value: service}
 			machine.services[row.ServicePublicID] = group
 		}
+		instanceEndpoints := append([]api.TopologyInstanceEndpoint{}, endpointsByInstance[row.PublicID]...)
+		var resolverPath *string
+		if len(instanceEndpoints) > 0 {
+			path := "/" + service.Slug + "/" + row.Slug + "?host=" + machine.value.Slug
+			resolverPath = &path
+		}
 		group.value.Instances = append(group.value.Instances, api.TopologyInstance{
 			PublicId:     row.PublicID,
 			Name:         row.Name,
 			Slug:         row.Slug,
-			Port:         int(row.Port),
-			ResolverPath: "/" + machine.value.Slug + "/" + service.Slug + "/" + row.Slug,
+			Port:         intPointer(row.Port),
+			ResolverPath: resolverPath,
 			AvailableVia: topologyAvailableVia(row.HasLanRoute, row.HasTailnetRoute),
-			Endpoints:    append([]api.TopologyInstanceEndpoint{}, endpointsByInstance[row.PublicID]...),
+			Endpoints:    instanceEndpoints,
 		})
 		delete(endpointsByInstance, row.PublicID)
 	}

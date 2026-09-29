@@ -5,14 +5,20 @@ and resolves inventory-backed paths to client-reachable service URLs without
 proxying application traffic.
 
 ```text
-http://go/badger/opencode/production
+http://go/opencode/production?host=badger
+http://go/grafana/production
 http://go/badger/5173?via=tailnet
 ```
 
 The `go` host is the common entry point. Canonical paths use
-`go/<machine>/<service>/<instance>`; ad hoc paths use `go/<machine>/<port>`.
-These segments use stable slugs. Keep Service and Instance names lowercase and
-hyphenated to match those slugs in CLI listings and console cards.
+`go/<service>/<instance>` for both machine-hosted and managed deployments. When
+several deployments have the same Service and Instance slugs, select one with
+`?host=<machine-slug>` or `?host=managed`. Machine topology links include the
+host selector so they always target the selected Machine. Ad hoc paths with no
+recorded Service still use `go/<machine>/<port>`. These segments use stable
+lowercase, hyphenated slugs for URLs and CLI lookup.
+Display names are separate and can preserve official branding such as
+`OpenCode`, `cAdvisor`, or `HLIMS`.
 
 See the [architecture](../../docs/architecture/hlims.md) and
 [domain model](../../docs/architecture/domain-model.md) for system boundaries
@@ -55,7 +61,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now hlims-staging.service
 ```
 
-Open <http://localhost:8081/console/> on the Framework, including from Windows
+Open <http://localhost:8081/console/machines/> on the Framework, including from Windows
 when WSL localhost forwarding is enabled. The database is
 `~/.local/state/hlims/staging.db`; do not add it to Git. After rebuilding, run
 `systemctl --user restart hlims-staging.service`. Inspect with
@@ -79,7 +85,8 @@ The server provides:
 |---|---|
 | `/` | Redirect to Machine Topology |
 | `/api/v1` | Versioned JSON API |
-| `/console/` | Machine Topology console |
+| `/console/machines/` | Machine Topology console |
+| `/console/services/` | Service-first catalog of hosted and managed instances |
 | `/console/inventory/` | Owned Products and physical Assets, including uninstalled parts |
 | `/console/orders/` | Purchase history with selected inventory lines and related Assets |
 | `/openapi.yaml` | OpenAPI source |
@@ -92,12 +99,20 @@ and client code is committed under `generated/api` and verified by
 Inventory groups physical Assets under reusable Product models and shows their
 placement, installed Machine, and related Purchase. Orders keep full transaction
 totals separate from the pre-tax subtotal of selected inventory lines; unrelated
-retailer items can be omitted. A tracked household purchase can be excluded
-from the homelab spending subtotal without losing its Assets. Product and Asset
-details open in a shareable side panel; the two pages still link back to Machine
-Topology and to each other. See the
+retailer items can be omitted. Orders are listed one per row, newest first. A
+tracked household purchase can be excluded from the homelab spending subtotal
+without losing its Assets. Product and Asset details open in a shareable side
+panel. Inventory Product cards have a uniform height; their Asset lists open
+in floating panels without shifting the grid. The two pages still link back
+to Machine Topology and to each other. See the
 [console page specification](../../docs/architecture/hlims-console.md) for
 current boundaries and deferred sections.
+
+The Services page keeps its cards a uniform height. Select a card's Instances
+and endpoints control to inspect its full set of links in a floating panel
+without moving other cards. Machine-hosted workers and ingress-only processes
+can have no port or endpoint; they remain visible on Machines and Services
+without a dead "Open" link. A port is recorded only for a verified listener.
 
 Selecting a system or rack Asset reveals contained Assets recursively. Component
 drawers link to their parent Asset as well as the associated Machine and
@@ -119,6 +134,20 @@ inspect IPs without moving the rest of the card.
 Physical CPU model, generation, and RAM type come from installed
 processor and memory Assets under a Machine's backing system Asset. VM cards
 show allocated resources without inheriting the host's physical hardware.
+Known OS names display bundled icons from `console/static/os-*.svg`; Ubuntu
+shows Linux and Ubuntu, and OPNsense shows FreeBSD and OPNsense. These base OS
+labels are derived from the recorded OS name, not a second inventory field;
+unknown names keep their text label without an icon. These are local static
+assets, whereas uploaded Machine Provider and Service logos stay in SQLite
+and are served from their existing API routes. Source an official icon when
+adding a Service and upload it as PNG, JPEG, or WebP (up to 1 MiB), not SVG.
+The bundled OS artwork sources are
+[Linux (Tux, with its white background removed)](https://github.com/edent/SuperTinyIcons/blob/master/images/svg/linux.svg),
+[Ubuntu](https://api.iconify.design/logos/ubuntu.svg),
+[FreeBSD Beastie](https://commons.wikimedia.org/wiki/File:Daemon-phk.svg),
+[Windows](https://api.iconify.design/logos/microsoft-windows-icon.svg),
+[illumos](https://commons.wikimedia.org/wiki/File:Illumos_textlogo.svg), and
+[OPNsense](https://github.com/simple-icons/simple-icons/blob/develop/icons/opnsense.svg).
 Recorded IPs are inventory snapshots, not live DHCP leases; update an address
 if its assigned IP changes. Network facts are stored in `networks`,
 `addresses`, `instances`, and `instance_endpoints`; add real inventory through
@@ -136,15 +165,24 @@ backend.
 
 ```sh
 hlims products list
-hlims machines list
-hlims resolve instance badger opencode production
-hlims open badger/opencode/production
+hlims machines list --slug badger
+hlims services get opencode
+hlims instances list --service opencode
+hlims services logo set opencode --file /path/to/verified-logo.png
+hlims services patch opencode --file changes.json
+hlims resolve instance opencode production --host badger
+hlims resolve instance grafana production
+hlims open opencode/production?host=badger
+hlims open grafana/production
 hlims console
 ```
 
 The client targets `http://127.0.0.1:8080/api/v1` by default. Set
 `HLIMS_API_URL` or pass `--api-url` for another deployment. Data commands emit
-JSON. Create and update commands read JSON from standard input by default.
+JSON. Create, patch, and update commands read JSON from standard input by
+default. `patch` merges only supplied fields and uses an ETag to reject stale
+updates; `update` replaces the complete resource. Service and Machine Provider
+logo commands accept a PNG, JPEG, or WebP file (up to 1 MiB).
 `hlims open` accepts paths with or without the leading `go/` and full `go` URLs.
 Use `--print` to resolve a path without launching a browser.
 

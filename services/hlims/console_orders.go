@@ -33,6 +33,7 @@ type orderCardView struct {
 	Reference          string
 	Date               string
 	DateSort           string
+	CreatedAt          int64
 	Total              string
 	TrackedSubtotal    string
 	HomelabSubtotal    string
@@ -42,11 +43,6 @@ type orderCardView struct {
 	Lines              []orderLineView
 	Assets             []orderAssetView
 	Links              []orderLinkView
-}
-
-type orderGroupView struct {
-	Label  string
-	Orders []orderCardView
 }
 
 type orderCurrencyView struct {
@@ -59,7 +55,7 @@ type orderCurrencyView struct {
 type ordersPage struct {
 	View       string
 	OrderCount int
-	Groups     []orderGroupView
+	Orders     []orderCardView
 	Totals     []orderCurrencyView
 }
 
@@ -96,7 +92,7 @@ func (s consoleServer) orders(w http.ResponseWriter, r *http.Request) {
 	}
 	byPurchase := make(map[string]int, len(purchases))
 	currencies := make(map[string]string, len(purchases))
-	view := ordersPage{View: "orders", OrderCount: len(purchases), Groups: []orderGroupView{}, Totals: []orderCurrencyView{}}
+	view := ordersPage{View: "orders", OrderCount: len(purchases), Orders: []orderCardView{}, Totals: []orderCurrencyView{}}
 	currencyTotals := make(map[string]*orderCurrencyView)
 	cards := make([]orderCardView, 0, len(purchases))
 	for _, purchase := range purchases {
@@ -106,7 +102,7 @@ func (s consoleServer) orders(w http.ResponseWriter, r *http.Request) {
 		}
 		cards = append(cards, orderCardView{
 			PublicID: purchase.PublicID, Source: source, Reference: purchase.OrderReference.String,
-			Date: displayPurchaseDate(purchase.PurchasedOn), DateSort: purchase.PurchasedOn.String,
+			Date: displayPurchaseDate(purchase.PurchasedOn), DateSort: purchase.PurchasedOn.String, CreatedAt: purchase.CreatedAt,
 			Total: consoleMoney(purchase.TotalPriceCents, purchase.Currency), Notes: purchase.Notes.String,
 			Lines: []orderLineView{}, Assets: []orderAssetView{}, Links: []orderLinkView{},
 		})
@@ -200,18 +196,12 @@ func (s consoleServer) orders(w http.ResponseWriter, r *http.Request) {
 		if cards[i].DateSort != cards[j].DateSort {
 			return cards[i].DateSort > cards[j].DateSort
 		}
+		if cards[i].CreatedAt != cards[j].CreatedAt {
+			return cards[i].CreatedAt > cards[j].CreatedAt
+		}
 		return cards[i].PublicID < cards[j].PublicID
 	})
-	for _, card := range cards {
-		group := "Date not recorded"
-		if len(card.DateSort) >= 4 {
-			group = card.DateSort[:4]
-		}
-		if len(view.Groups) == 0 || view.Groups[len(view.Groups)-1].Label != group {
-			view.Groups = append(view.Groups, orderGroupView{Label: group, Orders: []orderCardView{}})
-		}
-		view.Groups[len(view.Groups)-1].Orders = append(view.Groups[len(view.Groups)-1].Orders, card)
-	}
+	view.Orders = cards
 	for _, total := range currencyTotals {
 		total.HomelabSubtotal = consoleMoney(total.homelabCents, total.Currency)
 		view.Totals = append(view.Totals, *total)

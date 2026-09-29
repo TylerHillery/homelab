@@ -11,14 +11,14 @@ import (
 
 func TestParseCanonicalOpenTarget(t *testing.T) {
 	t.Parallel()
-	target, err := parseOpenTarget("go/badger/grafana/production/d/overview?via=tailnet&refresh=30s#panel")
+	target, err := parseOpenTarget("go/grafana/production/d/overview?host=badger&via=tailnet&refresh=30s#panel")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if target.machine != "badger" || target.service != "grafana" || target.instance != "production" {
+	if target.host != "badger" || target.service != "grafana" || target.instance != "production" {
 		t.Fatalf("target = %#v", target)
 	}
-	if target.via != "tailnet" || target.query.Get("via") != "" || target.query.Get("refresh") != "30s" {
+	if target.via != "tailnet" || target.query.Get("via") != "" || target.query.Get("host") != "" || target.query.Get("refresh") != "30s" {
 		t.Fatalf("target query = %#v", target)
 	}
 	if target.fragment != "panel" || len(target.suffix) != 2 {
@@ -55,7 +55,7 @@ func TestAppendOpenTargetPreservesDestinationAndCallerQuery(t *testing.T) {
 
 func TestOpenTargetPreservesEscapedSuffix(t *testing.T) {
 	t.Parallel()
-	target, err := parseOpenTarget("badger/grafana/production/d/a%2Fb")
+	target, err := parseOpenTarget("grafana/production/d/a%2Fb")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestOpenTargetPreservesEscapedSuffix(t *testing.T) {
 
 func TestCanonicalOpenTargetForwardsSchemeQuery(t *testing.T) {
 	t.Parallel()
-	target, err := parseOpenTarget("badger/grafana/production?scheme=dark")
+	target, err := parseOpenTarget("grafana/production?scheme=dark")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestAppendOpenTargetPreservesResolverFragment(t *testing.T) {
 
 func TestParseOpenTargetRejectsNonHTTPURL(t *testing.T) {
 	t.Parallel()
-	if _, err := parseOpenTarget("ftp://go/badger/grafana/production"); err == nil {
+	if _, err := parseOpenTarget("ftp://go/grafana/production"); err == nil {
 		t.Fatal("parseOpenTarget accepted a non-HTTP URL")
 	}
 }
@@ -101,8 +101,11 @@ func TestParseOpenTargetRejectsNonHTTPURL(t *testing.T) {
 func TestOpenCommandResolvesAndLaunches(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/api/v1/resolve/badger/grafana/production" {
+		if request.URL.Path != "/api/v1/resolve/grafana/production" {
 			t.Errorf("path = %q", request.URL.Path)
+		}
+		if request.URL.Query().Get("host") != "badger" {
+			t.Errorf("host = %q", request.URL.Query().Get("host"))
 		}
 		if request.URL.Query().Get("via") != "tailnet" {
 			t.Errorf("via = %q", request.URL.Query().Get("via"))
@@ -124,7 +127,7 @@ func TestOpenCommandResolvesAndLaunches(t *testing.T) {
 	})
 	command.SetArgs([]string{
 		"--api-url", server.URL + "/api/v1",
-		"open", "badger/grafana/production/d/overview?via=tailnet&refresh=30s#panel",
+		"open", "grafana/production/d/overview?host=badger&via=tailnet&refresh=30s#panel",
 	})
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
@@ -159,5 +162,29 @@ func TestOpenPrintDoesNotLaunchBrowser(t *testing.T) {
 	}
 	if output.String() != "http://badger:5173\n" {
 		t.Fatalf("output = %q", output.String())
+	}
+}
+
+func TestManagedOpenPrintPreservesProjectQuery(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/v1/resolve/posthog/example-cloud" {
+			t.Errorf("managed resolver path = %q", request.URL.Path)
+		}
+		if request.URL.Query().Get("host") != "managed" {
+			t.Errorf("managed host = %q", request.URL.Query().Get("host"))
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"url":"https://app.example.test/project/42/home?origin=app","via":"managed"}`))
+	}))
+	t.Cleanup(server.Close)
+	var output bytes.Buffer
+	command := NewRootCommand(Dependencies{Output: &output, Error: &bytes.Buffer{}, HTTPClient: server.Client()})
+	command.SetArgs([]string{"--api-url", server.URL + "/api/v1", "open", "--print", "posthog/example-cloud/events?host=managed&tab=insights"})
+	if err := command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := output.String(), "https://app.example.test/project/42/home/events?origin=app&tab=insights\n"; got != want {
+		t.Fatalf("managed destination = %q; want %q", got, want)
 	}
 }

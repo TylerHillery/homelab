@@ -61,7 +61,7 @@ func newHandler(db *SQLiteDB) http.Handler {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		serveRedirect(w, r, resolver)
 	})
-	return mux
+	return conditionalInventoryWrites(mux)
 }
 
 func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
@@ -77,7 +77,7 @@ func serveOpenAPI(w http.ResponseWriter, _ *http.Request) {
 func serveRedirect(w http.ResponseWriter, r *http.Request, resolver resolver) {
 	path := strings.Trim(r.URL.Path, "/")
 	if path == "" {
-		http.Redirect(w, r, "/console/", http.StatusPermanentRedirect)
+		http.Redirect(w, r, "/console/machines/", http.StatusPermanentRedirect)
 		return
 	}
 
@@ -98,18 +98,16 @@ func serveRedirect(w http.ResponseWriter, r *http.Request, resolver resolver) {
 				strings.Join(parts[2:], "/"),
 				r.URL.Query(),
 			)
-		} else if len(parts) >= 3 {
+		} else {
 			destination, err = resolver.instance(
 				r.Context(),
 				parts[0],
 				parts[1],
-				parts[2],
+				r.URL.Query().Get("host"),
 				via,
-				strings.Join(parts[3:], "/"),
+				strings.Join(parts[2:], "/"),
 				r.URL.Query(),
 			)
-		} else {
-			err = errDestinationNotFound
 		}
 	} else {
 		err = errDestinationNotFound
@@ -128,7 +126,7 @@ func serveResolveError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errDestinationNotFound):
 		http.Error(w, "destination not found", http.StatusNotFound)
-	case errors.Is(err, errInvalidPort), errors.Is(err, errInvalidScheme), errors.Is(err, errInvalidVia):
+	case errors.Is(err, errInvalidPort), errors.Is(err, errInvalidScheme), errors.Is(err, errInvalidVia), errors.Is(err, errAmbiguousInstance):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:
 		log.Printf("resolving destination: %v", err)

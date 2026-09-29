@@ -16,7 +16,7 @@
           <div><dt>Status</dt><dd>{{.SelectedAsset.Status}}</dd></div>
           <div><dt>Placement</dt><dd>{{.SelectedAsset.Placement}}</dd></div>
           {{if .SelectedAsset.ParentAssetPublicID}}<div><dt>Contained in</dt><dd><a href="/console/inventory/?asset={{.SelectedAsset.ParentAssetPublicID}}" data-inventory-detail>{{.SelectedAsset.ParentAssetName}} ↗</a></dd></div>{{end}}
-          {{if .SelectedAsset.MachinePublicID}}<div><dt>Machine</dt><dd><a href="/console/#machine-{{.SelectedAsset.MachinePublicID}}">{{.SelectedAsset.MachineName}} ↗</a></dd></div>{{end}}
+          {{if .SelectedAsset.MachinePublicID}}<div><dt>Machine</dt><dd><a href="/console/machines/#machine-{{.SelectedAsset.MachinePublicID}}">{{.SelectedAsset.MachineName}} ↗</a></dd></div>{{end}}
           {{if .SelectedAsset.PurchasePublicID}}<div><dt>Purchase</dt><dd><a href="/console/orders/#order-{{.SelectedAsset.PurchasePublicID}}">View order ↗</a></dd></div>{{end}}
         </dl>
         {{if .SelectedAsset.Notes}}<p class="inventory-detail-note">{{.SelectedAsset.Notes}}</p>{{end}}

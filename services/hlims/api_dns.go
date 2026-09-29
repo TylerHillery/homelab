@@ -159,7 +159,7 @@ func (s apiServer) CreateIngressRoute(w http.ResponseWriter, r *http.Request) {
 		writeDatabaseError(w, err)
 		return
 	}
-	if endpoint.MachineID != ingress.MachineID {
+	if !endpoint.MachineID.Valid || !ingress.MachineID.Valid || endpoint.MachineID.String != ingress.MachineID.String {
 		writeAPIError(w, http.StatusBadRequest, "invalid_input", "ingress and served instance must share a machine")
 		return
 	}

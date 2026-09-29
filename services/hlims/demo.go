@@ -340,7 +340,7 @@ func createDemoInstance(ctx context.Context, queries *database.Queries, service,
 	if err != nil {
 		return err
 	}
-	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instance.id, PublicID: instance.publicID, ServiceID: service.id, MachineID: machine.id, Name: name, Slug: slug, Port: port})
+	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instance.id, PublicID: instance.publicID, ServiceID: service.id, MachineID: sql.NullString{String: machine.id, Valid: true}, HostingKind: "machine", Name: name, Slug: slug, Port: sql.NullInt64{Int64: port, Valid: true}})
 	if err != nil {
 		return fmt.Errorf("create instance %s: %w", name, err)
 	}
@@ -349,8 +349,8 @@ func createDemoInstance(ctx context.Context, queries *database.Queries, service,
 		return err
 	}
 	_, err = queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{
-		ID: endpoint.id, PublicID: endpoint.publicID, InstanceID: instance.id, AddressID: address.id,
-		Name: "Preferred", Scheme: scheme, Port: port, HostType: "auto", IsPreferred: 1,
+		ID: endpoint.id, PublicID: endpoint.publicID, InstanceID: instance.id, AddressID: sql.NullString{String: address.id, Valid: true},
+		Name: "Preferred", Scheme: sql.NullString{String: scheme, Valid: true}, Port: sql.NullInt64{Int64: port, Valid: true}, HostType: "auto", IsPreferred: 1,
 	})
 	if err != nil {
 		return fmt.Errorf("create endpoint for %s: %w", name, err)

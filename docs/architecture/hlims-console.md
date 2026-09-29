@@ -1,16 +1,17 @@
 # HLIMS Console Pages
 
-Status: Machine Topology, Inventory, and Orders are current. DNS and Services
-page concepts remain deferred.
+Status: Machines, Services, Inventory, and Orders are current. Networks & DNS
+remains deferred.
 
 ## Purpose
 
-The current `/console/` is **Machine Topology**: Machine Provider → Area or
+`/console/machines/` is **Machine Topology**: Machine Provider → Area or
 region → Machine → nested Machine. Its cards summarize recorded capacity,
 addresses, users, hosted Services, Instances, and available endpoints. Favorites
-provide a shortcut to Machines. Ingress-only Instances with no direct link stay
-in the API and appear through the endpoints they publish rather than as empty
-service cards. This view should not also be a DNS or purchasing dashboard.
+provide a shortcut to Machines. Internal workers and ingress-only Instances
+without direct links still appear on their Machine cards, without invented
+resolver URLs. This view should not also be a managed-service, DNS, or
+purchasing dashboard.
 
 HLIMS needs other ways to explore the same relational inventory. Each page
 should answer a distinct question, then link to related records rather than
@@ -24,7 +25,7 @@ copying every field into Machine Topology.
 | Inventory | What physical equipment do I own, including spares? | Manufacturers, Products, Assets, placement, installed components |
 | Orders | What did I buy, when, for how much, and which Assets were included? | Purchases, selected lines, Purchase Assets, links |
 | Networks & DNS | Which addresses and names exist, and what do they point to? | Networks, Addresses, DNS Zones, DNS Records |
-| Services & Ingress | Which applications run, and how do public URLs reach their backends? | Services, Instances, Endpoints, Ingress Routes |
+| Services | Which applications and managed subscriptions exist, and where can I open them? | Services, Instances, Endpoints, Machines |
 
 ### Inventory
 
@@ -37,8 +38,11 @@ stock. Show model specifications, physical units, and where each unit is
 installed or stored. A system Asset can link to its Machine and contained
 processor, memory, and drive Assets.
 
-The compact grid leads with filters and Products. A Product or Asset opens a
-right-side detail drawer without losing the grid or its Machine/Purchase links.
+The compact grid leads with filters and uniformly sized Product cards. Keep
+variable-length Asset lists, placement, and notes in click-controlled floating
+panels that open without shifting other cards; panels can open above the card
+near the bottom of the viewport. A Product or Asset also opens a right-side
+detail drawer without losing the grid or its Machine/Purchase links.
 The Product view shows model specifications, port groups, source links, and all
 owned units; selecting an Asset adds its location, role notes, installed Machine,
 Purchase, parent Asset, and recursively contained components. A system shows its
@@ -64,6 +68,9 @@ present the full mixed-order total as the cost of one included Asset. Treat a
 bundle as one Purchase with multiple Assets, keep currencies separate, and
 distinguish zero cost from an unknown price.
 
+Display one Purchase per row in a single list, newest purchase date first.
+Undated records go last; do not split the list into yearly card grids.
+
 An inventoried shared-home item may be excluded from the homelab-only spending
 sum per selected Purchase line. Keep its Asset, Product, order line, and full
 order total visible. Above the order cards, show only the homelab-only selected
@@ -78,16 +85,23 @@ the target Machine in Machine Topology and to any matching service endpoints.
 An Address is not proof that a particular service listens on it; an endpoint
 describes a verified access URL. Display loopback addresses as local-only.
 
-### Services & Ingress
+### Services
 
-Show Service → Instance → client-facing Endpoints, including scheme, selected
-DNS name or IP, and network scope. For endpoints with an Ingress Route, show the
-ingress Instance and whether it proxies a backend, serves static files, or
-redirects. Distinguish a backend port from the published endpoint port.
+Show Service → Instance → optional verified Endpoints, with the host Machine as
+optional context. Managed Instances name their external provider; their direct
+HTTPS URLs may include labeled project links. Machine-hosted Instances may
+record a backend port but workers need neither a port nor a URL. Never turn a
+declared or observed process into an unverified link. Keep service cards a
+consistent height: show a primary route when one exists, with the
+variable-length instance and endpoint detail in click-controlled floating
+panels that can open above the card near the bottom of the viewport. A
+future ingress detail view can show which Instance proxies, serves, or redirects
+an Endpoint; the current catalog lists direct links without claiming to manage
+the external provider or its DNS.
 
 ## Navigation Rules
 
-- Keep the Machines, Inventory, and Orders navigation visible on all three
+- Keep the Machines, Services, Inventory, and Orders navigation visible on all
   pages. Do not include navigation to unimplemented sections.
 - Give each resource a stable link keyed by its public ID, independent of its
   editable name or slug. A link from an Asset, DNS Record, or Service to a
@@ -104,8 +118,8 @@ redirects. Distinguish a backend port from the published endpoint port.
 
 1. Finish public-ID deep links to nested Machines; current inventory links can
    target root Machine cards, but lazily loaded descendants need a focus route.
-2. Add Networks & DNS and Services & Ingress pages, then wire cross-links from
-   record → address → Machine and endpoint → ingress/backing Instance.
+2. Add Networks & DNS, then wire cross-links from record → address → Machine
+   and endpoint → ingress/backing Instance.
 3. Add editing flows only for workflows that cannot be handled comfortably by
    the existing API/CLI. Keep OpenAPI and SQLite constraints authoritative.
 

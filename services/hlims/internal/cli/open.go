@@ -15,6 +15,7 @@ type openTarget struct {
 	machine  string
 	service  string
 	instance string
+	host     string
 	port     int
 	via      string
 	scheme   string
@@ -33,10 +34,11 @@ HLIMS API, then open the resulting destination in the local default browser.
 Additional path segments, query parameters, and fragments are preserved.
 
 Use --print for scripts, testing, or environments without a browser.`,
-		Example: `  hlims open badger/grafana/production
+		Example: `  hlims open grafana/production
+  hlims open grafana/production?host=badger
   hlims open go/badger/5173?via=tailnet
-  hlims open 'badger/grafana/production/d/overview?refresh=30s'
-  hlims open --print badger/opencode/production`,
+  hlims open 'grafana/production/d/overview?refresh=30s'
+  hlims open --print opencode/production`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, err := parseOpenTarget(args[0])
@@ -51,7 +53,7 @@ Use --print for scripts, testing, or environments without a browser.`,
 			if target.port != 0 {
 				response, err = client.ResolvePort(cmd.Context(), target.machine, target.port, target.via, target.scheme)
 			} else {
-				response, err = client.ResolveInstance(cmd.Context(), target.machine, target.service, target.instance, target.via)
+				response, err = client.ResolveInstance(cmd.Context(), target.service, target.instance, target.host, target.via)
 			}
 			if err != nil {
 				return err
@@ -110,22 +112,27 @@ func parseOpenTarget(raw string) (openTarget, error) {
 		}
 	}
 	if len(segments) < 2 {
-		return openTarget{}, errors.New("path must be MACHINE/PORT or MACHINE/SERVICE/INSTANCE")
+		return openTarget{}, errors.New("path must be SERVICE/INSTANCE or MACHINE/PORT")
 	}
 
 	query := parsed.Query()
 	target := openTarget{
 		machine:  segments[0],
+		host:     query.Get("host"),
 		via:      query.Get("via"),
 		query:    query,
 		fragment: parsed.Fragment,
 	}
 	target.query.Del("via")
+	target.query.Del("host")
 
 	// This intentionally mirrors the browser resolver: a numeric second segment
 	// selects an ad hoc port, even when additional path segments follow.
 	port, portErr := strconv.Atoi(segments[1])
 	if portErr == nil {
+		if target.host != "" {
+			return openTarget{}, errors.New("ad hoc machine ports do not use a host selector")
+		}
 		if port < 1 || port > 65535 {
 			return openTarget{}, errors.New("port must be between 1 and 65535")
 		}
@@ -135,12 +142,9 @@ func parseOpenTarget(raw string) (openTarget, error) {
 		target.suffix = escapedSegments[2:]
 		return target, nil
 	}
-	if len(segments) < 3 {
-		return openTarget{}, errors.New("canonical path must be MACHINE/SERVICE/INSTANCE")
-	}
-	target.service = segments[1]
-	target.instance = segments[2]
-	target.suffix = escapedSegments[3:]
+	target.service = segments[0]
+	target.instance = segments[1]
+	target.suffix = escapedSegments[2:]
 	return target, nil
 }
 

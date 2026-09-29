@@ -52,8 +52,8 @@ type GetInstanceEndpointByNetworkKindParams struct {
 type GetInstanceEndpointByNetworkKindRow struct {
 	Address     string         `json:"address"`
 	NetworkKind string         `json:"network_kind"`
-	Scheme      string         `json:"scheme"`
-	Port        int64          `json:"port"`
+	Scheme      sql.NullString `json:"scheme"`
+	Port        sql.NullInt64  `json:"port"`
 	HostType    string         `json:"host_type"`
 	BasePath    string         `json:"base_path"`
 	DnsName     sql.NullString `json:"dns_name"`
@@ -112,6 +112,31 @@ func (q *Queries) GetMachineAddressByNetworkKind(ctx context.Context, arg GetMac
 	return i, err
 }
 
+const getManagedInstanceEndpoint = `-- name: GetManagedInstanceEndpoint :one
+select instance_endpoints.direct_url
+from instances
+inner join services on instances.service_id = services.id
+inner join instance_endpoints on instances.id = instance_endpoints.instance_id
+where
+    instances.hosting_kind = 'managed'
+    and services.slug = ?1
+    and instances.slug = ?2
+order by instance_endpoints.is_preferred desc, instance_endpoints.name asc
+limit 1
+`
+
+type GetManagedInstanceEndpointParams struct {
+	ServiceSlug  string `json:"service_slug"`
+	InstanceSlug string `json:"instance_slug"`
+}
+
+func (q *Queries) GetManagedInstanceEndpoint(ctx context.Context, arg GetManagedInstanceEndpointParams) (sql.NullString, error) {
+	row := q.db.QueryRowContext(ctx, getManagedInstanceEndpoint, arg.ServiceSlug, arg.InstanceSlug)
+	var direct_url sql.NullString
+	err := row.Scan(&direct_url)
+	return direct_url, err
+}
+
 const getPreferredInstanceEndpoint = `-- name: GetPreferredInstanceEndpoint :one
 select
     addresses.address,
@@ -152,8 +177,8 @@ type GetPreferredInstanceEndpointParams struct {
 type GetPreferredInstanceEndpointRow struct {
 	Address     string         `json:"address"`
 	NetworkKind string         `json:"network_kind"`
-	Scheme      string         `json:"scheme"`
-	Port        int64          `json:"port"`
+	Scheme      sql.NullString `json:"scheme"`
+	Port        sql.NullInt64  `json:"port"`
 	HostType    string         `json:"host_type"`
 	BasePath    string         `json:"base_path"`
 	DnsName     sql.NullString `json:"dns_name"`
@@ -203,6 +228,52 @@ func (q *Queries) GetPreferredMachineAddress(ctx context.Context, machineSlug st
 	var i GetPreferredMachineAddressRow
 	err := row.Scan(&i.Address, &i.DnsName, &i.NetworkKind)
 	return i, err
+}
+
+const listInstanceHostsByServiceAndSlug = `-- name: ListInstanceHostsByServiceAndSlug :many
+select
+    instances.hosting_kind,
+    machines.slug as machine_slug
+from instances
+inner join services on instances.service_id = services.id
+left join machines on instances.machine_id = machines.id
+where
+    services.slug = ?1
+    and instances.slug = ?2
+order by instances.hosting_kind, machines.slug
+`
+
+type ListInstanceHostsByServiceAndSlugParams struct {
+	ServiceSlug  string `json:"service_slug"`
+	InstanceSlug string `json:"instance_slug"`
+}
+
+type ListInstanceHostsByServiceAndSlugRow struct {
+	HostingKind string         `json:"hosting_kind"`
+	MachineSlug sql.NullString `json:"machine_slug"`
+}
+
+func (q *Queries) ListInstanceHostsByServiceAndSlug(ctx context.Context, arg ListInstanceHostsByServiceAndSlugParams) ([]ListInstanceHostsByServiceAndSlugRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInstanceHostsByServiceAndSlug, arg.ServiceSlug, arg.InstanceSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInstanceHostsByServiceAndSlugRow{}
+	for rows.Next() {
+		var i ListInstanceHostsByServiceAndSlugRow
+		if err := rows.Scan(&i.HostingKind, &i.MachineSlug); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMachines = `-- name: ListMachines :many

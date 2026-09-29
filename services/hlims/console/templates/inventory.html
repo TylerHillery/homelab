@@ -16,22 +16,28 @@
         <span class="product-eyebrow">Model / {{.Manufacturer}}</span>
         <h3><a class="product-detail-link" href="/console/inventory/?product={{.PublicID}}" data-inventory-detail>{{.Name}} <span aria-hidden="true">↗</span></a></h3>
         {{if .Specification}}<p>{{.Specification}}</p>{{end}}
-        {{if .Notes}}<p>{{.Notes}}</p>{{end}}
         <span class="product-quantity">{{len .Assets}} owned</span>
       </header>
-      <ul class="product-assets">
-        {{range .Assets}}
-        <li id="asset-{{.PublicID}}">
-          <div class="asset-identity"><strong><a class="asset-detail-link" href="/console/inventory/?asset={{.PublicID}}" data-inventory-detail>{{.Name}} ↗</a></strong><span>{{.Placement}}</span>{{if .Notes}}<small>{{.Notes}}</small>{{end}}</div>
-          <div class="asset-context">
-            <span class="asset-state">{{.Status}}</span>
-            {{if .MachinePublicID}}<a href="/console/#machine-{{.MachinePublicID}}">{{.MachineName}} ↗</a>{{end}}
-            {{if .PurchasePublicID}}<a href="/console/orders/#order-{{.PurchasePublicID}}">Purchase ↗</a>{{end}}
-          </div>
-        </li>
-        {{end}}
-      </ul>
-      {{if .LinkURL}}<footer class="product-card-footer"><a href="{{.LinkURL}}" target="_blank" rel="noopener noreferrer">{{.LinkLabel}} ↗</a></footer>{{end}}
+      <details class="product-assets-picker" name="inventory-products">
+        <summary aria-label="Show assets and details for {{.Name}}">Assets &amp; details <span>({{len .Assets}})</span></summary>
+        <div class="product-assets-popover">
+          {{if .Specification}}<p class="product-assets-specification">{{.Specification}}</p>{{end}}
+          {{if .Notes}}<p class="product-assets-note">{{.Notes}}</p>{{end}}
+          <ul class="product-assets">
+            {{range .Assets}}
+            <li id="asset-{{.PublicID}}">
+              <div class="asset-identity"><strong><a class="asset-detail-link" href="/console/inventory/?asset={{.PublicID}}" data-inventory-detail>{{.Name}} ↗</a></strong><span>{{.Placement}}</span>{{if .Notes}}<small>{{.Notes}}</small>{{end}}</div>
+              <div class="asset-context">
+                <span class="asset-state">{{.Status}}</span>
+                {{if .MachinePublicID}}<a href="/console/machines/#machine-{{.MachinePublicID}}">{{.MachineName}} ↗</a>{{end}}
+                {{if .PurchasePublicID}}<a href="/console/orders/#order-{{.PurchasePublicID}}">Purchase ↗</a>{{end}}
+              </div>
+            </li>
+            {{end}}
+          </ul>
+          {{if .LinkURL}}<footer class="product-card-footer"><a href="{{.LinkURL}}" target="_blank" rel="noopener noreferrer">{{.LinkLabel}} ↗</a></footer>{{end}}
+        </div>
+      </details>
     </article>
     {{end}}
   </div>

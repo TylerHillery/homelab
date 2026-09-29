@@ -1284,11 +1284,13 @@ create table instances (
     public_id  text    not null unique,
     service_id text    not null
         references services (id) on delete restrict,
-    machine_id text    not null
+    machine_id text
         references machines (id) on delete restrict,
+    hosting_kind text   not null default 'machine',
+    managed_provider text,
     name       text    not null collate nocase,
     slug       text    not null collate nocase,
-    port       integer not null,
+    port       integer,
     notes      text,
     created_at integer not null default (strftime('%s', 'now')),
     updated_at integer not null default (strftime('%s', 'now')),
@@ -1299,30 +1301,38 @@ create table instances (
     check (slug not glob '*[^0-9a-z-]*'),
     check (slug not like '-%' and slug not like '%-'),
     check (instr(slug, '--') = 0),
-    check (port between 1 and 65535)
+    check (
+        (hosting_kind = 'machine' and machine_id is not null
+            and managed_provider is null
+            and (port is null or port between 1 and 65535))
+        or (hosting_kind = 'managed' and machine_id is null
+            and managed_provider is not null
+            and length(trim(managed_provider)) > 0 and port is null)
+    )
 );
 
 create index instances_service_id_idx on instances (service_id);
 create index instances_machine_id_idx on instances (machine_id);
 
 create unique index instances_name_idx
-    on instances (service_id, machine_id, name);
+    on instances (service_id, coalesce(machine_id, ''), name);
 
 create unique index instances_slug_idx
-    on instances (service_id, machine_id, slug);
+    on instances (service_id, coalesce(machine_id, ''), slug);
 
 create table instance_endpoints (
     id           text    not null primary key,
     public_id    text    not null unique,
     instance_id  text    not null
         references instances (id) on delete cascade,
-    address_id   text    not null
+    address_id   text
         references addresses (id) on delete restrict,
+    direct_url   text,
     dns_record_id text
         references dns_records (id) on delete restrict,
     name         text    not null collate nocase,
-    scheme       text    not null,
-    port         integer not null,
+    scheme       text,
+    port         integer,
     base_path    text    not null default '',
     host_type    text    not null default 'auto',
     is_preferred integer not null default 0,
@@ -1332,8 +1342,14 @@ create table instance_endpoints (
     check (length(id) = 36),
     check (length(public_id) = 12),
     check (public_id not glob '*[^0-9a-z]*'),
-    check (scheme in ('http', 'https')),
-    check (port between 1 and 65535),
+    check (
+        (address_id is not null and direct_url is null
+            and scheme in ('http', 'https') and port between 1 and 65535)
+        or (address_id is null and direct_url is not null
+            and direct_url like 'https://%'
+            and scheme is null and port is null and dns_record_id is null
+            and base_path = '' and host_type = 'auto')
+    ),
     check (base_path = '' or substr(base_path, 1, 1) = '/'),
     check (host_type in ('auto', 'dns', 'ip')),
     check (dns_record_id is null or host_type = 'dns'),
@@ -1431,13 +1447,17 @@ end;
 
 -- +goose StatementBegin
 create trigger instances_endpoint_machine_update
-before update of machine_id on instances
+before update of machine_id, hosting_kind on instances
 when exists (
     select 1 as result
     from instance_endpoints
-    inner join addresses on instance_endpoints.address_id = addresses.id
-    where instance_endpoints.instance_id = new.id
-        and (addresses.machine_id is null or addresses.machine_id != new.machine_id)
+    left join addresses on instance_endpoints.address_id = addresses.id
+    where instance_endpoints.instance_id = new.id and (
+        (new.hosting_kind = 'managed' and instance_endpoints.address_id is not null)
+        or (new.hosting_kind = 'machine' and (
+            addresses.machine_id is null or addresses.machine_id != new.machine_id
+        ))
+    )
 )
 begin
     select raise(abort, 'endpoint address must belong to the instance machine') as result;
@@ -1447,13 +1467,16 @@ end;
 -- +goose StatementBegin
 create trigger instance_endpoints_machine_insert
 before insert on instance_endpoints
-when not exists (
+when (new.address_id is not null and not exists (
     select 1 as result
     from instances
     inner join addresses on instances.machine_id = addresses.machine_id
     where instances.id = new.instance_id
         and addresses.id = new.address_id
-)
+)) or (new.address_id is null and not exists (
+    select 1 as result from instances
+    where instances.id = new.instance_id and instances.hosting_kind = 'managed'
+))
 begin
     select raise(abort, 'endpoint address must belong to the instance machine') as result;
 end;
@@ -1461,14 +1484,17 @@ end;
 
 -- +goose StatementBegin
 create trigger instance_endpoints_machine_update
-before update of instance_id, address_id on instance_endpoints
-when not exists (
+before update of instance_id, address_id, direct_url on instance_endpoints
+when (new.address_id is not null and not exists (
     select 1 as result
     from instances
     inner join addresses on instances.machine_id = addresses.machine_id
     where instances.id = new.instance_id
         and addresses.id = new.address_id
-)
+)) or (new.address_id is null and not exists (
+    select 1 as result from instances
+    where instances.id = new.instance_id and instances.hosting_kind = 'managed'
+))
 begin
     select raise(abort, 'endpoint address must belong to the instance machine') as result;
 end;

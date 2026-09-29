@@ -48,12 +48,16 @@ func TestInventoryAndOrdersExposeSparePartsAndSelectedPurchaseLines(t *testing.T
 	assertStatus(t, inventory, http.StatusOK)
 	for _, want := range []string{
 		"HLIMS / Inventory", `href="/console/inventory/" aria-current="page"`, "8 GiB DDR3 module",
-		"Installed module", "Stored module", `href="/console/#machine-` + machine["publicId"].(string) + `"`,
+		"Installed module", "Stored module", `href="/console/machines/#machine-` + machine["publicId"].(string) + `"`,
 		`href="/console/orders/#order-` + purchase["publicId"].(string) + `"`,
+		`aria-label="Show assets and details for 8 GiB DDR3 module"`, "System support guide",
 	} {
 		if !strings.Contains(inventory.Body.String(), want) {
 			t.Errorf("inventory page missing %q", want)
 		}
+	}
+	if body := inventory.Body.String(); strings.Count(body, `class="product-card"`) != 2 || strings.Count(body, `class="product-assets-picker"`) != 2 || strings.Count(body, `class="product-assets-popover"`) != 2 {
+		t.Fatal("each Inventory product should have one floating asset list")
 	}
 	if strings.Contains(inventory.Body.String(), "What you own. Where it lives.") || strings.Contains(inventory.Body.String(), "Physical assets</span>") {
 		t.Fatal("Inventory should lead with the filters and records, not an intro or summary dashboard")
@@ -97,7 +101,7 @@ func TestInventoryAndOrdersExposeSparePartsAndSelectedPurchaseLines(t *testing.T
 	}
 	componentDetail := consoleRequest(handler, http.MethodGet, "/console/inventory/detail?asset="+installed["publicId"].(string), false)
 	assertStatus(t, componentDetail, http.StatusOK)
-	if !strings.Contains(componentDetail.Body.String(), "Contained in") || !strings.Contains(componentDetail.Body.String(), `href="/console/inventory/?asset=`+systemAsset["publicId"].(string)+`"`) || !strings.Contains(componentDetail.Body.String(), `href="/console/#machine-`+machine["publicId"].(string)+`"`) {
+	if !strings.Contains(componentDetail.Body.String(), "Contained in") || !strings.Contains(componentDetail.Body.String(), `href="/console/inventory/?asset=`+systemAsset["publicId"].(string)+`"`) || !strings.Contains(componentDetail.Body.String(), `href="/console/machines/#machine-`+machine["publicId"].(string)+`"`) {
 		t.Fatalf("component should link back to its system and Machine: %s", componentDetail.Body.String())
 	}
 	rack := createAPIResource(t, handler, "/api/v1/products", map[string]any{
@@ -188,5 +192,34 @@ func TestInventoryDrawerSeparatesSharedRouterSpecsFromEachOwnedUnit(t *testing.T
 	assertStatus(t, orders, http.StatusOK)
 	if !strings.Contains(orders.Body.String(), "Homelab item subtotals") || !strings.Contains(orders.Body.String(), "Shared home · excluded from homelab total") || !strings.Contains(orders.Body.String(), "$0.00") || !strings.Contains(orders.Body.String(), "$599.99") {
 		t.Fatalf("mixed-use purchase should remain inventoried without inflating homelab spending: %s", orders.Body.String())
+	}
+}
+
+func TestOrdersShowOnePerRowNewestFirst(t *testing.T) {
+	handler := newAPITestHandler(t)
+	maker := createAPIResource(t, handler, "/api/v1/manufacturers", map[string]any{"name": "Example Hardware"})
+	product := createAPIResource(t, handler, "/api/v1/products", map[string]any{
+		"manufacturerPublicId": maker["publicId"], "kind": "system", "name": "Example system",
+	})
+	var orders []map[string]any
+	for _, day := range []string{"2025-01-04", "2026-09-21", "2026-05-15"} {
+		asset := createAPIResource(t, handler, "/api/v1/assets", map[string]any{
+			"productPublicId": product["publicId"], "name": "System " + day, "placement": map[string]any{"type": "unplaced"},
+		})
+		orders = append(orders, createAPIResource(t, handler, "/api/v1/purchases", map[string]any{
+			"assetPublicIds": []any{asset["publicId"]}, "totalPriceCents": 100, "currency": "USD", "purchasedOn": day,
+		}))
+	}
+	page := consoleRequest(handler, http.MethodGet, "/console/orders/", false)
+	assertStatus(t, page, http.StatusOK)
+	body := page.Body.String()
+	newest := strings.Index(body, `id="order-`+orders[1]["publicId"].(string)+`"`)
+	middle := strings.Index(body, `id="order-`+orders[2]["publicId"].(string)+`"`)
+	oldest := strings.Index(body, `id="order-`+orders[0]["publicId"].(string)+`"`)
+	if newest < 0 || middle <= newest || oldest <= middle {
+		t.Fatalf("orders are not newest-first: %d, %d, %d", newest, middle, oldest)
+	}
+	if strings.Count(body, `<div class="orders-list"`) != 1 || strings.Count(body, `<article class="order-card"`) != 3 || strings.Contains(body, `class="orders-year"`) {
+		t.Fatal("orders should appear in one chronological list")
 	}
 }

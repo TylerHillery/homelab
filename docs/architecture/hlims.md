@@ -10,7 +10,8 @@ workloads, monitor health, or proxy application traffic.
 
 - OpenAPI is the external contract and generates server and client code.
 - Browser redirects and API resolution use the same resolver.
-- Inventory relationships produce destinations; no separate link store exists.
+- Machine-hosted endpoints derive destinations from inventory relationships;
+  managed endpoints hold verified direct HTTPS URLs without fictitious Machines.
 - DNS Zones and Records describe observed names and their target addresses.
 - Ingress Routes record which proxy, static server, or redirect serves an endpoint.
 - Normal database access uses sqlc-generated queries.
@@ -26,14 +27,21 @@ browser or API client
      resolver
         |
         v
-Machine -> Service -> Instance -> preferred Instance Endpoint
-        |
-        v
-HTTP redirect or JSON destination
+Service -> Instance -> optional preferred Endpoint
+              |                 |
+         Machine or managed   Address or direct URL
+                                |
+                                v
+                    HTTP redirect or JSON destination
 ```
 
-Canonical routes select a Machine, Service, and Instance. Ad hoc routes select
-a Machine and port. Network preference can distinguish LAN and tailnet paths.
+Canonical routes select `go/<service>/<instance>` for either hosting kind. If
+the name matches multiple deployments, the `host` query parameter selects a
+Machine slug or `managed`; otherwise it is optional. Ad hoc routes still select
+a Machine and port. Network preference distinguishes LAN and tailnet paths for
+machine-hosted endpoints only.
+
+Instances without Endpoints are inventoried but have no resolver destination.
 
 ## Components
 

@@ -250,7 +250,7 @@ func normalizedNamedWrite(name string, supplied *string, existing string) (strin
 	return name, slug, err
 }
 
-func (s apiServer) ListServices(w http.ResponseWriter, r *http.Request) {
+func (s apiServer) ListServices(w http.ResponseWriter, r *http.Request, params api.ListServicesParams) {
 	rows, err := s.queries.ListServices(r.Context())
 	if err != nil {
 		writeDatabaseError(w, err)
@@ -258,6 +258,9 @@ func (s apiServer) ListServices(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]api.Service, 0, len(rows))
 	for _, row := range rows {
+		if params.Slug != nil && row.Slug != *params.Slug {
+			continue
+		}
 		items = append(items, api.Service{PublicId: row.PublicID, Name: row.Name, Slug: row.Slug, Description: stringPointer(row.Description), HasLogo: row.HasLogo})
 	}
 	writeJSON(w, http.StatusOK, struct {

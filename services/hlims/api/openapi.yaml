@@ -18,8 +18,8 @@ tags:
   - {name: Networks, description: LAN, Tailnet, cloud, and public networks}
   - {name: Addresses, description: Machine, Area, and equipment network addresses}
   - {name: Services, description: Service definitions and branding}
-  - {name: Instances, description: Service workloads running on Machines}
-  - {name: Instance Endpoints, description: Network routes to service Instances}
+  - {name: Instances, description: Machine-hosted or managed Service deployments}
+  - {name: Instance Endpoints, description: Network routes or verified managed URLs}
   - {name: Resolver, description: Inventory-backed destination resolution}
 paths:
   /topology:
@@ -234,6 +234,7 @@ paths:
     get:
       tags: [Machines]
       operationId: listMachines
+      parameters: [{name: slug, in: query, schema: {$ref: "#/components/schemas/Slug"}}]
       responses: {"200": {description: Machines, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Machine"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
     post:
       tags: [Machines]
@@ -364,6 +365,7 @@ paths:
     get:
       tags: [Services]
       operationId: listServices
+      parameters: [{name: slug, in: query, schema: {$ref: "#/components/schemas/Slug"}}]
       responses: {"200": {description: Services, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Service"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
     post:
       tags: [Services]
@@ -417,6 +419,11 @@ paths:
     get:
       tags: [Instances]
       operationId: listInstances
+      parameters:
+        - {name: service, in: query, description: Service slug, schema: {$ref: "#/components/schemas/Slug"}}
+        - {name: machine, in: query, description: Machine slug, schema: {$ref: "#/components/schemas/Slug"}}
+        - {name: slug, in: query, schema: {$ref: "#/components/schemas/Slug"}}
+        - {name: hostingKind, in: query, schema: {$ref: "#/components/schemas/InstanceHostingKind"}}
       responses: {"200": {description: Instances, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Instance"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
     post:
       tags: [Instances]
@@ -442,6 +449,7 @@ paths:
     get:
       tags: [Instance Endpoints]
       operationId: listInstanceEndpoints
+      parameters: [{name: instancePublicId, in: query, schema: {$ref: "#/components/schemas/PublicId"}}]
       responses: {"200": {description: Instance endpoints, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/InstanceEndpoint"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
     post:
       tags: [Instance Endpoints]
@@ -469,13 +477,13 @@ paths:
       tags: [Machines]
       operationId: listMachineInstances
       responses: {"200": {description: Service instances, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/MachineInstance"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
-  /resolve/{machine}/{service}/{instance}:
-    parameters: [{$ref: "#/components/parameters/MachineSlug"}, {$ref: "#/components/parameters/ServiceSlug"}, {$ref: "#/components/parameters/InstanceSlug"}, {$ref: "#/components/parameters/Via"}]
+  /resolve/{service}/{instance}:
+    parameters: [{$ref: "#/components/parameters/ServiceSlug"}, {$ref: "#/components/parameters/InstanceSlug"}, {$ref: "#/components/parameters/Host"}, {$ref: "#/components/parameters/Via"}]
     get:
       tags: [Resolver]
       operationId: resolveInstance
       responses: {"200": {description: Resolved destination, content: {application/json: {schema: {$ref: "#/components/schemas/ResolvedDestination"}}}}, default: {$ref: "#/components/responses/Error"}}
-  /resolve/{machine}/{port}:
+  /resolve/port/{machine}/{port}:
     parameters:
       - {$ref: "#/components/parameters/MachineSlug"}
       - {name: port, in: path, required: true, schema: {type: integer, minimum: 1, maximum: 65535}}
@@ -491,6 +499,7 @@ components:
     MachineSlug: {name: machine, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
     ServiceSlug: {name: service, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
     InstanceSlug: {name: instance, in: path, required: true, schema: {$ref: "#/components/schemas/Slug"}}
+    Host: {name: host, in: query, description: Machine slug or managed when more than one instance has the same service and instance slug, schema: {$ref: "#/components/schemas/Slug"}}
     Via: {name: via, in: query, schema: {$ref: "#/components/schemas/Via"}}
   requestBodies:
     MachineProviderWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineProviderWrite"}}}}
@@ -514,7 +523,8 @@ components:
   schemas:
     PublicId: {type: string, pattern: "^[a-z0-9]{12}$"}
     Slug: {type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
-    Via: {type: string, enum: [lan, tailnet, cloud_vpc, public, loopback]}
+    Via: {type: string, enum: [lan, tailnet, cloud_vpc, public, loopback, managed]}
+    InstanceHostingKind: {type: string, enum: [machine, managed]}
     Scheme: {type: string, enum: [http, https]}
     EndpointHostType: {type: string, enum: [auto, dns, ip]}
     DNSRecordKind: {type: string, enum: [A, AAAA]}
@@ -657,13 +667,13 @@ components:
     TopologyInstance:
       type: object
       additionalProperties: false
-      required: [publicId, name, slug, port, resolverPath, availableVia, endpoints]
+      required: [publicId, name, slug, availableVia, endpoints]
       properties:
         publicId: {$ref: "#/components/schemas/PublicId"}
         name: {type: string}
         slug: {$ref: "#/components/schemas/Slug"}
-        port: {type: integer, minimum: 1, maximum: 65535}
-        resolverPath: {type: string, description: Canonical root-relative redirect resolver path suitable for links.}
+        port: {type: integer, minimum: 1, maximum: 65535, nullable: true}
+        resolverPath: {type: string, nullable: true, description: Canonical root-relative redirect path, present only when an endpoint is recorded.}
         endpoints:
           type: array
           description: Every recorded client-facing route for this instance.
@@ -1082,27 +1092,51 @@ components:
       type: object
       additionalProperties: false
       required: [name]
-      properties: {name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, description: {type: string, nullable: true}}
+      properties:
+        name: {type: string, description: Human-readable branded name such as OpenCode or cAdvisor.}
+        slug: {$ref: "#/components/schemas/Slug"}
+        description: {type: string, nullable: true}
     Service:
       allOf: [{$ref: "#/components/schemas/ServiceWrite"}, {type: object, required: [publicId, slug, hasLogo], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, hasLogo: {type: boolean}}}]
     InstanceWrite:
       type: object
       additionalProperties: false
-      required: [servicePublicId, machinePublicId, name, port]
-      properties: {servicePublicId: {type: string}, machinePublicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, port: {type: integer, minimum: 1, maximum: 65535}, notes: {type: string, nullable: true}}
+      description: Machine instances require machinePublicId and may have a backend port; managed instances require managedProvider instead. Neither requires an endpoint URL.
+      required: [servicePublicId, name]
+      properties:
+        servicePublicId: {$ref: "#/components/schemas/PublicId"}
+        hostingKind: {$ref: "#/components/schemas/InstanceHostingKind"}
+        machinePublicId: {type: string, nullable: true}
+        managedProvider: {type: string, nullable: true}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        port: {type: integer, minimum: 1, maximum: 65535, nullable: true}
+        notes: {type: string, nullable: true}
     Instance:
       allOf: [{$ref: "#/components/schemas/InstanceWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
     InstanceEndpointWrite:
       type: object
       additionalProperties: false
-      required: [instancePublicId, addressPublicId, name, scheme, port]
-      properties: {instancePublicId: {type: string}, addressPublicId: {type: string}, dnsRecordPublicId: {$ref: "#/components/schemas/PublicId", nullable: true}, name: {type: string}, scheme: {$ref: "#/components/schemas/Scheme"}, port: {type: integer, minimum: 1, maximum: 65535}, basePath: {type: string, default: ""}, hostType: {$ref: "#/components/schemas/EndpointHostType"}, isPreferred: {type: boolean, default: false}, notes: {type: string, nullable: true}}
+      description: Machine endpoints require an address, scheme, and port. Managed endpoints require a verified HTTPS directUrl, including any path or query.
+      required: [instancePublicId, name]
+      properties:
+        instancePublicId: {$ref: "#/components/schemas/PublicId"}
+        addressPublicId: {type: string, nullable: true}
+        directUrl: {type: string, format: uri, pattern: "^https://", nullable: true}
+        dnsRecordPublicId: {$ref: "#/components/schemas/PublicId", nullable: true}
+        name: {type: string}
+        scheme: {$ref: "#/components/schemas/Scheme", nullable: true}
+        port: {type: integer, minimum: 1, maximum: 65535, nullable: true}
+        basePath: {type: string, default: ""}
+        hostType: {$ref: "#/components/schemas/EndpointHostType"}
+        isPreferred: {type: boolean, default: false}
+        notes: {type: string, nullable: true}
     InstanceEndpoint:
       allOf: [{$ref: "#/components/schemas/InstanceEndpointWrite"}, {type: object, required: [publicId, basePath, isPreferred], properties: {publicId: {type: string}, basePath: {type: string}, isPreferred: {type: boolean}}}]
     MachineInstance:
       type: object
-      required: [publicId, name, slug, port, servicePublicId, serviceName, serviceSlug]
-      properties: {publicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, port: {type: integer}, servicePublicId: {type: string}, serviceName: {type: string}, serviceSlug: {$ref: "#/components/schemas/Slug"}}
+      required: [publicId, name, slug, servicePublicId, serviceName, serviceSlug]
+      properties: {publicId: {type: string}, name: {type: string}, slug: {$ref: "#/components/schemas/Slug"}, port: {type: integer, minimum: 1, maximum: 65535, nullable: true}, servicePublicId: {type: string}, serviceName: {type: string}, serviceSlug: {$ref: "#/components/schemas/Slug"}}
     ResolvedDestination:
       type: object
       required: [url, via]

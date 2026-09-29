@@ -64,7 +64,7 @@ func TestSeedDemoInventoryBuildsTopologyAndIsIdempotent(t *testing.T) {
 	for _, service := range badger.Services {
 		if service.Name == "Grafana" {
 			foundGrafana = true
-			if len(service.Instances) != 2 || service.Instances[0].Name != "Production" || service.Instances[0].Port != 3000 || service.Instances[1].Name != "Sandbox" || service.Instances[1].Port != 3010 {
+			if len(service.Instances) != 2 || service.Instances[0].Name != "Production" || service.Instances[0].Port == nil || *service.Instances[0].Port != 3000 || service.Instances[1].Name != "Sandbox" || service.Instances[1].Port == nil || *service.Instances[1].Port != 3010 {
 				t.Fatalf("Badger Grafana instances = %#v", service.Instances)
 			}
 			break

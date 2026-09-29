@@ -1,5 +1,5 @@
 {{define "orders"}}
-{{if not .Groups}}<div class="catalog-empty">No purchases recorded yet. A Purchase connects a transaction to one or more physical Assets.</div>{{end}}
+{{if not .Orders}}<div class="catalog-empty">No purchases recorded yet. A Purchase connects a transaction to one or more physical Assets.</div>{{end}}
 {{range .Totals}}
 <div class="order-summary" aria-label="{{.Currency}} homelab item subtotals">
   <div><span>Homelab item subtotals</span><strong>{{.HomelabSubtotal}}</strong></div>
@@ -7,10 +7,7 @@
 </div>
 {{end}}
 
-{{range .Groups}}
-<section class="orders-year" aria-label="Orders from {{.Label}}">
-  <header class="catalog-group-header"><h2>{{.Label}}</h2><span>{{len .Orders}} orders</span></header>
-  <div class="orders-grid">
+{{if .Orders}}<div class="orders-list" aria-label="Orders, newest first">
     {{range .Orders}}
     <article class="order-card" id="order-{{.PublicID}}">
       <header class="order-card-header">
@@ -36,7 +33,5 @@
       </footer>{{end}}
     </article>
     {{end}}
-  </div>
-</section>
-{{end}}
+  </div>{{end}}
 {{end}}

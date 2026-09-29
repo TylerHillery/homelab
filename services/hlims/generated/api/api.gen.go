@@ -143,6 +143,24 @@ func (e IngressRouteKind) Valid() bool {
 	}
 }
 
+// Defines values for InstanceHostingKind.
+const (
+	InstanceHostingKindMachine InstanceHostingKind = "machine"
+	InstanceHostingKindManaged InstanceHostingKind = "managed"
+)
+
+// Valid indicates whether the value is a known member of the InstanceHostingKind enum.
+func (e InstanceHostingKind) Valid() bool {
+	switch e {
+	case InstanceHostingKindMachine:
+		return true
+	case InstanceHostingKindManaged:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MachineKind.
 const (
 	BareMetal      MachineKind = "bare_metal"
@@ -349,6 +367,7 @@ const (
 	ViaCloudVpc Via = "cloud_vpc"
 	ViaLan      Via = "lan"
 	ViaLoopback Via = "loopback"
+	ViaManaged  Via = "managed"
 	ViaPublic   Via = "public"
 	ViaTailnet  Via = "tailnet"
 )
@@ -361,6 +380,8 @@ func (e Via) Valid() bool {
 	case ViaLan:
 		return true
 	case ViaLoopback:
+		return true
+	case ViaManaged:
 		return true
 	case ViaPublic:
 		return true
@@ -580,52 +601,61 @@ type IngressRouteWrite struct {
 
 // Instance defines model for Instance.
 type Instance struct {
-	MachinePublicId string  `json:"machinePublicId"`
-	Name            string  `json:"name"`
-	Notes           *string `json:"notes,omitempty"`
-	Port            int     `json:"port"`
-	PublicId        string  `json:"publicId"`
-	ServicePublicId string  `json:"servicePublicId"`
-	Slug            Slug    `json:"slug"`
+	HostingKind     *InstanceHostingKind `json:"hostingKind,omitempty"`
+	MachinePublicId *string              `json:"machinePublicId,omitempty"`
+	ManagedProvider *string              `json:"managedProvider,omitempty"`
+	Name            string               `json:"name"`
+	Notes           *string              `json:"notes,omitempty"`
+	Port            *int                 `json:"port,omitempty"`
+	PublicId        string               `json:"publicId"`
+	ServicePublicId PublicId             `json:"servicePublicId"`
+	Slug            Slug                 `json:"slug"`
 }
 
 // InstanceEndpoint defines model for InstanceEndpoint.
 type InstanceEndpoint struct {
-	AddressPublicId   string            `json:"addressPublicId"`
+	AddressPublicId   *string           `json:"addressPublicId,omitempty"`
 	BasePath          string            `json:"basePath"`
+	DirectUrl         *string           `json:"directUrl,omitempty"`
 	DnsRecordPublicId *PublicId         `json:"dnsRecordPublicId,omitempty"`
 	HostType          *EndpointHostType `json:"hostType,omitempty"`
-	InstancePublicId  string            `json:"instancePublicId"`
+	InstancePublicId  PublicId          `json:"instancePublicId"`
 	IsPreferred       bool              `json:"isPreferred"`
 	Name              string            `json:"name"`
 	Notes             *string           `json:"notes,omitempty"`
-	Port              int               `json:"port"`
+	Port              *int              `json:"port,omitempty"`
 	PublicId          string            `json:"publicId"`
-	Scheme            Scheme            `json:"scheme"`
+	Scheme            *Scheme           `json:"scheme,omitempty"`
 }
 
-// InstanceEndpointWrite defines model for InstanceEndpointWrite.
+// InstanceEndpointWrite Machine endpoints require an address, scheme, and port. Managed endpoints require a verified HTTPS directUrl, including any path or query.
 type InstanceEndpointWrite struct {
-	AddressPublicId   string            `json:"addressPublicId"`
+	AddressPublicId   *string           `json:"addressPublicId,omitempty"`
 	BasePath          *string           `json:"basePath,omitempty"`
+	DirectUrl         *string           `json:"directUrl,omitempty"`
 	DnsRecordPublicId *PublicId         `json:"dnsRecordPublicId,omitempty"`
 	HostType          *EndpointHostType `json:"hostType,omitempty"`
-	InstancePublicId  string            `json:"instancePublicId"`
+	InstancePublicId  PublicId          `json:"instancePublicId"`
 	IsPreferred       *bool             `json:"isPreferred,omitempty"`
 	Name              string            `json:"name"`
 	Notes             *string           `json:"notes,omitempty"`
-	Port              int               `json:"port"`
-	Scheme            Scheme            `json:"scheme"`
+	Port              *int              `json:"port,omitempty"`
+	Scheme            *Scheme           `json:"scheme,omitempty"`
 }
 
-// InstanceWrite defines model for InstanceWrite.
+// InstanceHostingKind defines model for InstanceHostingKind.
+type InstanceHostingKind string
+
+// InstanceWrite Machine instances require machinePublicId and may have a backend port; managed instances require managedProvider instead. Neither requires an endpoint URL.
 type InstanceWrite struct {
-	MachinePublicId string  `json:"machinePublicId"`
-	Name            string  `json:"name"`
-	Notes           *string `json:"notes,omitempty"`
-	Port            int     `json:"port"`
-	ServicePublicId string  `json:"servicePublicId"`
-	Slug            *Slug   `json:"slug,omitempty"`
+	HostingKind     *InstanceHostingKind `json:"hostingKind,omitempty"`
+	MachinePublicId *string              `json:"machinePublicId,omitempty"`
+	ManagedProvider *string              `json:"managedProvider,omitempty"`
+	Name            string               `json:"name"`
+	Notes           *string              `json:"notes,omitempty"`
+	Port            *int                 `json:"port,omitempty"`
+	ServicePublicId PublicId             `json:"servicePublicId"`
+	Slug            *Slug                `json:"slug,omitempty"`
 }
 
 // Machine defines model for Machine.
@@ -664,7 +694,7 @@ type Machine struct {
 // MachineInstance defines model for MachineInstance.
 type MachineInstance struct {
 	Name            string `json:"name"`
-	Port            int    `json:"port"`
+	Port            *int   `json:"port,omitempty"`
 	PublicId        string `json:"publicId"`
 	ServiceName     string `json:"serviceName"`
 	ServicePublicId string `json:"servicePublicId"`
@@ -958,16 +988,20 @@ type Scheme string
 type Service struct {
 	Description *string `json:"description,omitempty"`
 	HasLogo     bool    `json:"hasLogo"`
-	Name        string  `json:"name"`
-	PublicId    string  `json:"publicId"`
-	Slug        Slug    `json:"slug"`
+
+	// Name Human-readable branded name such as OpenCode or cAdvisor.
+	Name     string `json:"name"`
+	PublicId string `json:"publicId"`
+	Slug     Slug   `json:"slug"`
 }
 
 // ServiceWrite defines model for ServiceWrite.
 type ServiceWrite struct {
 	Description *string `json:"description,omitempty"`
-	Name        string  `json:"name"`
-	Slug        *Slug   `json:"slug,omitempty"`
+
+	// Name Human-readable branded name such as OpenCode or cAdvisor.
+	Name string `json:"name"`
+	Slug *Slug  `json:"slug,omitempty"`
 }
 
 // Slug defines model for Slug.
@@ -1001,12 +1035,12 @@ type TopologyInstance struct {
 	// Endpoints Every recorded client-facing route for this instance.
 	Endpoints []TopologyInstanceEndpoint `json:"endpoints"`
 	Name      string                     `json:"name"`
-	Port      int                        `json:"port"`
+	Port      *int                       `json:"port,omitempty"`
 	PublicId  PublicId                   `json:"publicId"`
 
-	// ResolverPath Canonical root-relative redirect resolver path suitable for links.
-	ResolverPath string `json:"resolverPath"`
-	Slug         Slug   `json:"slug"`
+	// ResolverPath Canonical root-relative redirect path
+	ResolverPath *string `json:"resolverPath,omitempty"`
+	Slug         Slug    `json:"slug"`
 }
 
 // TopologyInstanceEndpoint defines model for TopologyInstanceEndpoint.
@@ -1139,6 +1173,9 @@ type WiFiSpec struct {
 	MaxChannelWidthMHz *int   `json:"maxChannelWidthMHz,omitempty"`
 }
 
+// Host defines model for Host.
+type Host = Slug
+
 // InstanceSlug defines model for InstanceSlug.
 type InstanceSlug = Slug
 
@@ -1148,6 +1185,27 @@ type MachineSlug = Slug
 // ServiceSlug defines model for ServiceSlug.
 type ServiceSlug = Slug
 
+// ListInstanceEndpointsParams defines parameters for ListInstanceEndpoints.
+type ListInstanceEndpointsParams struct {
+	InstancePublicId *PublicId `form:"instancePublicId,omitempty" json:"instancePublicId,omitempty"`
+}
+
+// ListInstancesParams defines parameters for ListInstances.
+type ListInstancesParams struct {
+	// Service Service slug
+	Service *Slug `form:"service,omitempty" json:"service,omitempty"`
+
+	// Machine Machine slug
+	Machine     *Slug                `form:"machine,omitempty" json:"machine,omitempty"`
+	Slug        *Slug                `form:"slug,omitempty" json:"slug,omitempty"`
+	HostingKind *InstanceHostingKind `form:"hostingKind,omitempty" json:"hostingKind,omitempty"`
+}
+
+// ListMachinesParams defines parameters for ListMachines.
+type ListMachinesParams struct {
+	Slug *Slug `form:"slug,omitempty" json:"slug,omitempty"`
+}
+
 // ResolveMachinePortParams defines parameters for ResolveMachinePort.
 type ResolveMachinePortParams struct {
 	Via    *Via    `form:"via,omitempty" json:"via,omitempty"`
@@ -1156,7 +1214,14 @@ type ResolveMachinePortParams struct {
 
 // ResolveInstanceParams defines parameters for ResolveInstance.
 type ResolveInstanceParams struct {
-	Via *Via `form:"via,omitempty" json:"via,omitempty"`
+	// Host Machine slug or managed when more than one instance has the same service and instance slug
+	Host *Host `form:"host,omitempty" json:"host,omitempty"`
+	Via  *Via  `form:"via,omitempty" json:"via,omitempty"`
+}
+
+// ListServicesParams defines parameters for ListServices.
+type ListServicesParams struct {
+	Slug *Slug `form:"slug,omitempty" json:"slug,omitempty"`
 }
 
 // CreateAddressJSONRequestBody defines body for CreateAddress for application/json ContentType.
@@ -1429,7 +1494,7 @@ type ClientInterface interface {
 	CreateIngressRoute(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
-	ListInstanceEndpoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListInstanceEndpoints(ctx context.Context, params *ListInstanceEndpointsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateInstanceEndpointWithBody performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
 	// with any type of body and a specified content type.
@@ -1454,7 +1519,7 @@ type ClientInterface interface {
 	UpdateInstanceEndpoint(ctx context.Context, publicId PublicId, body UpdateInstanceEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstances performs a GET /instances (the `ListInstances` operationId) request.
-	ListInstances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListInstances(ctx context.Context, params *ListInstancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateInstanceWithBody performs a POST /instances (the `CreateInstance` operationId) request,
 	// with any type of body and a specified content type.
@@ -1539,7 +1604,7 @@ type ClientInterface interface {
 	UpdateMachineUser(ctx context.Context, publicId PublicId, body UpdateMachineUserJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMachines performs a GET /machines (the `ListMachines` operationId) request.
-	ListMachines(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListMachines(ctx context.Context, params *ListMachinesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateMachineWithBody performs a POST /machines (the `CreateMachine` operationId) request,
 	// with any type of body and a specified content type.
@@ -1669,14 +1734,14 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	UpdatePurchase(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ResolveMachinePort performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+	// ResolveMachinePort performs a GET /resolve/port/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 	ResolveMachinePort(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ResolveInstance performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
-	ResolveInstance(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ResolveInstance performs a GET /resolve/{service}/{instance} (the `ResolveInstance` operationId) request.
+	ResolveInstance(ctx context.Context, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListServices performs a GET /services (the `ListServices` operationId) request.
-	ListServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListServices(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateServiceWithBody performs a POST /services (the `CreateService` operationId) request,
 	// with any type of body and a specified content type.
@@ -2123,8 +2188,8 @@ func (c *Client) CreateIngressRoute(ctx context.Context, body CreateIngressRoute
 }
 
 // ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
-func (c *Client) ListInstanceEndpoints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListInstanceEndpointsRequest(c.Server)
+func (c *Client) ListInstanceEndpoints(ctx context.Context, params *ListInstanceEndpointsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceEndpointsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2218,8 +2283,8 @@ func (c *Client) UpdateInstanceEndpoint(ctx context.Context, publicId PublicId, 
 }
 
 // ListInstances performs a GET /instances (the `ListInstances` operationId) request.
-func (c *Client) ListInstances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListInstancesRequest(c.Server)
+func (c *Client) ListInstances(ctx context.Context, params *ListInstancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstancesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2543,8 +2608,8 @@ func (c *Client) UpdateMachineUser(ctx context.Context, publicId PublicId, body 
 }
 
 // ListMachines performs a GET /machines (the `ListMachines` operationId) request.
-func (c *Client) ListMachines(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListMachinesRequest(c.Server)
+func (c *Client) ListMachines(ctx context.Context, params *ListMachinesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMachinesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3043,7 +3108,7 @@ func (c *Client) UpdatePurchase(ctx context.Context, publicId PublicId, body Upd
 	return c.Client.Do(req)
 }
 
-// ResolveMachinePort performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+// ResolveMachinePort performs a GET /resolve/port/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 func (c *Client) ResolveMachinePort(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveMachinePortRequest(c.Server, machine, port, params)
 	if err != nil {
@@ -3056,9 +3121,9 @@ func (c *Client) ResolveMachinePort(ctx context.Context, machine MachineSlug, po
 	return c.Client.Do(req)
 }
 
-// ResolveInstance performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
-func (c *Client) ResolveInstance(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewResolveInstanceRequest(c.Server, machine, service, instance, params)
+// ResolveInstance performs a GET /resolve/{service}/{instance} (the `ResolveInstance` operationId) request.
+func (c *Client) ResolveInstance(ctx context.Context, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveInstanceRequest(c.Server, service, instance, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3070,8 +3135,8 @@ func (c *Client) ResolveInstance(ctx context.Context, machine MachineSlug, servi
 }
 
 // ListServices performs a GET /services (the `ListServices` operationId) request.
-func (c *Client) ListServices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListServicesRequest(c.Server)
+func (c *Client) ListServices(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListServicesRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -3965,7 +4030,7 @@ func NewCreateIngressRouteRequestWithBody(server string, contentType string, bod
 }
 
 // NewListInstanceEndpointsRequest constructs an http.Request for the ListInstanceEndpoints method
-func NewListInstanceEndpointsRequest(server string) (*http.Request, error) {
+func NewListInstanceEndpointsRequest(server string, params *ListInstanceEndpointsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -3981,6 +4046,33 @@ func NewListInstanceEndpointsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.InstancePublicId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "instancePublicId", *params.InstancePublicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -4147,7 +4239,7 @@ func NewUpdateInstanceEndpointRequestWithBody(server string, publicId PublicId, 
 }
 
 // NewListInstancesRequest constructs an http.Request for the ListInstances method
-func NewListInstancesRequest(server string) (*http.Request, error) {
+func NewListInstancesRequest(server string, params *ListInstancesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4163,6 +4255,69 @@ func NewListInstancesRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Service != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "service", *params.Service, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Machine != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "machine", *params.Machine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Slug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "slug", *params.Slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.HostingKind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hostingKind", *params.HostingKind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -4797,7 +4952,7 @@ func NewUpdateMachineUserRequestWithBody(server string, publicId PublicId, conte
 }
 
 // NewListMachinesRequest constructs an http.Request for the ListMachines method
-func NewListMachinesRequest(server string) (*http.Request, error) {
+func NewListMachinesRequest(server string, params *ListMachinesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4813,6 +4968,33 @@ func NewListMachinesRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Slug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "slug", *params.Slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -5790,7 +5972,7 @@ func NewResolveMachinePortRequest(server string, machine MachineSlug, port int, 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/resolve/%s/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/resolve/port/%s/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5848,26 +6030,19 @@ func NewResolveMachinePortRequest(server string, machine MachineSlug, port int, 
 }
 
 // NewResolveInstanceRequest constructs an http.Request for the ResolveInstance method
-func NewResolveInstanceRequest(server string, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams) (*http.Request, error) {
+func NewResolveInstanceRequest(server string, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "machine", machine, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "service", service, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "service", service, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	var pathParam2 string
-
-	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "instance", instance, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "instance", instance, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
 	if err != nil {
 		return nil, err
 	}
@@ -5877,7 +6052,7 @@ func NewResolveInstanceRequest(server string, machine MachineSlug, service Servi
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/resolve/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	operationPath := fmt.Sprintf("/resolve/%s/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5895,6 +6070,18 @@ func NewResolveInstanceRequest(server string, machine MachineSlug, service Servi
 		// styled parameters, preserving literal commas as delimiters
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
+
+		if params.Host != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "host", *params.Host, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
 
 		if params.Via != nil {
 
@@ -5923,7 +6110,7 @@ func NewResolveInstanceRequest(server string, machine MachineSlug, service Servi
 }
 
 // NewListServicesRequest constructs an http.Request for the ListServices method
-func NewListServicesRequest(server string) (*http.Request, error) {
+func NewListServicesRequest(server string, params *ListServicesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -5939,6 +6126,33 @@ func NewListServicesRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Slug != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "slug", *params.Slug, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -6432,7 +6646,7 @@ type ClientWithResponsesInterface interface {
 	// ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ListInstanceEndpointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error)
+	ListInstanceEndpointsWithResponse(ctx context.Context, params *ListInstanceEndpointsParams, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error)
 
 	// CreateInstanceEndpointWithBodyWithResponse performs a POST /instance-endpoints (the `CreateInstanceEndpoint` operationId) request,
 	// with any type of body and a specified content type.
@@ -6467,7 +6681,7 @@ type ClientWithResponsesInterface interface {
 	// ListInstancesWithResponse performs a GET /instances (the `ListInstances` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ListInstancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error)
+	ListInstancesWithResponse(ctx context.Context, params *ListInstancesParams, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error)
 
 	// CreateInstanceWithBodyWithResponse performs a POST /instances (the `CreateInstance` operationId) request,
 	// with any type of body and a specified content type.
@@ -6588,7 +6802,7 @@ type ClientWithResponsesInterface interface {
 	// ListMachinesWithResponse performs a GET /machines (the `ListMachines` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ListMachinesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error)
+	ListMachinesWithResponse(ctx context.Context, params *ListMachinesParams, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error)
 
 	// CreateMachineWithBodyWithResponse performs a POST /machines (the `CreateMachine` operationId) request,
 	// with any type of body and a specified content type.
@@ -6770,20 +6984,20 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	UpdatePurchaseWithResponse(ctx context.Context, publicId PublicId, body UpdatePurchaseJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePurchaseResponse, error)
 
-	// ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+	// ResolveMachinePortWithResponse performs a GET /resolve/port/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ResolveMachinePortWithResponse(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*ResolveMachinePortResponse, error)
 
-	// ResolveInstanceWithResponse performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+	// ResolveInstanceWithResponse performs a GET /resolve/{service}/{instance} (the `ResolveInstance` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ResolveInstanceWithResponse(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error)
+	ResolveInstanceWithResponse(ctx context.Context, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error)
 
 	// ListServicesWithResponse performs a GET /services (the `ListServices` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ListServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListServicesResponse, error)
+	ListServicesWithResponse(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*ListServicesResponse, error)
 
 	// CreateServiceWithBodyWithResponse performs a POST /services (the `CreateService` operationId) request,
 	// with any type of body and a specified content type.
@@ -11041,8 +11255,8 @@ func (c *ClientWithResponses) CreateIngressRouteWithResponse(ctx context.Context
 // ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ListInstanceEndpointsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error) {
-	rsp, err := c.ListInstanceEndpoints(ctx, reqEditors...)
+func (c *ClientWithResponses) ListInstanceEndpointsWithResponse(ctx context.Context, params *ListInstanceEndpointsParams, reqEditors ...RequestEditorFn) (*ListInstanceEndpointsResponse, error) {
+	rsp, err := c.ListInstanceEndpoints(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -11118,8 +11332,8 @@ func (c *ClientWithResponses) UpdateInstanceEndpointWithResponse(ctx context.Con
 // ListInstancesWithResponse performs a GET /instances (the `ListInstances` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ListInstancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error) {
-	rsp, err := c.ListInstances(ctx, reqEditors...)
+func (c *ClientWithResponses) ListInstancesWithResponse(ctx context.Context, params *ListInstancesParams, reqEditors ...RequestEditorFn) (*ListInstancesResponse, error) {
+	rsp, err := c.ListInstances(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -11383,8 +11597,8 @@ func (c *ClientWithResponses) UpdateMachineUserWithResponse(ctx context.Context,
 // ListMachinesWithResponse performs a GET /machines (the `ListMachines` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ListMachinesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error) {
-	rsp, err := c.ListMachines(ctx, reqEditors...)
+func (c *ClientWithResponses) ListMachinesWithResponse(ctx context.Context, params *ListMachinesParams, reqEditors ...RequestEditorFn) (*ListMachinesResponse, error) {
+	rsp, err := c.ListMachines(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -11787,7 +12001,7 @@ func (c *ClientWithResponses) UpdatePurchaseWithResponse(ctx context.Context, pu
 	return ParseUpdatePurchaseResponse(rsp)
 }
 
-// ResolveMachinePortWithResponse performs a GET /resolve/{machine}/{port} (the `ResolveMachinePort` operationId) request.
+// ResolveMachinePortWithResponse performs a GET /resolve/port/{machine}/{port} (the `ResolveMachinePort` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ResolveMachinePortWithResponse(ctx context.Context, machine MachineSlug, port int, params *ResolveMachinePortParams, reqEditors ...RequestEditorFn) (*ResolveMachinePortResponse, error) {
@@ -11798,11 +12012,11 @@ func (c *ClientWithResponses) ResolveMachinePortWithResponse(ctx context.Context
 	return ParseResolveMachinePortResponse(rsp)
 }
 
-// ResolveInstanceWithResponse performs a GET /resolve/{machine}/{service}/{instance} (the `ResolveInstance` operationId) request.
+// ResolveInstanceWithResponse performs a GET /resolve/{service}/{instance} (the `ResolveInstance` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ResolveInstanceWithResponse(ctx context.Context, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error) {
-	rsp, err := c.ResolveInstance(ctx, machine, service, instance, params, reqEditors...)
+func (c *ClientWithResponses) ResolveInstanceWithResponse(ctx context.Context, service ServiceSlug, instance InstanceSlug, params *ResolveInstanceParams, reqEditors ...RequestEditorFn) (*ResolveInstanceResponse, error) {
+	rsp, err := c.ResolveInstance(ctx, service, instance, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -11812,8 +12026,8 @@ func (c *ClientWithResponses) ResolveInstanceWithResponse(ctx context.Context, m
 // ListServicesWithResponse performs a GET /services (the `ListServices` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ListServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListServicesResponse, error) {
-	rsp, err := c.ListServices(ctx, reqEditors...)
+func (c *ClientWithResponses) ListServicesWithResponse(ctx context.Context, params *ListServicesParams, reqEditors ...RequestEditorFn) (*ListServicesResponse, error) {
+	rsp, err := c.ListServices(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -14662,7 +14876,7 @@ type ServerInterface interface {
 	CreateIngressRoute(w http.ResponseWriter, r *http.Request)
 
 	// (GET /instance-endpoints)
-	ListInstanceEndpoints(w http.ResponseWriter, r *http.Request)
+	ListInstanceEndpoints(w http.ResponseWriter, r *http.Request, params ListInstanceEndpointsParams)
 
 	// (POST /instance-endpoints)
 	CreateInstanceEndpoint(w http.ResponseWriter, r *http.Request)
@@ -14677,7 +14891,7 @@ type ServerInterface interface {
 	UpdateInstanceEndpoint(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
 	// (GET /instances)
-	ListInstances(w http.ResponseWriter, r *http.Request)
+	ListInstances(w http.ResponseWriter, r *http.Request, params ListInstancesParams)
 
 	// (POST /instances)
 	CreateInstance(w http.ResponseWriter, r *http.Request)
@@ -14731,7 +14945,7 @@ type ServerInterface interface {
 	UpdateMachineUser(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
 	// (GET /machines)
-	ListMachines(w http.ResponseWriter, r *http.Request)
+	ListMachines(w http.ResponseWriter, r *http.Request, params ListMachinesParams)
 
 	// (POST /machines)
 	CreateMachine(w http.ResponseWriter, r *http.Request)
@@ -14811,14 +15025,14 @@ type ServerInterface interface {
 	// (PUT /purchases/{publicId})
 	UpdatePurchase(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
-	// (GET /resolve/{machine}/{port})
+	// (GET /resolve/port/{machine}/{port})
 	ResolveMachinePort(w http.ResponseWriter, r *http.Request, machine MachineSlug, port int, params ResolveMachinePortParams)
 
-	// (GET /resolve/{machine}/{service}/{instance})
-	ResolveInstance(w http.ResponseWriter, r *http.Request, machine MachineSlug, service ServiceSlug, instance InstanceSlug, params ResolveInstanceParams)
+	// (GET /resolve/{service}/{instance})
+	ResolveInstance(w http.ResponseWriter, r *http.Request, service ServiceSlug, instance InstanceSlug, params ResolveInstanceParams)
 
 	// (GET /services)
-	ListServices(w http.ResponseWriter, r *http.Request)
+	ListServices(w http.ResponseWriter, r *http.Request, params ListServicesParams)
 
 	// (POST /services)
 	CreateService(w http.ResponseWriter, r *http.Request)
@@ -15259,8 +15473,27 @@ func (siw *ServerInterfaceWrapper) CreateIngressRoute(w http.ResponseWriter, r *
 // ListInstanceEndpoints operation middleware
 func (siw *ServerInterfaceWrapper) ListInstanceEndpoints(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListInstanceEndpointsParams
+
+	// ------------- Optional query parameter "instancePublicId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "instancePublicId", r.URL.Query(), &params.InstancePublicId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "instancePublicId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "instancePublicId", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListInstanceEndpoints(w, r)
+		siw.Handler.ListInstanceEndpoints(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15365,8 +15598,66 @@ func (siw *ServerInterfaceWrapper) UpdateInstanceEndpoint(w http.ResponseWriter,
 // ListInstances operation middleware
 func (siw *ServerInterfaceWrapper) ListInstances(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListInstancesParams
+
+	// ------------- Optional query parameter "service" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "service", r.URL.Query(), &params.Service, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "service"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "service", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "machine" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "machine", r.URL.Query(), &params.Machine, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "machine"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "machine", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "slug", r.URL.Query(), &params.Slug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "slug"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "hostingKind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hostingKind", r.URL.Query(), &params.HostingKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hostingKind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hostingKind", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListInstances(w, r)
+		siw.Handler.ListInstances(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -15761,8 +16052,27 @@ func (siw *ServerInterfaceWrapper) UpdateMachineUser(w http.ResponseWriter, r *h
 // ListMachines operation middleware
 func (siw *ServerInterfaceWrapper) ListMachines(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMachinesParams
+
+	// ------------- Optional query parameter "slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "slug", r.URL.Query(), &params.Slug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "slug"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListMachines(w, r)
+		siw.Handler.ListMachines(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16398,15 +16708,6 @@ func (siw *ServerInterfaceWrapper) ResolveInstance(w http.ResponseWriter, r *htt
 	var err error
 	_ = err
 
-	// ------------- Path parameter "machine" -------------
-	var machine MachineSlug
-
-	err = runtime.BindStyledParameterWithOptions("simple", "machine", r.PathValue("machine"), &machine, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "machine", Err: err})
-		return
-	}
-
 	// ------------- Path parameter "service" -------------
 	var service ServiceSlug
 
@@ -16428,6 +16729,19 @@ func (siw *ServerInterfaceWrapper) ResolveInstance(w http.ResponseWriter, r *htt
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ResolveInstanceParams
 
+	// ------------- Optional query parameter "host" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "host", r.URL.Query(), &params.Host, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "host"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "host", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "via" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "via", r.URL.Query(), &params.Via, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -16442,7 +16756,7 @@ func (siw *ServerInterfaceWrapper) ResolveInstance(w http.ResponseWriter, r *htt
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ResolveInstance(w, r, machine, service, instance, params)
+		siw.Handler.ResolveInstance(w, r, service, instance, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16455,8 +16769,27 @@ func (siw *ServerInterfaceWrapper) ResolveInstance(w http.ResponseWriter, r *htt
 // ListServices operation middleware
 func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListServicesParams
+
+	// ------------- Optional query parameter "slug" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "slug", r.URL.Query(), &params.Slug, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "slug"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListServices(w, r)
+		siw.Handler.ListServices(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -16850,8 +17183,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.GetInstanceEndpoint)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.UpdateInstanceEndpoint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/machines/{machine}/instances", wrapper.ListMachineInstances)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/{machine}/{service}/{instance}", wrapper.ResolveInstance)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/{machine}/{port}", wrapper.ResolveMachinePort)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/{service}/{instance}", wrapper.ResolveInstance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/resolve/port/{machine}/{port}", wrapper.ResolveMachinePort)
 
 	return m
 }

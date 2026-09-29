@@ -68,8 +68,8 @@ console command is explicitly interactive. This makes data commands safe to
 compose with pipes, jq, scripts, and coding agents.`,
 		Example: `  hlims machines list | jq '.items[] | {publicId, name}'
   printf '%s\n' '{"name":"Grafana"}' | hlims services create
-  hlims services update SERVICE_ID --file service.json
-  hlims open badger/grafana/production
+  hlims services patch opencode --file service-changes.json
+  hlims open grafana/production?host=badger
   hlims console`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -110,41 +110,77 @@ func newResourceCommand(opts *options, resource apiclient.Resource) *cobra.Comma
 		Short: "Manage " + resource.Label(),
 		Long: fmt.Sprintf(`Manage %s through the HLIMS API.
 
-All responses are JSON. Create and update accept a JSON document from stdin or
---file. Public IDs from create/list responses are used by get/update/delete.
+All responses are JSON. Create, patch, and update accept a JSON document from
+stdin or --file. Get and patch accept a public ID or an exact slug for named
+resources. Patch merges fields with a revision check; update replaces all fields.
 Run "hlims openapi" for the authoritative request and response schemas.`, resource.Label()),
 	}
 	command.AddCommand(
-		&cobra.Command{
-			Use:   "list",
-			Short: "List " + resource.Label(),
-			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				client, err := opts.client()
-				if err != nil {
-					return err
-				}
-				response, err := client.List(cmd.Context(), resource)
-				return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
-			},
-		},
-		&cobra.Command{
-			Use:   "get PUBLIC_ID",
-			Short: "Get one " + resource.SingularLabel(),
-			Args:  cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				client, err := opts.client()
-				if err != nil {
-					return err
-				}
-				response, err := client.Get(cmd.Context(), resource, args[0])
-				return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
-			},
-		},
+		newListCommand(opts, resource),
+		newGetCommand(opts, resource),
 		newWriteCommand(opts, resource, false),
 		newWriteCommand(opts, resource, true),
+		newPatchCommand(opts, resource),
 		newDeleteCommand(opts, resource),
 	)
+	if resource == apiclient.Services || resource == apiclient.MachineProviders {
+		command.AddCommand(newLogoCommand(opts, resource))
+	}
+	return command
+}
+
+func newGetCommand(opts *options, resource apiclient.Resource) *cobra.Command {
+	var filter apiclient.ListFilter
+	command := &cobra.Command{
+		Use:   "get ID_OR_SLUG",
+		Short: "Get one " + resource.SingularLabel(),
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := opts.client()
+			if err != nil {
+				return err
+			}
+			id, err := client.ResolvePublicID(cmd.Context(), resource, args[0], filter)
+			if err != nil {
+				return err
+			}
+			response, err := client.Get(cmd.Context(), resource, id)
+			return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
+		},
+	}
+	if resource == apiclient.Instances {
+		command.Flags().StringVar(&filter.Service, "service", "", "narrow an Instance slug by Service slug")
+		command.Flags().StringVar(&filter.Machine, "machine", "", "narrow an Instance slug by Machine slug")
+	}
+	return command
+}
+
+func newListCommand(opts *options, resource apiclient.Resource) *cobra.Command {
+	var filter apiclient.ListFilter
+	command := &cobra.Command{
+		Use:   "list",
+		Short: "List " + resource.Label(),
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			client, err := opts.client()
+			if err != nil {
+				return err
+			}
+			response, err := client.ListFiltered(cmd.Context(), resource, filter)
+			return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
+		},
+	}
+	switch resource {
+	case apiclient.Machines, apiclient.Services:
+		command.Flags().StringVar(&filter.Slug, "slug", "", "match an exact slug")
+	case apiclient.Instances:
+		command.Flags().StringVar(&filter.Slug, "slug", "", "match an exact instance slug")
+		command.Flags().StringVar(&filter.Service, "service", "", "filter by Service slug")
+		command.Flags().StringVar(&filter.Machine, "machine", "", "filter by Machine slug")
+		command.Flags().StringVar(&filter.HostingKind, "hosting-kind", "", "filter by machine or managed")
+	case apiclient.InstanceEndpoints:
+		command.Flags().StringVar(&filter.InstancePublicID, "instance", "", "filter by Instance public ID")
+	}
 	return command
 }
 
@@ -178,7 +214,11 @@ func newWriteCommand(opts *options, resource apiclient.Resource, update bool) *c
 			}
 			var response *apiclient.Response
 			if update {
-				response, err = client.Update(cmd.Context(), resource, args[0], body)
+				id, lookupErr := client.ResolvePublicID(cmd.Context(), resource, args[0], apiclient.ListFilter{})
+				if lookupErr != nil {
+					return lookupErr
+				}
+				response, err = client.Update(cmd.Context(), resource, id, body)
 			} else {
 				response, err = client.Create(cmd.Context(), resource, body)
 			}
@@ -209,7 +249,11 @@ func newDeleteCommand(opts *options, resource apiclient.Resource) *cobra.Command
 			if err != nil {
 				return err
 			}
-			response, err := client.Delete(cmd.Context(), resource, args[0])
+			id, err := client.ResolvePublicID(cmd.Context(), resource, args[0], apiclient.ListFilter{})
+			if err != nil {
+				return err
+			}
+			response, err := client.Delete(cmd.Context(), resource, id)
 			return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
 		},
 	}
@@ -223,22 +267,23 @@ func newResolveCommand(opts *options) *cobra.Command {
 		Short: "Resolve an inventory destination without opening it",
 		Long:  "Resolve an inventory destination and emit a JSON object containing its URL and selected network.",
 	}
-	var instanceVia string
+	var instanceVia, instanceHost string
 	instance := &cobra.Command{
-		Use:   "instance MACHINE SERVICE INSTANCE",
+		Use:   "instance SERVICE INSTANCE",
 		Short: "Resolve a canonical service instance",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := opts.client()
 			if err != nil {
 				return err
 			}
-			response, err := client.ResolveInstance(cmd.Context(), args[0], args[1], args[2], instanceVia)
+			response, err := client.ResolveInstance(cmd.Context(), args[0], args[1], instanceHost, instanceVia)
 			return writeResponse(cmd.OutOrStdout(), response, err, opts.compact)
 		},
 	}
 	instance.Flags().StringVar(&instanceVia, "via", "", "network kind: lan or tailnet")
-	instance.Example = "  hlims resolve instance badger grafana production\n  hlims resolve instance badger grafana production --via tailnet"
+	instance.Flags().StringVar(&instanceHost, "host", "", "machine slug or managed when several instances share a name")
+	instance.Example = "  hlims resolve instance grafana production\n  hlims resolve instance grafana production --host badger --via tailnet"
 
 	var portVia, scheme string
 	port := &cobra.Command{

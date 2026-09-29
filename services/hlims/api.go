@@ -20,7 +20,7 @@ func registerAPIHandlers(mux *http.ServeMux, server apiServer) {
 	api.HandlerFromMuxWithBaseURL(server, mux, "/api/v1")
 }
 
-func (s apiServer) ListMachines(w http.ResponseWriter, r *http.Request) {
+func (s apiServer) ListMachines(w http.ResponseWriter, r *http.Request, params api.ListMachinesParams) {
 	rows, err := s.queries.ListMachineDetails(r.Context())
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to list machines")
@@ -29,6 +29,9 @@ func (s apiServer) ListMachines(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]api.Machine, 0, len(rows))
 	for _, row := range rows {
+		if params.Slug != nil && row.Slug != *params.Slug {
+			continue
+		}
 		items = append(items, machineListResponse(row))
 	}
 	writeJSON(w, http.StatusOK, struct {
@@ -49,7 +52,7 @@ func (s apiServer) ListMachineInstances(w http.ResponseWriter, r *http.Request, 
 			PublicId:        row.PublicID,
 			Name:            row.Name,
 			Slug:            row.Slug,
-			Port:            int(row.Port),
+			Port:            intPointer(row.Port),
 			ServicePublicId: row.ServicePublicID,
 			ServiceName:     row.ServiceName,
 			ServiceSlug:     row.ServiceSlug,
@@ -63,16 +66,19 @@ func (s apiServer) ListMachineInstances(w http.ResponseWriter, r *http.Request, 
 func (s apiServer) ResolveInstance(
 	w http.ResponseWriter,
 	r *http.Request,
-	machine api.MachineSlug,
 	service api.ServiceSlug,
 	instance api.InstanceSlug,
 	params api.ResolveInstanceParams,
 ) {
+	host := ""
+	if params.Host != nil {
+		host = string(*params.Host)
+	}
 	via := ""
 	if params.Via != nil {
 		via = string(*params.Via)
 	}
-	destination, err := s.resolver.instance(r.Context(), machine, service, instance, via, "", r.URL.Query())
+	destination, err := s.resolver.instance(r.Context(), service, instance, host, via, "", r.URL.Query())
 	if err != nil {
 		writeResolveError(w, err)
 		return
@@ -113,7 +119,7 @@ func writeResolveError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errDestinationNotFound):
 		writeAPIError(w, http.StatusNotFound, "not_found", "destination not found")
-	case errors.Is(err, errInvalidPort), errors.Is(err, errInvalidScheme), errors.Is(err, errInvalidVia):
+	case errors.Is(err, errInvalidPort), errors.Is(err, errInvalidScheme), errors.Is(err, errInvalidVia), errors.Is(err, errAmbiguousInstance):
 		writeAPIError(w, http.StatusBadRequest, "invalid_destination", err.Error())
 	default:
 		writeAPIError(w, http.StatusInternalServerError, "internal_error", "failed to resolve destination")

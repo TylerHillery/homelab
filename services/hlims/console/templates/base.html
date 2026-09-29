@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script src="/console/static/theme.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="htmx-config" content='{"defaultSwap":"innerHTML","defaultTimeout":15000,"history":true}'>
-  <title>HLIMS / {{if eq .View "inventory"}}Inventory{{else if eq .View "orders"}}Orders{{else}}Machine Topology{{end}}</title>
+  <title>HLIMS / {{if eq .View "inventory"}}Inventory{{else if eq .View "orders"}}Orders{{else if eq .View "services"}}Services{{else}}Machine Topology{{end}}</title>
   <link rel="icon" href="/console/static/favicon.svg?v=2" type="image/svg+xml">
   <link rel="stylesheet" href="/console/static/console.css">
-  <script defer src="/console/static/theme.js"></script>
   <script defer src="/console/static/htmx-4.0.0.min.js"></script>
   <script defer src="/console/static/reachability.js"></script>
   <script defer src="/console/static/route-menu.js"></script>
@@ -16,27 +16,28 @@
   <script defer src="/console/static/inventory-detail.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#workspace">Skip to topology</a>
+  <a class="skip-link" href="#workspace">Skip to content</a>
   <div class="console-shell">
     <header class="masthead">
-      <a class="wordmark" href="/console/">
+      <a class="wordmark" href="/console/machines/">
         <span class="wordmark-mark" aria-hidden="true"><img src="/console/static/favicon.svg?v=2" alt=""></span>
         <span><strong>HLIMS</strong><small class="wordmark-expansion"><b>H</b>ome <b>L</b>ab <b>I</b>nformation <b>M</b>anagement <b>S</b>ystem</small></span>
       </a>
       <div class="system-state"><span class="state-light"></span>Inventory online</div>
-      {{if eq .View "topology"}}{{template "topology-toolbar" .}}{{end}}
+      {{if eq .View "machines"}}{{template "topology-toolbar" .}}{{end}}
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
         <span aria-hidden="true">◐</span><span class="theme-toggle-label">Theme</span>
       </button>
       <a class="api-link" href="/api-docs/" target="_blank" rel="noopener">API / V1</a>
     </header>
     <nav class="console-pages" aria-label="HLIMS sections">
-      <a href="/console/"{{if eq .View "topology"}} aria-current="page"{{end}}>Machines</a>
+      <a href="/console/machines/"{{if eq .View "machines"}} aria-current="page"{{end}}>Machines</a>
+      <a href="/console/services/"{{if eq .View "services"}} aria-current="page"{{end}}>Services</a>
       <a href="/console/inventory/"{{if eq .View "inventory"}} aria-current="page"{{end}}>Inventory</a>
       <a href="/console/orders/"{{if eq .View "orders"}} aria-current="page"{{end}}>Orders</a>
     </nav>
-    <main id="workspace" class="workspace" aria-label="{{if eq .View "inventory"}}Inventory{{else if eq .View "orders"}}Orders{{else}}Machine Topology{{end}}">
-      {{if eq .View "inventory"}}{{template "inventory" .}}{{else if eq .View "orders"}}{{template "orders" .}}{{else}}{{template "workspace" .}}{{end}}
+    <main id="workspace" class="workspace" aria-label="{{if eq .View "inventory"}}Inventory{{else if eq .View "orders"}}Orders{{else if eq .View "services"}}Services{{else}}Machine Topology{{end}}">
+      {{if eq .View "inventory"}}{{template "inventory" .}}{{else if eq .View "orders"}}{{template "orders" .}}{{else if eq .View "services"}}{{template "services" .}}{{else}}{{template "workspace" .}}{{end}}
     </main>
   </div>
 </body>

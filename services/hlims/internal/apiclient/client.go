@@ -121,6 +121,7 @@ type (
 type Response struct {
 	StatusCode int
 	Body       []byte
+	ETag       string
 }
 
 // Error represents a non-successful response from the API.
@@ -169,6 +170,20 @@ func New(apiURL string, httpClient *http.Client) (*Client, error) {
 
 // List returns one inventory collection.
 func (c *Client) List(ctx context.Context, resource Resource) (*Response, error) {
+	return c.ListFiltered(ctx, resource, ListFilter{})
+}
+
+// ListFilter selects records by their canonical slugs or parent public ID.
+type ListFilter struct {
+	Slug             string
+	Service          string
+	Machine          string
+	HostingKind      string
+	InstancePublicID string
+}
+
+// ListFiltered returns records matching the supplied resource-specific filters.
+func (c *Client) ListFiltered(ctx context.Context, resource Resource, filter ListFilter) (*Response, error) {
 	var response *http.Response
 	var err error
 	switch resource {
@@ -185,7 +200,11 @@ func (c *Client) List(ctx context.Context, resource Resource) (*Response, error)
 	case Purchases:
 		response, err = c.api.ListPurchases(ctx)
 	case Machines:
-		response, err = c.api.ListMachines(ctx)
+		params := &api.ListMachinesParams{}
+		if filter.Slug != "" {
+			params.Slug = &filter.Slug
+		}
+		response, err = c.api.ListMachines(ctx, params)
 	case MachineUsers:
 		response, err = c.api.ListMachineUsers(ctx)
 	case Networks:
@@ -193,11 +212,33 @@ func (c *Client) List(ctx context.Context, resource Resource) (*Response, error)
 	case Addresses:
 		response, err = c.api.ListAddresses(ctx)
 	case Services:
-		response, err = c.api.ListServices(ctx)
+		params := &api.ListServicesParams{}
+		if filter.Slug != "" {
+			params.Slug = &filter.Slug
+		}
+		response, err = c.api.ListServices(ctx, params)
 	case Instances:
-		response, err = c.api.ListInstances(ctx)
+		params := &api.ListInstancesParams{}
+		if filter.Slug != "" {
+			params.Slug = &filter.Slug
+		}
+		if filter.Service != "" {
+			params.Service = &filter.Service
+		}
+		if filter.Machine != "" {
+			params.Machine = &filter.Machine
+		}
+		if filter.HostingKind != "" {
+			kind := api.InstanceHostingKind(filter.HostingKind)
+			params.HostingKind = &kind
+		}
+		response, err = c.api.ListInstances(ctx, params)
 	case InstanceEndpoints:
-		response, err = c.api.ListInstanceEndpoints(ctx)
+		params := &api.ListInstanceEndpointsParams{}
+		if filter.InstancePublicID != "" {
+			params.InstancePublicId = &filter.InstancePublicID
+		}
+		response, err = c.api.ListInstanceEndpoints(ctx, params)
 	default:
 		return nil, fmt.Errorf("unknown resource %q", resource)
 	}
@@ -261,6 +302,75 @@ func (c *Client) Get(ctx context.Context, resource Resource, publicID string) (*
 	return readResponse(response, err)
 }
 
+// ResolvePublicID accepts a public ID or an exact slug for resources that have slugs.
+// Instance slugs can repeat across Machines, so callers may narrow the lookup.
+func (c *Client) ResolvePublicID(ctx context.Context, resource Resource, reference string, filter ListFilter) (string, error) {
+	if !hasSlug(resource) {
+		return reference, nil
+	}
+	if looksLikePublicID(reference) {
+		_, err := c.Get(ctx, resource, reference)
+		if err == nil {
+			return reference, nil
+		}
+		var apiErr *Error
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return "", err
+		}
+	}
+	if resource == Services || resource == Machines || resource == Instances {
+		filter.Slug = reference
+	}
+	response, err := c.ListFiltered(ctx, resource, filter)
+	if err != nil {
+		return "", err
+	}
+	var result struct {
+		Items []struct {
+			PublicID string `json:"publicId"`
+			Slug     string `json:"slug"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(response.Body, &result); err != nil {
+		return "", fmt.Errorf("decode %s lookup: %w", resource, err)
+	}
+	publicID := ""
+	for _, item := range result.Items {
+		if item.Slug != reference {
+			continue
+		}
+		if publicID != "" {
+			return "", fmt.Errorf("%s slug %q is ambiguous; filter by parent or use a public ID", resource, reference)
+		}
+		publicID = item.PublicID
+	}
+	if publicID == "" {
+		return "", fmt.Errorf("%s slug %q not found", resource, reference)
+	}
+	return publicID, nil
+}
+
+func hasSlug(resource Resource) bool {
+	switch resource {
+	case MachineProviders, Areas, Manufacturers, Machines, Networks, Services, Instances:
+		return true
+	default:
+		return false
+	}
+}
+
+func looksLikePublicID(value string) bool {
+	if len(value) != 12 {
+		return false
+	}
+	for _, char := range value {
+		if char < '0' || char > '9' && char < 'a' || char > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
 // Create creates one inventory resource from an OpenAPI-compatible JSON body.
 func (c *Client) Create(ctx context.Context, resource Resource, body []byte) (*Response, error) {
 	var response *http.Response
@@ -300,35 +410,47 @@ func (c *Client) Create(ctx context.Context, resource Resource, body []byte) (*R
 
 // Update replaces one inventory resource from an OpenAPI-compatible JSON body.
 func (c *Client) Update(ctx context.Context, resource Resource, publicID string, body []byte) (*Response, error) {
+	return c.UpdateIfMatch(ctx, resource, publicID, body, "")
+}
+
+// UpdateIfMatch replaces one inventory resource only if its GET ETag still matches.
+func (c *Client) UpdateIfMatch(ctx context.Context, resource Resource, publicID string, body []byte, etag string) (*Response, error) {
 	var response *http.Response
 	var err error
+	var editors []api.RequestEditorFn
+	if etag != "" {
+		editors = append(editors, func(_ context.Context, request *http.Request) error {
+			request.Header.Set("If-Match", etag)
+			return nil
+		})
+	}
 	switch resource {
 	case MachineProviders:
-		response, err = c.api.UpdateMachineProviderWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateMachineProviderWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Areas:
-		response, err = c.api.UpdateAreaWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateAreaWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Manufacturers:
-		response, err = c.api.UpdateManufacturerWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateManufacturerWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Products:
-		response, err = c.api.UpdateProductWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateProductWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Assets:
-		response, err = c.api.UpdateAssetWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateAssetWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Purchases:
-		response, err = c.api.UpdatePurchaseWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdatePurchaseWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Machines:
-		response, err = c.api.UpdateMachineWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateMachineWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case MachineUsers:
-		response, err = c.api.UpdateMachineUserWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateMachineUserWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Networks:
-		response, err = c.api.UpdateNetworkWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateNetworkWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Addresses:
-		response, err = c.api.UpdateAddressWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateAddressWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Services:
-		response, err = c.api.UpdateServiceWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateServiceWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Instances:
-		response, err = c.api.UpdateInstanceWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateInstanceWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case InstanceEndpoints:
-		response, err = c.api.UpdateInstanceEndpointWithBody(ctx, publicID, "application/json", bytes.NewReader(body))
+		response, err = c.api.UpdateInstanceEndpointWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	default:
 		return nil, fmt.Errorf("unknown resource %q", resource)
 	}
@@ -408,14 +530,18 @@ func (c *Client) DeleteMachineProviderLogo(ctx context.Context, publicID string)
 	return readResponse(response, err)
 }
 
-// ResolveInstance resolves a canonical Machine, Service, and Instance route.
-func (c *Client) ResolveInstance(ctx context.Context, machine, service, instance, via string) (*Response, error) {
+// ResolveInstance resolves a Service and Instance, selecting a host when needed.
+func (c *Client) ResolveInstance(ctx context.Context, service, instance, host, via string) (*Response, error) {
 	params := &api.ResolveInstanceParams{}
+	if host != "" {
+		value := api.Host(host)
+		params.Host = &value
+	}
 	if via != "" {
 		value := api.Via(via)
 		params.Via = &value
 	}
-	response, err := c.api.ResolveInstance(ctx, machine, service, instance, params)
+	response, err := c.api.ResolveInstance(ctx, service, instance, params)
 	return readResponse(response, err)
 }
 
@@ -528,7 +654,7 @@ func readResponse(response *http.Response, requestErr error) (*Response, error) 
 		}
 		return nil, apiErr
 	}
-	return &Response{StatusCode: response.StatusCode, Body: body}, nil
+	return &Response{StatusCode: response.StatusCode, Body: body, ETag: response.Header.Get("ETag")}, nil
 }
 
 func recordDetail(item map[string]any) string {

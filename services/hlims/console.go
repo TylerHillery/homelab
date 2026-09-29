@@ -20,6 +20,7 @@ var consoleFiles embed.FS
 
 var consoleTemplates = template.Must(template.New("console").Funcs(template.FuncMap{
 	"byteSize":          consoleByteSize,
+	"memorySize":        consoleMemorySize,
 	"initials":          consoleInitials,
 	"reachabilityBadge": consoleReachabilityBadge,
 	"kindLabel":         consoleKindLabel,
@@ -40,6 +41,8 @@ var consoleTemplates = template.Must(template.New("console").Funcs(template.Func
 		return result
 	},
 	"osLabel":          consoleOSLabel,
+	"osIcon":           consoleOSIcon,
+	"osBase":           consoleOSBase,
 	"memoryTypes":      consoleMemoryTypes,
 	"processorSummary": consoleProcessorSummary,
 	"providerMachines": func(provider api.TopologyProvider) int {
@@ -102,6 +105,9 @@ func registerConsoleHandlers(mux *http.ServeMux, server apiServer) {
 		panic(err)
 	}
 	mux.Handle("GET /console/static/", http.StripPrefix("/console/static/", http.FileServer(http.FS(staticFiles))))
+	mux.HandleFunc("GET /console", func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "console page not found", http.StatusNotFound)
+	})
 	mux.HandleFunc("GET /api-docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/api-docs/", http.StatusPermanentRedirect)
 	})
@@ -109,10 +115,8 @@ func registerConsoleHandlers(mux *http.ServeMux, server apiServer) {
 	mux.HandleFunc("GET /api-docs/", func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "API documentation page not found", http.StatusNotFound)
 	})
-	mux.HandleFunc("GET /console", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/console/", http.StatusPermanentRedirect)
-	})
-	mux.HandleFunc("GET /console/{$}", console.index)
+	mux.HandleFunc("GET /console/machines/{$}", console.machines)
+	mux.HandleFunc("GET /console/services/{$}", console.services)
 	mux.HandleFunc("GET /console/inventory", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/console/inventory/", http.StatusPermanentRedirect)
 	})
@@ -122,8 +126,8 @@ func registerConsoleHandlers(mux *http.ServeMux, server apiServer) {
 		http.Redirect(w, r, "/console/orders/", http.StatusPermanentRedirect)
 	})
 	mux.HandleFunc("GET /console/orders/{$}", console.orders)
-	mux.HandleFunc("GET /console/topology", console.topologyFragment)
-	mux.HandleFunc("GET /console/providers/{publicID}", console.provider)
+	mux.HandleFunc("GET /console/machines/topology", console.topologyFragment)
+	mux.HandleFunc("GET /console/machine-providers/{publicID}", console.provider)
 	mux.HandleFunc("GET /console/machines/{publicID}/children", console.children)
 	mux.HandleFunc("PUT /console/machines/{publicID}/favorite", console.machineFavorite)
 	mux.HandleFunc("GET /console/", func(w http.ResponseWriter, _ *http.Request) {
@@ -135,7 +139,7 @@ func (s consoleServer) apiDocs(w http.ResponseWriter, _ *http.Request) {
 	s.render(w, "api-docs", nil)
 }
 
-func (s consoleServer) index(w http.ResponseWriter, r *http.Request) {
+func (s consoleServer) machines(w http.ResponseWriter, r *http.Request) {
 	s.renderPage(w, r, "")
 }
 
@@ -245,7 +249,7 @@ func newConsolePage(topology api.Topology, providerID string) consolePage {
 	if providerID == "" {
 		favorites = consoleFavoriteMachines(topology.Providers)
 	}
-	return consolePage{View: "topology", Providers: providers, Favorites: favorites, ActiveProvider: providerID}
+	return consolePage{View: "machines", Providers: providers, Favorites: favorites, ActiveProvider: providerID}
 }
 
 func (s consoleServer) render(w http.ResponseWriter, name string, data any) {
@@ -353,6 +357,23 @@ func consoleByteSize(value *int64) string {
 	return fmt.Sprintf("%.1f %s", size, units[unit])
 }
 
+func consoleMemorySize(value *int64) string {
+	if value == nil {
+		return ""
+	}
+	units := []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
+	size := float64(*value)
+	unit := 0
+	for size >= 1024 && unit < len(units)-1 {
+		size /= 1024
+		unit++
+	}
+	if unit == 0 || size == float64(int64(size)) {
+		return fmt.Sprintf("%.0f %s", size, units[unit])
+	}
+	return fmt.Sprintf("%.1f %s", size, units[unit])
+}
+
 func consoleInitials(name string) string {
 	parts := strings.Fields(name)
 	if len(parts) == 0 {
@@ -378,6 +399,39 @@ func consoleOSLabel(machine api.TopologyMachine) string {
 		parts = append(parts, *machine.OperatingSystemVersion)
 	}
 	return strings.Join(parts, " ")
+}
+
+func consoleOSIcon(machine api.TopologyMachine) string {
+	if machine.OperatingSystem == nil {
+		return ""
+	}
+	osName := strings.ToLower(strings.TrimSpace(*machine.OperatingSystem))
+	for _, name := range []string{"opnsense", "ubuntu", "freebsd", "windows", "illumos", "linux"} {
+		if osName == name || strings.HasPrefix(osName, name+" ") {
+			return "/console/static/os-" + name + ".svg"
+		}
+	}
+	return ""
+}
+
+type consoleBaseOS struct {
+	Name string
+	Icon string
+}
+
+func consoleOSBase(machine api.TopologyMachine) *consoleBaseOS {
+	if machine.OperatingSystem == nil {
+		return nil
+	}
+	osName := strings.ToLower(strings.TrimSpace(*machine.OperatingSystem))
+	switch {
+	case osName == "ubuntu" || strings.HasPrefix(osName, "ubuntu "):
+		return &consoleBaseOS{Name: "Linux", Icon: "/console/static/os-linux.svg"}
+	case osName == "opnsense" || strings.HasPrefix(osName, "opnsense "):
+		return &consoleBaseOS{Name: "FreeBSD", Icon: "/console/static/os-freebsd.svg"}
+	default:
+		return nil
+	}
 }
 
 func consoleMemoryTypes(hardware []api.TopologyMachineHardware) string {

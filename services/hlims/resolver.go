@@ -18,6 +18,7 @@ var (
 	errInvalidPort         = errors.New("port must be between 1 and 65535")
 	errInvalidScheme       = errors.New("scheme must be http or https")
 	errInvalidVia          = errors.New("via must be lan or tailnet")
+	errAmbiguousInstance   = errors.New("multiple instances match; specify host=<machine-slug> or host=managed")
 )
 
 type resolvedDestination struct {
@@ -41,9 +42,40 @@ type resolver struct {
 
 func (r resolver) instance(
 	ctx context.Context,
-	machine, service, instance, via, remainder string,
+	service, instance, host, via, remainder string,
 	query url.Values,
 ) (resolvedDestination, error) {
+	rows, err := r.queries.ListInstanceHostsByServiceAndSlug(ctx, database.ListInstanceHostsByServiceAndSlugParams{
+		ServiceSlug: service, InstanceSlug: instance,
+	})
+	if err != nil {
+		return resolvedDestination{}, err
+	}
+	if len(rows) == 0 {
+		return resolvedDestination{}, errDestinationNotFound
+	}
+	var selected *database.ListInstanceHostsByServiceAndSlugRow
+	if host == "" {
+		if len(rows) != 1 {
+			return resolvedDestination{}, errAmbiguousInstance
+		}
+		selected = &rows[0]
+	} else {
+		for index := range rows {
+			row := &rows[index]
+			if row.HostingKind == "managed" && host == "managed" || row.HostingKind == "machine" && row.MachineSlug.String == host {
+				selected = row
+				break
+			}
+		}
+		if selected == nil {
+			return resolvedDestination{}, errDestinationNotFound
+		}
+	}
+	if selected.HostingKind == "managed" {
+		return r.managed(ctx, service, instance, via, remainder, query)
+	}
+	machine := selected.MachineSlug.String
 	var target endpoint
 	if via == "" {
 		row, err := r.queries.GetPreferredInstanceEndpoint(ctx, database.GetPreferredInstanceEndpointParams{
@@ -59,8 +91,8 @@ func (r resolver) instance(
 			dnsName:     row.DnsName,
 			hostType:    row.HostType,
 			networkKind: row.NetworkKind,
-			scheme:      row.Scheme,
-			port:        row.Port,
+			scheme:      row.Scheme.String,
+			port:        row.Port.Int64,
 			basePath:    row.BasePath,
 		}
 	} else {
@@ -81,17 +113,43 @@ func (r resolver) instance(
 			dnsName:     row.DnsName,
 			hostType:    row.HostType,
 			networkKind: row.NetworkKind,
-			scheme:      row.Scheme,
-			port:        row.Port,
+			scheme:      row.Scheme.String,
+			port:        row.Port.Int64,
 			basePath:    row.BasePath,
 		}
 	}
 
-	destination, err := endpointURL(target, remainder, resolverQuery(query))
+	destination, err := endpointURL(target, remainder, serviceResolverQuery(query))
 	if err != nil {
 		return resolvedDestination{}, err
 	}
 	return resolvedDestination{URL: destination, Via: target.networkKind}, nil
+}
+
+func (r resolver) managed(ctx context.Context, service, instance, via, remainder string, query url.Values) (resolvedDestination, error) {
+	if via != "" {
+		return resolvedDestination{}, errInvalidVia
+	}
+	direct, err := r.queries.GetManagedInstanceEndpoint(ctx, database.GetManagedInstanceEndpointParams{ServiceSlug: service, InstanceSlug: instance})
+	if err != nil {
+		return resolvedDestination{}, resolveQueryError(err)
+	}
+	if !direct.Valid {
+		return resolvedDestination{}, errors.New("managed endpoint has no URL")
+	}
+	destination, err := url.Parse(direct.String)
+	if err != nil || destination.Scheme != "https" || destination.Hostname() == "" {
+		return resolvedDestination{}, errors.New("managed endpoint has an invalid URL")
+	}
+	if remainder != "" {
+		destination.Path = joinURLPath(destination.Path, remainder)
+	}
+	parameters := destination.Query()
+	for key, values := range serviceResolverQuery(query) {
+		parameters[key] = values
+	}
+	destination.RawQuery = parameters.Encode()
+	return resolvedDestination{URL: destination.String(), Via: "managed"}, nil
 }
 
 func (r resolver) machinePort(
@@ -206,6 +264,12 @@ func resolverQuery(query url.Values) url.Values {
 	}
 	forwarded.Del("via")
 	forwarded.Del("scheme")
+	return forwarded
+}
+
+func serviceResolverQuery(query url.Values) url.Values {
+	forwarded := resolverQuery(query)
+	forwarded.Del("host")
 	return forwarded
 }
 

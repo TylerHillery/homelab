@@ -167,7 +167,7 @@ func TestDetailPaneShowsInfrastructureAndServiceLabels(t *testing.T) {
 	for _, expected := range []string{
 		"MACHINE", "KIND", "BARE_METAL", "NAME", "Root Host", "HOSTNAME", "root.example.test", "IMMEDIATE HOST",
 		"CPU 8 cores AMD", "MEM 16.0 GiB", "DISK 1.0 TiB", "SYSTEM", "Linux 42",
-		"SERVICES [1]", "Dashboard", "Production  :8443", "/root/dashboard/production",
+		"SERVICES [1]", "Dashboard", "Production  :8443", "/dashboard/production",
 	} {
 		if !strings.Contains(view, expected) {
 			t.Errorf("detail pane missing %q:\n%s", expected, view)
@@ -339,8 +339,8 @@ func testTopology() *apiclient.Topology {
 						PublicId:     "instance-production",
 						Name:         "Production",
 						Slug:         "production",
-						Port:         8443,
-						ResolverPath: "/root/dashboard/production",
+						Port:         testPointer(8443),
+						ResolverPath: testPointer("/dashboard/production?host=root"),
 					}},
 				}},
 			}},
@@ -350,7 +350,24 @@ func testTopology() *apiclient.Topology {
 
 func testServices() []apiclient.TopologyService {
 	return []apiclient.TopologyService{
-		{Name: "Dashboard", Instances: []apiclient.TopologyInstance{{Name: "Production", Port: 8443, ResolverPath: "/dashboard/production"}}},
-		{Name: "Metrics", Instances: []apiclient.TopologyInstance{{Name: "Prometheus", Port: 9090, ResolverPath: "/metrics/prometheus"}}},
+		{Name: "Dashboard", Instances: []apiclient.TopologyInstance{{Name: "Production", Port: testPointer(8443), ResolverPath: testPointer("/dashboard/production")}}},
+		{Name: "Metrics", Instances: []apiclient.TopologyInstance{{Name: "Prometheus", Port: testPointer(9090), ResolverPath: testPointer("/metrics/prometheus")}}},
 	}
 }
+
+func TestServicesPaneIncludesWorkerWithoutPortOrURL(t *testing.T) {
+	t.Parallel()
+	view := renderServices([]apiclient.TopologyService{{
+		Name: "Example replicator", Instances: []apiclient.TopologyInstance{{Name: "worker"}},
+	}}, 80)
+	for _, label := range []string{"Example replicator", "worker", "No URL recorded"} {
+		if !strings.Contains(view, label) {
+			t.Errorf("unrouted worker missing %q: %s", label, view)
+		}
+	}
+	if strings.Contains(view, ":0") || strings.Contains(view, "<nil>") {
+		t.Fatalf("unrouted worker has an invented port or URL: %s", view)
+	}
+}
+
+func testPointer[T any](value T) *T { return &value }

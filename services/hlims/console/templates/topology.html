@@ -2,17 +2,17 @@
 <nav class="topology-toolbar" aria-label="Topology controls">
   <div class="icon-toolbar" role="group" aria-label="Topology expansion">
     <button class="icon-button" type="button" aria-label="Expand all" title="Expand all" data-tooltip="Expand all"
-            hx-get="/console/topology?expansion=all{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
+            hx-get="/console/machines/topology?expansion=all{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
             hx-target="#workspace" hx-swap="innerHTML" hx-sync="#workspace:replace">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
     </button>
     <button class="icon-button" type="button" aria-label="Collapse all" title="Collapse all" data-tooltip="Collapse all"
-            hx-get="/console/topology?expansion=none{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
+            hx-get="/console/machines/topology?expansion=none{{if .ActiveProvider}}&provider={{.ActiveProvider}}{{end}}"
             hx-target="#workspace" hx-swap="innerHTML" hx-sync="#workspace:replace">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>
     </button>
     <button class="icon-button refresh-button" type="button" aria-label="Refresh topology" title="Refresh topology" data-tooltip="Refresh"
-            hx-get="/console/topology{{if .ActiveProvider}}?provider={{.ActiveProvider}}{{end}}"
+            hx-get="/console/machines/topology{{if .ActiveProvider}}?provider={{.ActiveProvider}}{{end}}"
             hx-target="#workspace" hx-swap="innerHTML" hx-indicator="#topology-progress">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.35 5.65M20 4v7h-7"/></svg>
       <span id="topology-progress" class="refresh-indicator htmx-indicator"></span>
@@ -44,7 +44,7 @@
   <details class="provider-group" {{if ne $.Expansion "none"}}open{{end}}>
     <summary class="group-header" id="provider-{{.PublicId}}">
       <span class="collapse-caret" aria-hidden="true"></span>
-      <span class="provider-logo" aria-hidden="true">{{if .HasLogo}}<img src="/api/v1/machine-providers/{{.PublicId}}/logo" alt="">{{else}}{{initials .Name}}{{end}}</span>
+      <span class="provider-logo{{if .HasLogo}} has-image{{end}}" aria-hidden="true">{{if .HasLogo}}<img src="/api/v1/machine-providers/{{.PublicId}}/logo" alt="">{{else}}{{initials .Name}}{{end}}</span>
       <span><small class="group-index">Provider / {{.Slug}}</small><strong>{{.Name}}</strong></span>
       <span class="group-count">{{providerMachines .}} machines</span>
     </summary>
@@ -111,8 +111,8 @@
   </header>
   {{if or (osLabel .TopologyMachine) .CpuCount .CpuThreadCount .MemoryBytes .StorageBytes}}
   <dl class="machine-facts">
-    {{if osLabel .TopologyMachine}}<div class="machine-os machine-fact{{if or .Kernel .Architecture .VirtualizationPlatform}} has-detail{{end}}"{{if or .Kernel .Architecture .VirtualizationPlatform}} tabindex="0" aria-label="OS: {{osLabel .TopologyMachine}}{{if .Kernel}}. Kernel: {{.Kernel}}{{end}}{{if .Architecture}}. Architecture: {{.Architecture}}{{end}}{{if .VirtualizationPlatform}}. Platform: {{.VirtualizationPlatform}}{{end}}"{{end}}>
-      <dt>OS</dt><dd>{{osLabel .TopologyMachine}}</dd>
+    {{if osLabel .TopologyMachine}}{{$baseOS := osBase .TopologyMachine}}<div class="machine-os machine-fact{{if or .Kernel .Architecture .VirtualizationPlatform}} has-detail{{end}}"{{if or .Kernel .Architecture .VirtualizationPlatform}} tabindex="0" aria-label="OS: {{if $baseOS}}{{$baseOS.Name}} / {{end}}{{osLabel .TopologyMachine}}{{if .Kernel}}. Kernel: {{.Kernel}}{{end}}{{if .Architecture}}. Architecture: {{.Architecture}}{{end}}{{if .VirtualizationPlatform}}. Platform: {{.VirtualizationPlatform}}{{end}}"{{end}}>
+      <dt>OS</dt><dd>{{if $baseOS}}<span class="machine-os-base"><img class="machine-os-icon" src="{{$baseOS.Icon}}" alt="">{{$baseOS.Name}}</span><span class="machine-os-separator" aria-hidden="true">/</span>{{end}}{{with osIcon .TopologyMachine}}<img class="machine-os-icon" src="{{.}}" alt="">{{end}}{{osLabel .TopologyMachine}}</dd>
       {{if or .Kernel .Architecture .VirtualizationPlatform}}<span class="machine-fact-tooltip" aria-hidden="true">{{if .Kernel}}Kernel: {{.Kernel}}<br>{{end}}{{if .Architecture}}Architecture: {{.Architecture}}<br>{{end}}{{if .VirtualizationPlatform}}Platform: {{.VirtualizationPlatform}}{{end}}</span>{{end}}
     </div>{{end}}
     {{$processor := processorSummary .Hardware}}
@@ -122,8 +122,8 @@
     </div>{{end}}
     {{if .CpuThreadCount}}<div><dt>Threads</dt><dd>{{.CpuThreadCount}}</dd></div>{{end}}
     {{$memoryTypes := memoryTypes .Hardware}}
-    {{if .MemoryBytes}}<div class="machine-fact{{if $memoryTypes}} has-detail{{end}}"{{if $memoryTypes}} tabindex="0" aria-label="Memory: {{byteSize .MemoryBytes}}. Type: {{$memoryTypes}}"{{end}}>
-      <dt>Memory</dt><dd>{{byteSize .MemoryBytes}}</dd>
+    {{if .MemoryBytes}}<div class="machine-fact{{if $memoryTypes}} has-detail{{end}}"{{if $memoryTypes}} tabindex="0" aria-label="Memory: {{memorySize .MemoryBytes}}. Type: {{$memoryTypes}}"{{end}}>
+      <dt>Memory</dt><dd>{{memorySize .MemoryBytes}}</dd>
       {{if $memoryTypes}}<span class="machine-fact-tooltip" aria-hidden="true">Memory type: {{$memoryTypes}}</span>{{end}}
     </div>{{end}}
     {{if .StorageBytes}}<div class="machine-fact{{if or .StorageMediaKind .StorageInterfaceKind}} has-detail{{end}}"{{if or .StorageMediaKind .StorageInterfaceKind}} tabindex="0" aria-label="Storage: {{byteSize .StorageBytes}}{{if .StorageMediaKind}}. Media: {{.StorageMediaKind}}{{end}}{{if .StorageInterfaceKind}}. Interface: {{.StorageInterfaceKind}}{{end}}"{{end}}>
@@ -169,7 +169,7 @@
 {{define "service-card"}}
 <article class="service-card">
   <div class="service-brand">
-    <span class="service-logo">
+    <span class="service-logo{{if .HasLogo}} has-image{{end}}">
       {{if .HasLogo}}<img src="/api/v1/services/{{.PublicId}}/logo" alt="">{{else}}{{initials .Name}}{{end}}
     </span>
     <div><h5>{{.Name}}</h5><span>{{len .Instances}} {{if eq (len .Instances) 1}}instance{{else}}instances{{end}}</span></div>
@@ -178,8 +178,8 @@
     {{range .Instances}}
     <div class="instance-row">
       {{if .Endpoints}}<a class="instance-primary" href="{{.ResolverPath}}" target="_blank" rel="noopener noreferrer" title="Open {{$.Name}} / {{.Name}} using its preferred route">
-        <span class="instance-label">{{template "reachability-badge" (reachabilityBadge "instance" .PublicId "" .Name .ResolverPath)}}{{.Name}}</span><code>:{{.Port}}</code><b aria-hidden="true">↗</b>
-      </a>{{else}}<div class="instance-primary instance-unrouted"><span class="instance-label">{{.Name}}</span><small>No direct URL</small><code>:{{.Port}}</code></div>{{end}}
+        <span class="instance-label">{{template "reachability-badge" (reachabilityBadge "instance" .PublicId "" .Name .ResolverPath)}}{{.Name}}</span>{{if .Port}}<code>:{{.Port}}</code>{{end}}<b aria-hidden="true">↗</b>
+      </a>{{else}}<div class="instance-primary instance-unrouted"><span class="instance-label">{{.Name}}</span><small>Tracked · no URL</small>{{if .Port}}<code>:{{.Port}}</code>{{end}}</div>{{end}}
       {{if .Endpoints}}
       <details class="route-picker">
         <summary aria-label="Choose access path for {{.Name}}" title="Choose access path"><span aria-hidden="true">⌄</span></summary>

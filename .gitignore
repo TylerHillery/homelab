@@ -1,7 +1,10 @@
 .env
 /ORDERS.md
 .agents/
-.opencode/
+.opencode/*
+!.opencode/skills/
+.opencode/skills/*
+!.opencode/skills/hlims-inventory/
 .mise.local.toml
 *.db
 *.db-shm

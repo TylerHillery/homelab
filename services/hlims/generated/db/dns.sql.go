@@ -201,8 +201,8 @@ where instance_endpoints.public_id = ?
 `
 
 type GetEndpointIngressIDsRow struct {
-	ID        string `json:"id"`
-	MachineID string `json:"machine_id"`
+	ID        string         `json:"id"`
+	MachineID sql.NullString `json:"machine_id"`
 }
 
 func (q *Queries) GetEndpointIngressIDs(ctx context.Context, publicID string) (GetEndpointIngressIDsRow, error) {

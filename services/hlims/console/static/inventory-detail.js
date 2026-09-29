@@ -44,12 +44,14 @@
       const link = event.target.closest("a[data-inventory-detail]");
       if (link) {
         event.preventDefault();
+        const picker = link.closest(".product-assets-picker");
         const url = new URL(link.href);
         const current = new URL(window.location.href);
         if (current.searchParams.has("filter") && !url.searchParams.has("filter")) {
           url.searchParams.set("filter", current.searchParams.get("filter"));
         }
-        restoreFocus = link;
+        restoreFocus = picker?.querySelector("summary") || link;
+        if (picker) picker.open = false;
         loadDrawer(url, true).catch(function () { window.location.assign(url.href); });
         return;
       }

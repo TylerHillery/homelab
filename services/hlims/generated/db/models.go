@@ -95,27 +95,30 @@ type IngressRoute struct {
 }
 
 type Instance struct {
-	ID        string         `json:"id"`
-	PublicID  string         `json:"public_id"`
-	ServiceID string         `json:"service_id"`
-	MachineID string         `json:"machine_id"`
-	Name      string         `json:"name"`
-	Slug      string         `json:"slug"`
-	Port      int64          `json:"port"`
-	Notes     sql.NullString `json:"notes"`
-	CreatedAt int64          `json:"created_at"`
-	UpdatedAt int64          `json:"updated_at"`
+	ID              string         `json:"id"`
+	PublicID        string         `json:"public_id"`
+	ServiceID       string         `json:"service_id"`
+	MachineID       sql.NullString `json:"machine_id"`
+	HostingKind     string         `json:"hosting_kind"`
+	ManagedProvider sql.NullString `json:"managed_provider"`
+	Name            string         `json:"name"`
+	Slug            string         `json:"slug"`
+	Port            sql.NullInt64  `json:"port"`
+	Notes           sql.NullString `json:"notes"`
+	CreatedAt       int64          `json:"created_at"`
+	UpdatedAt       int64          `json:"updated_at"`
 }
 
 type InstanceEndpoint struct {
 	ID          string         `json:"id"`
 	PublicID    string         `json:"public_id"`
 	InstanceID  string         `json:"instance_id"`
-	AddressID   string         `json:"address_id"`
+	AddressID   sql.NullString `json:"address_id"`
+	DirectUrl   sql.NullString `json:"direct_url"`
 	DnsRecordID sql.NullString `json:"dns_record_id"`
 	Name        string         `json:"name"`
-	Scheme      string         `json:"scheme"`
-	Port        int64          `json:"port"`
+	Scheme      sql.NullString `json:"scheme"`
+	Port        sql.NullInt64  `json:"port"`
 	BasePath    string         `json:"base_path"`
 	HostType    string         `json:"host_type"`
 	IsPreferred int64          `json:"is_preferred"`

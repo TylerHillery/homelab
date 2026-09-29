@@ -90,17 +90,21 @@ insert into instances (
     public_id,
     service_id,
     machine_id,
+    hosting_kind,
+    managed_provider,
     name,
     slug,
     port,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     service_id,
     machine_id,
+    hosting_kind,
+    managed_provider,
     name,
     slug,
     port,
@@ -114,6 +118,8 @@ select
     public_id,
     service_id,
     machine_id,
+    hosting_kind,
+    managed_provider,
     name,
     slug,
     port,
@@ -129,6 +135,8 @@ select
     instances.name,
     instances.slug,
     instances.port,
+    instances.hosting_kind,
+    instances.managed_provider,
     instances.notes,
     instances.created_at,
     instances.updated_at,
@@ -136,7 +144,7 @@ select
     machines.public_id as machine_public_id
 from instances
 inner join services on instances.service_id = services.id
-inner join machines on instances.machine_id = machines.id
+left join machines on instances.machine_id = machines.id
 where instances.public_id = ?;
 
 -- name: ListInstances :many
@@ -145,6 +153,8 @@ select
     instances.name,
     instances.slug,
     instances.port,
+    instances.hosting_kind,
+    instances.managed_provider,
     instances.notes,
     instances.created_at,
     instances.updated_at,
@@ -170,14 +180,16 @@ select
     )                  as has_tailnet_route
 from instances
 inner join services on instances.service_id = services.id
-inner join machines on instances.machine_id = machines.id
-order by machines.name, services.name, instances.name;
+left join machines on instances.machine_id = machines.id
+order by services.name, instances.name;
 
 -- name: UpdateInstance :one
 update instances
 set
     service_id = ?,
     machine_id = ?,
+    hosting_kind = ?,
+    managed_provider = ?,
     name = ?,
     slug = ?,
     port = ?,
@@ -189,6 +201,8 @@ returning
     public_id,
     service_id,
     machine_id,
+    hosting_kind,
+    managed_provider,
     name,
     slug,
     port,
@@ -206,6 +220,7 @@ insert into instance_endpoints (
     public_id,
     instance_id,
     address_id,
+    direct_url,
     dns_record_id,
     name,
     scheme,
@@ -215,12 +230,13 @@ insert into instance_endpoints (
     is_preferred,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     instance_id,
     address_id,
+    direct_url,
     dns_record_id,
     name,
     scheme,
@@ -236,6 +252,7 @@ returning
 select
     instance_endpoints.public_id,
     instance_endpoints.name,
+    instance_endpoints.direct_url,
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
@@ -249,7 +266,7 @@ select
     dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
-inner join addresses on instance_endpoints.address_id = addresses.id
+left join addresses on instance_endpoints.address_id = addresses.id
 left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 where instance_endpoints.public_id = ?;
 
@@ -257,6 +274,7 @@ where instance_endpoints.public_id = ?;
 select
     instance_endpoints.public_id,
     instance_endpoints.name,
+    instance_endpoints.direct_url,
     instance_endpoints.scheme,
     instance_endpoints.port,
     instance_endpoints.base_path,
@@ -270,7 +288,7 @@ select
     dns_records.public_id as dns_record_public_id
 from instance_endpoints
 inner join instances on instance_endpoints.instance_id = instances.id
-inner join addresses on instance_endpoints.address_id = addresses.id
+left join addresses on instance_endpoints.address_id = addresses.id
 left join dns_records on instance_endpoints.dns_record_id = dns_records.id
 order by instances.name, instance_endpoints.name;
 
@@ -307,6 +325,7 @@ update instance_endpoints
 set
     instance_id = ?,
     address_id = ?,
+    direct_url = ?,
     dns_record_id = ?,
     name = ?,
     scheme = ?,
@@ -322,6 +341,7 @@ returning
     public_id,
     instance_id,
     address_id,
+    direct_url,
     dns_record_id,
     name,
     scheme,

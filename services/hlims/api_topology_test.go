@@ -146,7 +146,7 @@ func TestTopologyEndpointBuildsSortedRecursiveSnapshot(t *testing.T) {
 	if len(machine.Hardware) != 3 || machine.Hardware[2].Name != "Example CPU" || machine.Hardware[2].Generation == nil || *machine.Hardware[2].Generation != "4th Gen" || machine.Hardware[2].Codename == nil || *machine.Hardware[2].Codename != "Example Lake" || machine.Hardware[0].MemoryType == nil || *machine.Hardware[0].MemoryType != "DDR5" {
 		t.Fatalf("installed hardware = %#v", machine.Hardware)
 	}
-	page := consoleRequest(handler, http.MethodGet, "/console/", false)
+	page := consoleRequest(handler, http.MethodGet, "/console/machines/", false)
 	assertStatus(t, page, http.StatusOK)
 	for _, detail := range []string{"Example CPU", "4th Gen", "DDR5", "<dl class=\"machine-facts\">", "Interface: nvme", "machine-fact-tooltip"} {
 		if !strings.Contains(page.Body.String(), detail) {
@@ -165,7 +165,7 @@ func TestTopologyEndpointBuildsSortedRecursiveSnapshot(t *testing.T) {
 		t.Fatalf("services = %#v", machine.Services)
 	}
 	instances := machine.Services[0].Instances
-	if len(instances) != 2 || instances[0].Name != "Alpha" || instances[0].ResolverPath != "/root-host/alpha-service/alpha" {
+	if len(instances) != 2 || instances[0].Name != "Alpha" || instances[0].Port == nil || *instances[0].Port != 8443 || instances[0].ResolverPath != nil {
 		t.Fatalf("instances = %#v", instances)
 	}
 	if response.Body.String() == "" || containsAny(response.Body.String(), "imageData", "iVBOR") {
@@ -229,17 +229,17 @@ func TestTopologyShowsEveryEndpointWithDNSAndDirectIP(t *testing.T) {
 	if lanEndpoint == nil || lanEndpoint.HostType != api.EndpointHostType("ip") || lanEndpoint.Url != "https://192.0.2.1/" {
 		t.Fatalf("LAN endpoint = %#v", lanEndpoint)
 	}
-	preferred := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/firewall/firewall-ui/management", nil, "")
+	preferred := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/firewall-ui/management", nil, "")
 	assertStatus(t, preferred, http.StatusOK)
 	if !strings.Contains(preferred.Body.String(), "https://firewall.example.ts.net/") {
 		t.Fatalf("preferred endpoint = %s", preferred.Body.String())
 	}
-	direct := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/firewall/firewall-ui/management?via=lan", nil, "")
+	direct := apiRequest(t, handler, http.MethodGet, "/api/v1/resolve/firewall-ui/management?host=firewall&via=lan", nil, "")
 	assertStatus(t, direct, http.StatusOK)
 	if !strings.Contains(direct.Body.String(), "https://192.0.2.1/") {
 		t.Fatalf("LAN endpoint = %s", direct.Body.String())
 	}
-	page := consoleRequest(handler, http.MethodGet, "/console/", false)
+	page := consoleRequest(handler, http.MethodGet, "/console/machines/", false)
 	assertStatus(t, page, http.StatusOK)
 	for _, value := range []string{"LAN direct", "Tailnet Serve", "Tailnet alternate", "https://192.0.2.1/", "https://100.64.0.1:8443/", "https://firewall.example.ts.net/", "Certificate may not cover this IP"} {
 		if !strings.Contains(page.Body.String(), value) {
