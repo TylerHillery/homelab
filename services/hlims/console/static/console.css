@@ -356,6 +356,29 @@ code { font-family: var(--mono); font-size: .78em; }
 .catalog-group-header h2 { font-size: 1rem; letter-spacing: .02em; margin: 0; }
 .catalog-group-header span { color: var(--muted); font-family: var(--mono); font-size: .67rem; }
 .catalog-empty { background: var(--surface); border: 1px dashed var(--line-dark); color: var(--muted); font-size: .85rem; padding: 28px; }
+.service-group-heading { align-items: center; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 9px 16px; font-family: var(--mono); font-size: .68rem; font-weight: 700; }
+.service-group-heading a { align-items: center; color: var(--signal-dark); display: inline-flex; gap: 7px; text-decoration: none; }
+.service-group-heading img { height: 18px; object-fit: contain; width: 22px; }
+.service-group-heading span { color: var(--muted); font-weight: 400; }
+.service-manager-icon { height: 16px; object-fit: contain; vertical-align: middle; width: 21px; }
+.machine-deployments { border-top: 1px solid var(--line-dark); padding: 15px 18px 18px; }
+.machine-deployment { background: var(--surface); border: 1px solid var(--line-dark); margin-top: 12px; padding: 12px; scroll-margin-top: 122px; }
+.machine-deployment > header { align-items: center; display: flex; gap: 10px; }
+.machine-deployment > header img { height: 26px; object-fit: contain; width: 34px; }
+.machine-deployment > header div { display: grid; gap: 3px; min-width: 0; }
+.machine-deployment > header strong { font-size: .8rem; }
+.machine-deployment > header small, .machine-deployment > header > span { color: var(--muted); font-family: var(--mono); font-size: .6rem; }
+.machine-deployment > header > span { margin-left: auto; white-space: nowrap; }
+.machine-deployment > p { color: var(--muted); font-size: .65rem; line-height: 1.5; margin: 9px 0; overflow-wrap: anywhere; }
+.machine-deployment code { font-size: .64rem; }
+.machine-deployment .service-grid { margin-top: 12px; }
+.machine-systemd { border-top: 1px solid var(--line-dark); padding: 15px 18px 18px; }
+.machine-systemd-manager { margin-top: 12px; }
+.machine-systemd-manager > header { align-items: center; display: flex; gap: 8px; margin-bottom: 9px; }
+.machine-systemd-manager > header img { height: 21px; object-fit: contain; width: 28px; }
+.machine-systemd-manager > header strong { color: var(--muted); font-family: var(--mono); font-size: .68rem; }
+.instance-uses { color: var(--muted); font-family: var(--mono); font-size: .59rem; line-height: 1.45; margin: 0; padding: 0 12px 9px; }
+.instance-member { color: var(--muted); display: block; font-family: var(--mono); font-size: .59rem; padding: 0 12px 6px; }
 .product-grid { align-items: stretch; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); }
 .orders-list { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); margin-top: 20px; }
 .product-card, .order-card { background: var(--surface-strong); border: 1px solid var(--line-dark); box-shadow: 3px 3px 0 var(--shadow); min-width: 0; }

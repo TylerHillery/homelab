@@ -559,6 +559,40 @@ type DNSZoneWrite struct {
 	Registrar *string `json:"registrar,omitempty"`
 }
 
+// Deployment defines model for Deployment.
+type Deployment struct {
+	// ComposeFiles Ordered file paths relative to workingDirectory or absolute
+	ComposeFiles []string `json:"composeFiles"`
+
+	// ComposeProject Stable Compose project name
+	ComposeProject  string   `json:"composeProject"`
+	MachineName     string   `json:"machineName"`
+	MachinePublicId PublicId `json:"machinePublicId"`
+	Name            string   `json:"name"`
+	Notes           *string  `json:"notes,omitempty"`
+	PublicId        PublicId `json:"publicId"`
+	Slug            Slug     `json:"slug"`
+
+	// WorkingDirectory Absolute directory on the deployment Machine
+	WorkingDirectory string `json:"workingDirectory"`
+}
+
+// DeploymentWrite defines model for DeploymentWrite.
+type DeploymentWrite struct {
+	// ComposeFiles Ordered file paths relative to workingDirectory or absolute
+	ComposeFiles []string `json:"composeFiles"`
+
+	// ComposeProject Stable Compose project name
+	ComposeProject  string   `json:"composeProject"`
+	MachinePublicId PublicId `json:"machinePublicId"`
+	Name            string   `json:"name"`
+	Notes           *string  `json:"notes,omitempty"`
+	Slug            *Slug    `json:"slug,omitempty"`
+
+	// WorkingDirectory Absolute directory on the deployment Machine
+	WorkingDirectory string `json:"workingDirectory"`
+}
+
 // DriveSpec defines model for DriveSpec.
 type DriveSpec struct {
 	CapacityBytes int64                 `json:"capacityBytes"`
@@ -601,6 +635,14 @@ type IngressRouteWrite struct {
 
 // Instance defines model for Instance.
 type Instance struct {
+	// DeploymentMember Compose service key or relative content path for static_content; required when deploymentPublicId is set
+	DeploymentMember *string `json:"deploymentMember,omitempty"`
+
+	// DeploymentPublicId Optional group on the same Machine; omit for independently running Instances
+	DeploymentPublicId *PublicId `json:"deploymentPublicId,omitempty"`
+
+	// DeploymentRole service (default) or static_content for files deployed with a Compose project but served by another member; static content has no backend port
+	DeploymentRole  *string              `json:"deploymentRole,omitempty"`
 	HostingKind     *InstanceHostingKind `json:"hostingKind,omitempty"`
 	MachinePublicId *string              `json:"machinePublicId,omitempty"`
 	ManagedProvider *string              `json:"managedProvider,omitempty"`
@@ -610,6 +652,36 @@ type Instance struct {
 	PublicId        string               `json:"publicId"`
 	ServicePublicId PublicId             `json:"servicePublicId"`
 	Slug            Slug                 `json:"slug"`
+
+	// SystemdScope system or user; required when systemdUnit is set
+	SystemdScope *string `json:"systemdScope,omitempty"`
+
+	// SystemdUnit Full unit name on the Instance Machine
+	SystemdUnit *string `json:"systemdUnit,omitempty"`
+
+	// SystemdUser Login name of the user manager; required for user-scoped units
+	SystemdUser *string `json:"systemdUser,omitempty"`
+}
+
+// InstanceDependency defines model for InstanceDependency.
+type InstanceDependency struct {
+	ConsumerInstancePublicId PublicId `json:"consumerInstancePublicId"`
+
+	// Kind uses (default) or served_by for static content published by an exact ingress Instance
+	Kind                     *string  `json:"kind,omitempty"`
+	Notes                    *string  `json:"notes,omitempty"`
+	ProviderInstancePublicId PublicId `json:"providerInstancePublicId"`
+	PublicId                 PublicId `json:"publicId"`
+}
+
+// InstanceDependencyWrite defines model for InstanceDependencyWrite.
+type InstanceDependencyWrite struct {
+	ConsumerInstancePublicId PublicId `json:"consumerInstancePublicId"`
+
+	// Kind uses (default) or served_by for static content published by an exact ingress Instance
+	Kind                     *string  `json:"kind,omitempty"`
+	Notes                    *string  `json:"notes,omitempty"`
+	ProviderInstancePublicId PublicId `json:"providerInstancePublicId"`
 }
 
 // InstanceEndpoint defines model for InstanceEndpoint.
@@ -648,6 +720,14 @@ type InstanceHostingKind string
 
 // InstanceWrite Machine instances require machinePublicId and may have a backend port; managed instances require managedProvider instead. Neither requires an endpoint URL.
 type InstanceWrite struct {
+	// DeploymentMember Compose service key or relative content path for static_content; required when deploymentPublicId is set
+	DeploymentMember *string `json:"deploymentMember,omitempty"`
+
+	// DeploymentPublicId Optional group on the same Machine; omit for independently running Instances
+	DeploymentPublicId *PublicId `json:"deploymentPublicId,omitempty"`
+
+	// DeploymentRole service (default) or static_content for files deployed with a Compose project but served by another member; static content has no backend port
+	DeploymentRole  *string              `json:"deploymentRole,omitempty"`
 	HostingKind     *InstanceHostingKind `json:"hostingKind,omitempty"`
 	MachinePublicId *string              `json:"machinePublicId,omitempty"`
 	ManagedProvider *string              `json:"managedProvider,omitempty"`
@@ -656,6 +736,15 @@ type InstanceWrite struct {
 	Port            *int                 `json:"port,omitempty"`
 	ServicePublicId PublicId             `json:"servicePublicId"`
 	Slug            *Slug                `json:"slug,omitempty"`
+
+	// SystemdScope system or user; required when systemdUnit is set
+	SystemdScope *string `json:"systemdScope,omitempty"`
+
+	// SystemdUnit Full unit name on the Instance Machine
+	SystemdUnit *string `json:"systemdUnit,omitempty"`
+
+	// SystemdUser Login name of the user manager; required for user-scoped units
+	SystemdUser *string `json:"systemdUser,omitempty"`
 }
 
 // Machine defines model for Machine.
@@ -1242,6 +1331,12 @@ type CreateAssetJSONRequestBody = AssetWrite
 // UpdateAssetJSONRequestBody defines body for UpdateAsset for application/json ContentType.
 type UpdateAssetJSONRequestBody = AssetWrite
 
+// CreateDeploymentJSONRequestBody defines body for CreateDeployment for application/json ContentType.
+type CreateDeploymentJSONRequestBody = DeploymentWrite
+
+// UpdateDeploymentJSONRequestBody defines body for UpdateDeployment for application/json ContentType.
+type UpdateDeploymentJSONRequestBody = DeploymentWrite
+
 // CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
 type CreateDNSRecordJSONRequestBody = DNSRecordWrite
 
@@ -1250,6 +1345,12 @@ type CreateDNSZoneJSONRequestBody = DNSZoneWrite
 
 // CreateIngressRouteJSONRequestBody defines body for CreateIngressRoute for application/json ContentType.
 type CreateIngressRouteJSONRequestBody = IngressRouteWrite
+
+// CreateInstanceDependencyJSONRequestBody defines body for CreateInstanceDependency for application/json ContentType.
+type CreateInstanceDependencyJSONRequestBody = InstanceDependencyWrite
+
+// UpdateInstanceDependencyJSONRequestBody defines body for UpdateInstanceDependency for application/json ContentType.
+type UpdateInstanceDependencyJSONRequestBody = InstanceDependencyWrite
 
 // CreateInstanceEndpointJSONRequestBody defines body for CreateInstanceEndpoint for application/json ContentType.
 type CreateInstanceEndpointJSONRequestBody = InstanceEndpointWrite
@@ -1460,6 +1561,31 @@ type ClientInterface interface {
 	// Takes a body of the `application/json` content type.
 	UpdateAsset(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListDeployments performs a GET /deployments (the `ListDeployments` operationId) request.
+	ListDeployments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDeploymentWithBody performs a POST /deployments (the `CreateDeployment` operationId) request,
+	// with any type of body and a specified content type.
+	CreateDeploymentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDeployment performs a POST /deployments (the `CreateDeployment` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateDeployment(ctx context.Context, body CreateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDeployment performs a DELETE /deployments/{publicId} (the `DeleteDeployment` operationId) request.
+	DeleteDeployment(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetDeployment performs a GET /deployments/{publicId} (the `GetDeployment` operationId) request.
+	GetDeployment(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDeploymentWithBody performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateDeploymentWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDeployment performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateDeployment(ctx context.Context, publicId PublicId, body UpdateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListDNSRecords performs a GET /dns-records (the `ListDNSRecords` operationId) request.
 	ListDNSRecords(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1492,6 +1618,31 @@ type ClientInterface interface {
 	// CreateIngressRoute performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
 	// Takes a body of the `application/json` content type.
 	CreateIngressRoute(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceDependencies performs a GET /instance-dependencies (the `ListInstanceDependencies` operationId) request.
+	ListInstanceDependencies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceDependencyWithBody performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request,
+	// with any type of body and a specified content type.
+	CreateInstanceDependencyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceDependency performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request.
+	// Takes a body of the `application/json` content type.
+	CreateInstanceDependency(ctx context.Context, body CreateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteInstanceDependency performs a DELETE /instance-dependencies/{publicId} (the `DeleteInstanceDependency` operationId) request.
+	DeleteInstanceDependency(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetInstanceDependency performs a GET /instance-dependencies/{publicId} (the `GetInstanceDependency` operationId) request.
+	GetInstanceDependency(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstanceDependencyWithBody performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request,
+	// with any type of body and a specified content type.
+	UpdateInstanceDependencyWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateInstanceDependency performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request.
+	// Takes a body of the `application/json` content type.
+	UpdateInstanceDependency(ctx context.Context, publicId PublicId, body UpdateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceEndpoints performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 	ListInstanceEndpoints(ctx context.Context, params *ListInstanceEndpointsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2064,6 +2215,101 @@ func (c *Client) UpdateAsset(ctx context.Context, publicId PublicId, body Update
 	return c.Client.Do(req)
 }
 
+// ListDeployments performs a GET /deployments (the `ListDeployments` operationId) request.
+func (c *Client) ListDeployments(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListDeploymentsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDeploymentWithBody performs a POST /deployments (the `CreateDeployment` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateDeploymentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDeploymentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateDeployment performs a POST /deployments (the `CreateDeployment` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateDeployment(ctx context.Context, body CreateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDeploymentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteDeployment performs a DELETE /deployments/{publicId} (the `DeleteDeployment` operationId) request.
+func (c *Client) DeleteDeployment(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteDeploymentRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDeployment performs a GET /deployments/{publicId} (the `GetDeployment` operationId) request.
+func (c *Client) GetDeployment(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDeploymentRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateDeploymentWithBody performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateDeploymentWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDeploymentRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateDeployment performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateDeployment(ctx context.Context, publicId PublicId, body UpdateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateDeploymentRequest(c.Server, publicId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListDNSRecords performs a GET /dns-records (the `ListDNSRecords` operationId) request.
 func (c *Client) ListDNSRecords(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListDNSRecordsRequest(c.Server)
@@ -2177,6 +2423,101 @@ func (c *Client) CreateIngressRouteWithBody(ctx context.Context, contentType str
 // Takes a body of the `application/json` content type.
 func (c *Client) CreateIngressRoute(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateIngressRouteRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceDependencies performs a GET /instance-dependencies (the `ListInstanceDependencies` operationId) request.
+func (c *Client) ListInstanceDependencies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceDependenciesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceDependencyWithBody performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) CreateInstanceDependencyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceDependencyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceDependency performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) CreateInstanceDependency(ctx context.Context, body CreateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceDependencyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteInstanceDependency performs a DELETE /instance-dependencies/{publicId} (the `DeleteInstanceDependency` operationId) request.
+func (c *Client) DeleteInstanceDependency(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteInstanceDependencyRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetInstanceDependency performs a GET /instance-dependencies/{publicId} (the `GetInstanceDependency` operationId) request.
+func (c *Client) GetInstanceDependency(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetInstanceDependencyRequest(c.Server, publicId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstanceDependencyWithBody performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request,
+// with any type of body and a specified content type.
+func (c *Client) UpdateInstanceDependencyWithBody(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceDependencyRequestWithBody(c.Server, publicId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateInstanceDependency performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request.
+// Takes a body of the `application/json` content type.
+func (c *Client) UpdateInstanceDependency(ctx context.Context, publicId PublicId, body UpdateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateInstanceDependencyRequest(c.Server, publicId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -3828,6 +4169,188 @@ func NewUpdateAssetRequestWithBody(server string, publicId PublicId, contentType
 	return req, nil
 }
 
+// NewListDeploymentsRequest constructs an http.Request for the ListDeployments method
+func NewListDeploymentsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deployments")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateDeploymentRequest calls the generic CreateDeployment builder with application/json body
+func NewCreateDeploymentRequest(server string, body CreateDeploymentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDeploymentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDeploymentRequestWithBody constructs an http.Request for the CreateDeployment method, with any body, and a specified content type
+func NewCreateDeploymentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deployments")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteDeploymentRequest constructs an http.Request for the DeleteDeployment method
+func NewDeleteDeploymentRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deployments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDeploymentRequest constructs an http.Request for the GetDeployment method
+func NewGetDeploymentRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deployments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDeploymentRequest calls the generic UpdateDeployment builder with application/json body
+func NewUpdateDeploymentRequest(server string, publicId PublicId, body UpdateDeploymentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateDeploymentRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateDeploymentRequestWithBody constructs an http.Request for the UpdateDeployment method, with any body, and a specified content type
+func NewUpdateDeploymentRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deployments/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListDNSRecordsRequest constructs an http.Request for the ListDNSRecords method
 func NewListDNSRecordsRequest(server string) (*http.Request, error) {
 	var err error
@@ -4020,6 +4543,188 @@ func NewCreateIngressRouteRequestWithBody(server string, contentType string, bod
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListInstanceDependenciesRequest constructs an http.Request for the ListInstanceDependencies method
+func NewListInstanceDependenciesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-dependencies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceDependencyRequest calls the generic CreateInstanceDependency builder with application/json body
+func NewCreateInstanceDependencyRequest(server string, body CreateInstanceDependencyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceDependencyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceDependencyRequestWithBody constructs an http.Request for the CreateInstanceDependency method, with any body, and a specified content type
+func NewCreateInstanceDependencyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-dependencies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteInstanceDependencyRequest constructs an http.Request for the DeleteInstanceDependency method
+func NewDeleteInstanceDependencyRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-dependencies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetInstanceDependencyRequest constructs an http.Request for the GetInstanceDependency method
+func NewGetInstanceDependencyRequest(server string, publicId PublicId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-dependencies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateInstanceDependencyRequest calls the generic UpdateInstanceDependency builder with application/json body
+func NewUpdateInstanceDependencyRequest(server string, publicId PublicId, body UpdateInstanceDependencyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateInstanceDependencyRequestWithBody(server, publicId, "application/json", bodyReader)
+}
+
+// NewUpdateInstanceDependencyRequestWithBody constructs an http.Request for the UpdateInstanceDependency method, with any body, and a specified content type
+func NewUpdateInstanceDependencyRequestWithBody(server string, publicId PublicId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "publicId", publicId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/instance-dependencies/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -6598,6 +7303,41 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	UpdateAssetWithResponse(ctx context.Context, publicId PublicId, body UpdateAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAssetResponse, error)
 
+	// ListDeploymentsWithResponse performs a GET /deployments (the `ListDeployments` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListDeploymentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDeploymentsResponse, error)
+
+	// CreateDeploymentWithBodyWithResponse performs a POST /deployments (the `CreateDeployment` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateDeploymentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDeploymentResponse, error)
+
+	// CreateDeploymentWithResponse performs a POST /deployments (the `CreateDeployment` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateDeploymentWithResponse(ctx context.Context, body CreateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDeploymentResponse, error)
+
+	// DeleteDeploymentWithResponse performs a DELETE /deployments/{publicId} (the `DeleteDeployment` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteDeploymentWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteDeploymentResponse, error)
+
+	// GetDeploymentWithResponse performs a GET /deployments/{publicId} (the `GetDeployment` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetDeploymentWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetDeploymentResponse, error)
+
+	// UpdateDeploymentWithBodyWithResponse performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateDeploymentWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDeploymentResponse, error)
+
+	// UpdateDeploymentWithResponse performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateDeploymentWithResponse(ctx context.Context, publicId PublicId, body UpdateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDeploymentResponse, error)
+
 	// ListDNSRecordsWithResponse performs a GET /dns-records (the `ListDNSRecords` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -6642,6 +7382,41 @@ type ClientWithResponsesInterface interface {
 	// CreateIngressRouteWithResponse performs a POST /ingress-routes (the `CreateIngressRoute` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	CreateIngressRouteWithResponse(ctx context.Context, body CreateIngressRouteJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateIngressRouteResponse, error)
+
+	// ListInstanceDependenciesWithResponse performs a GET /instance-dependencies (the `ListInstanceDependencies` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListInstanceDependenciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceDependenciesResponse, error)
+
+	// CreateInstanceDependencyWithBodyWithResponse performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateInstanceDependencyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceDependencyResponse, error)
+
+	// CreateInstanceDependencyWithResponse performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	CreateInstanceDependencyWithResponse(ctx context.Context, body CreateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceDependencyResponse, error)
+
+	// DeleteInstanceDependencyWithResponse performs a DELETE /instance-dependencies/{publicId} (the `DeleteInstanceDependency` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceDependencyResponse, error)
+
+	// GetInstanceDependencyWithResponse performs a GET /instance-dependencies/{publicId} (the `GetInstanceDependency` operationId) request.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceDependencyResponse, error)
+
+	// UpdateInstanceDependencyWithBodyWithResponse performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateInstanceDependencyWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceDependencyResponse, error)
+
+	// UpdateInstanceDependencyWithResponse performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	UpdateInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceDependencyResponse, error)
 
 	// ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
 	//
@@ -7762,6 +8537,243 @@ func (r UpdateAssetResponse) ContentType() string {
 	return ""
 }
 
+type ListDeploymentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []Deployment `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDeploymentsResponse) GetJSON200() *struct {
+	Items []Deployment `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListDeploymentsResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDeploymentsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListDeploymentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListDeploymentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDeploymentsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateDeploymentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Deployment
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateDeploymentResponse) GetJSON201() *Deployment {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateDeploymentResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateDeploymentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDeploymentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDeploymentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateDeploymentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteDeploymentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteDeploymentResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteDeploymentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDeploymentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDeploymentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteDeploymentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDeploymentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Deployment
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDeploymentResponse) GetJSON200() *Deployment {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetDeploymentResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDeploymentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDeploymentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDeploymentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDeploymentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateDeploymentResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Deployment
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateDeploymentResponse) GetJSON200() *Deployment {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateDeploymentResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateDeploymentResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDeploymentResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDeploymentResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateDeploymentResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListDNSRecordsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8056,6 +9068,243 @@ func (r CreateIngressRouteResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateIngressRouteResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceDependenciesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items []InstanceDependency `json:"items"`
+	}
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceDependenciesResponse) GetJSON200() *struct {
+	Items []InstanceDependency `json:"items"`
+} {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r ListInstanceDependenciesResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceDependenciesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceDependenciesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceDependenciesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceDependenciesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceDependencyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *InstanceDependency
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceDependencyResponse) GetJSON201() *InstanceDependency {
+	return r.JSON201
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r CreateInstanceDependencyResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceDependencyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceDependencyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceDependencyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceDependencyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteInstanceDependencyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r DeleteInstanceDependencyResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteInstanceDependencyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteInstanceDependencyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteInstanceDependencyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteInstanceDependencyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetInstanceDependencyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceDependency
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetInstanceDependencyResponse) GetJSON200() *InstanceDependency {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r GetInstanceDependencyResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r GetInstanceDependencyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetInstanceDependencyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetInstanceDependencyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetInstanceDependencyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateInstanceDependencyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstanceDependency
+	// JSONDefault the response for an HTTP default `application/json` response
+	JSONDefault *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateInstanceDependencyResponse) GetJSON200() *InstanceDependency {
+	return r.JSON200
+}
+
+// GetJSONDefault returns the response for an HTTP default `application/json` response
+func (r UpdateInstanceDependencyResponse) GetJSONDefault() *Error {
+	return r.JSONDefault
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateInstanceDependencyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateInstanceDependencyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateInstanceDependencyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateInstanceDependencyResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11153,6 +12402,83 @@ func (c *ClientWithResponses) UpdateAssetWithResponse(ctx context.Context, publi
 	return ParseUpdateAssetResponse(rsp)
 }
 
+// ListDeploymentsWithResponse performs a GET /deployments (the `ListDeployments` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListDeploymentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDeploymentsResponse, error) {
+	rsp, err := c.ListDeployments(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListDeploymentsResponse(rsp)
+}
+
+// CreateDeploymentWithBodyWithResponse performs a POST /deployments (the `CreateDeployment` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDeploymentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDeploymentResponse, error) {
+	rsp, err := c.CreateDeploymentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDeploymentResponse(rsp)
+}
+
+// CreateDeploymentWithResponse performs a POST /deployments (the `CreateDeployment` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDeploymentWithResponse(ctx context.Context, body CreateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDeploymentResponse, error) {
+	rsp, err := c.CreateDeployment(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDeploymentResponse(rsp)
+}
+
+// DeleteDeploymentWithResponse performs a DELETE /deployments/{publicId} (the `DeleteDeployment` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteDeploymentWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteDeploymentResponse, error) {
+	rsp, err := c.DeleteDeployment(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDeploymentResponse(rsp)
+}
+
+// GetDeploymentWithResponse performs a GET /deployments/{publicId} (the `GetDeployment` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetDeploymentWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetDeploymentResponse, error) {
+	rsp, err := c.GetDeployment(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDeploymentResponse(rsp)
+}
+
+// UpdateDeploymentWithBodyWithResponse performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateDeploymentWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDeploymentResponse, error) {
+	rsp, err := c.UpdateDeploymentWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDeploymentResponse(rsp)
+}
+
+// UpdateDeploymentWithResponse performs a PUT /deployments/{publicId} (the `UpdateDeployment` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateDeploymentWithResponse(ctx context.Context, publicId PublicId, body UpdateDeploymentJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDeploymentResponse, error) {
+	rsp, err := c.UpdateDeployment(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDeploymentResponse(rsp)
+}
+
 // ListDNSRecordsWithResponse performs a GET /dns-records (the `ListDNSRecords` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -11250,6 +12576,83 @@ func (c *ClientWithResponses) CreateIngressRouteWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseCreateIngressRouteResponse(rsp)
+}
+
+// ListInstanceDependenciesWithResponse performs a GET /instance-dependencies (the `ListInstanceDependencies` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListInstanceDependenciesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceDependenciesResponse, error) {
+	rsp, err := c.ListInstanceDependencies(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceDependenciesResponse(rsp)
+}
+
+// CreateInstanceDependencyWithBodyWithResponse performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceDependencyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceDependencyResponse, error) {
+	rsp, err := c.CreateInstanceDependencyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceDependencyResponse(rsp)
+}
+
+// CreateInstanceDependencyWithResponse performs a POST /instance-dependencies (the `CreateInstanceDependency` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateInstanceDependencyWithResponse(ctx context.Context, body CreateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceDependencyResponse, error) {
+	rsp, err := c.CreateInstanceDependency(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceDependencyResponse(rsp)
+}
+
+// DeleteInstanceDependencyWithResponse performs a DELETE /instance-dependencies/{publicId} (the `DeleteInstanceDependency` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*DeleteInstanceDependencyResponse, error) {
+	rsp, err := c.DeleteInstanceDependency(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteInstanceDependencyResponse(rsp)
+}
+
+// GetInstanceDependencyWithResponse performs a GET /instance-dependencies/{publicId} (the `GetInstanceDependency` operationId) request.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, reqEditors ...RequestEditorFn) (*GetInstanceDependencyResponse, error) {
+	rsp, err := c.GetInstanceDependency(ctx, publicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetInstanceDependencyResponse(rsp)
+}
+
+// UpdateInstanceDependencyWithBodyWithResponse performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request,
+// with any type of body and a specified content type.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceDependencyWithBodyWithResponse(ctx context.Context, publicId PublicId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateInstanceDependencyResponse, error) {
+	rsp, err := c.UpdateInstanceDependencyWithBody(ctx, publicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceDependencyResponse(rsp)
+}
+
+// UpdateInstanceDependencyWithResponse performs a PUT /instance-dependencies/{publicId} (the `UpdateInstanceDependency` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateInstanceDependencyWithResponse(ctx context.Context, publicId PublicId, body UpdateInstanceDependencyJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateInstanceDependencyResponse, error) {
+	rsp, err := c.UpdateInstanceDependency(ctx, publicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateInstanceDependencyResponse(rsp)
 }
 
 // ListInstanceEndpointsWithResponse performs a GET /instance-endpoints (the `ListInstanceEndpoints` operationId) request.
@@ -12634,6 +14037,169 @@ func ParseUpdateAssetResponse(rsp *http.Response) (*UpdateAssetResponse, error) 
 	return response, nil
 }
 
+// ParseListDeploymentsResponse parses an HTTP response from a ListDeploymentsWithResponse call
+func ParseListDeploymentsResponse(rsp *http.Response) (*ListDeploymentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListDeploymentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []Deployment `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDeploymentResponse parses an HTTP response from a CreateDeploymentWithResponse call
+func ParseCreateDeploymentResponse(rsp *http.Response) (*CreateDeploymentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDeploymentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Deployment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDeploymentResponse parses an HTTP response from a DeleteDeploymentWithResponse call
+func ParseDeleteDeploymentResponse(rsp *http.Response) (*DeleteDeploymentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDeploymentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDeploymentResponse parses an HTTP response from a GetDeploymentWithResponse call
+func ParseGetDeploymentResponse(rsp *http.Response) (*GetDeploymentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDeploymentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Deployment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDeploymentResponse parses an HTTP response from a UpdateDeploymentWithResponse call
+func ParseUpdateDeploymentResponse(rsp *http.Response) (*UpdateDeploymentResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDeploymentResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Deployment
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListDNSRecordsResponse parses an HTTP response from a ListDNSRecordsWithResponse call
 func ParseListDNSRecordsResponse(rsp *http.Response) (*ListDNSRecordsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -12825,6 +14391,169 @@ func ParseCreateIngressRouteResponse(rsp *http.Response) (*CreateIngressRouteRes
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceDependenciesResponse parses an HTTP response from a ListInstanceDependenciesWithResponse call
+func ParseListInstanceDependenciesResponse(rsp *http.Response) (*ListInstanceDependenciesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceDependenciesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items []InstanceDependency `json:"items"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceDependencyResponse parses an HTTP response from a CreateInstanceDependencyWithResponse call
+func ParseCreateInstanceDependencyResponse(rsp *http.Response) (*CreateInstanceDependencyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceDependencyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest InstanceDependency
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteInstanceDependencyResponse parses an HTTP response from a DeleteInstanceDependencyWithResponse call
+func ParseDeleteInstanceDependencyResponse(rsp *http.Response) (*DeleteInstanceDependencyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteInstanceDependencyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetInstanceDependencyResponse parses an HTTP response from a GetInstanceDependencyWithResponse call
+func ParseGetInstanceDependencyResponse(rsp *http.Response) (*GetInstanceDependencyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetInstanceDependencyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceDependency
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateInstanceDependencyResponse parses an HTTP response from a UpdateInstanceDependencyWithResponse call
+func ParseUpdateInstanceDependencyResponse(rsp *http.Response) (*UpdateInstanceDependencyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateInstanceDependencyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstanceDependency
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest Error
@@ -14857,6 +16586,21 @@ type ServerInterface interface {
 	// (PUT /assets/{publicId})
 	UpdateAsset(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
+	// (GET /deployments)
+	ListDeployments(w http.ResponseWriter, r *http.Request)
+
+	// (POST /deployments)
+	CreateDeployment(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /deployments/{publicId})
+	DeleteDeployment(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /deployments/{publicId})
+	GetDeployment(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /deployments/{publicId})
+	UpdateDeployment(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
 	// (GET /dns-records)
 	ListDNSRecords(w http.ResponseWriter, r *http.Request)
 
@@ -14874,6 +16618,21 @@ type ServerInterface interface {
 
 	// (POST /ingress-routes)
 	CreateIngressRoute(w http.ResponseWriter, r *http.Request)
+
+	// (GET /instance-dependencies)
+	ListInstanceDependencies(w http.ResponseWriter, r *http.Request)
+
+	// (POST /instance-dependencies)
+	CreateInstanceDependency(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /instance-dependencies/{publicId})
+	DeleteInstanceDependency(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (GET /instance-dependencies/{publicId})
+	GetInstanceDependency(w http.ResponseWriter, r *http.Request, publicId PublicId)
+
+	// (PUT /instance-dependencies/{publicId})
+	UpdateInstanceDependency(w http.ResponseWriter, r *http.Request, publicId PublicId)
 
 	// (GET /instance-endpoints)
 	ListInstanceEndpoints(w http.ResponseWriter, r *http.Request, params ListInstanceEndpointsParams)
@@ -15386,6 +17145,112 @@ func (siw *ServerInterfaceWrapper) UpdateAsset(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// ListDeployments operation middleware
+func (siw *ServerInterfaceWrapper) ListDeployments(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDeployments(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDeployment operation middleware
+func (siw *ServerInterfaceWrapper) CreateDeployment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDeployment(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDeployment operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDeployment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDeployment(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDeployment operation middleware
+func (siw *ServerInterfaceWrapper) GetDeployment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDeployment(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDeployment operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDeployment(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDeployment(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListDNSRecords operation middleware
 func (siw *ServerInterfaceWrapper) ListDNSRecords(w http.ResponseWriter, r *http.Request) {
 
@@ -15461,6 +17326,112 @@ func (siw *ServerInterfaceWrapper) CreateIngressRoute(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateIngressRoute(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceDependencies operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceDependencies(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceDependencies(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceDependency operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceDependency(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceDependency(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteInstanceDependency operation middleware
+func (siw *ServerInterfaceWrapper) DeleteInstanceDependency(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteInstanceDependency(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetInstanceDependency operation middleware
+func (siw *ServerInterfaceWrapper) GetInstanceDependency(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInstanceDependency(w, r, publicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateInstanceDependency operation middleware
+func (siw *ServerInterfaceWrapper) UpdateInstanceDependency(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "publicId" -------------
+	var publicId PublicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "publicId", r.PathValue("publicId"), &publicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "publicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateInstanceDependency(w, r, publicId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17164,6 +19135,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dns-records", wrapper.CreateDNSRecord)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ingress-routes", wrapper.ListIngressRoutes)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ingress-routes", wrapper.CreateIngressRoute)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/deployments", wrapper.ListDeployments)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/deployments", wrapper.CreateDeployment)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/deployments/{publicId}", wrapper.DeleteDeployment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/deployments/{publicId}", wrapper.GetDeployment)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/deployments/{publicId}", wrapper.UpdateDeployment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/services", wrapper.ListServices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/services", wrapper.CreateService)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/services/{publicId}", wrapper.DeleteService)
@@ -17177,6 +19153,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/instances/{publicId}", wrapper.DeleteInstance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instances/{publicId}", wrapper.GetInstance)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/instances/{publicId}", wrapper.UpdateInstance)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-dependencies", wrapper.ListInstanceDependencies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/instance-dependencies", wrapper.CreateInstanceDependency)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/instance-dependencies/{publicId}", wrapper.DeleteInstanceDependency)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-dependencies/{publicId}", wrapper.GetInstanceDependency)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/instance-dependencies/{publicId}", wrapper.UpdateInstanceDependency)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/instance-endpoints", wrapper.ListInstanceEndpoints)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/instance-endpoints", wrapper.CreateInstanceEndpoint)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/instance-endpoints/{publicId}", wrapper.DeleteInstanceEndpoint)

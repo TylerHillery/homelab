@@ -72,7 +72,7 @@ func inventoryItemPath(path string) bool {
 		return false
 	}
 	switch parts[0] {
-	case "machine-providers", "areas", "manufacturers", "products", "assets", "purchases", "machines", "machine-users", "networks", "addresses", "services", "instances", "instance-endpoints":
+	case "machine-providers", "areas", "manufacturers", "products", "assets", "purchases", "machines", "machine-users", "networks", "addresses", "deployments", "services", "instances", "instance-dependencies", "instance-endpoints":
 		return true
 	default:
 		return false

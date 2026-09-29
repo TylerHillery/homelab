@@ -49,15 +49,15 @@ func TestSeedDemoInventoryBuildsTopologyAndIsIdempotent(t *testing.T) {
 	if got := consoleMachineCount(topology.Providers); got != 7 {
 		t.Fatalf("machines = %d; want 7", got)
 	}
-	if got := consoleInstanceCount(topology.Providers); got != 10 {
-		t.Fatalf("instances = %d; want 10", got)
+	if got := consoleInstanceCount(topology.Providers); got != 18 {
+		t.Fatalf("instances = %d; want 18", got)
 	}
 	homelab := topology.Providers[1]
 	if len(homelab.Areas) != 1 || homelab.Areas[0].Name != "Home" {
 		t.Fatalf("Homelab areas = %#v", homelab.Areas)
 	}
 	badger := homelab.Areas[0].Machines[0]
-	if badger.Name != "Badger" || !badger.IsFavorite || len(badger.Services) != 3 || len(badger.Children) != 2 {
+	if badger.Name != "Badger" || !badger.IsFavorite || len(badger.Services) != 6 || len(badger.Children) != 2 {
 		t.Fatalf("Badger topology = %#v", badger)
 	}
 	foundGrafana := false

@@ -1279,6 +1279,32 @@ create table service_logos (
     check (length(image_data) between 1 and 1048576)
 );
 
+create table deployments (
+    id                text    not null primary key,
+    public_id         text    not null unique,
+    machine_id        text    not null references machines (id) on delete restrict,
+    name              text    not null collate nocase,
+    slug              text    not null collate nocase,
+    working_directory text    not null,
+    compose_project   text    not null,
+    compose_files     text    not null,
+    notes             text,
+    created_at        integer not null default (strftime('%s', 'now')),
+    updated_at        integer not null default (strftime('%s', 'now')),
+    check (length(id) = 36),
+    check (length(public_id) = 12),
+    check (public_id not glob '*[^0-9a-z]*'),
+    check (slug != '' and slug not glob '*[^0-9a-z-]*'),
+    check (slug not like '-%' and slug not like '%-' and instr(slug, '--') = 0),
+    check (substr(working_directory, 1, 1) = '/'),
+    check (length(trim(compose_project)) > 0),
+    check (json_valid(compose_files) and json_type(compose_files) = 'array'
+        and json_array_length(compose_files) > 0)
+);
+
+create unique index deployments_slug_idx on deployments (machine_id, slug);
+create unique index deployments_name_idx on deployments (machine_id, name);
+
 create table instances (
     id         text    not null primary key,
     public_id  text    not null unique,
@@ -1286,6 +1312,13 @@ create table instances (
         references services (id) on delete restrict,
     machine_id text
         references machines (id) on delete restrict,
+    deployment_id text
+        references deployments (id) on delete restrict,
+    deployment_member text,
+    deployment_role text not null default 'service',
+    systemd_unit text,
+    systemd_scope text,
+    systemd_user text,
     hosting_kind text   not null default 'machine',
     managed_provider text,
     name       text    not null collate nocase,
@@ -1301,6 +1334,22 @@ create table instances (
     check (slug not glob '*[^0-9a-z-]*'),
     check (slug not like '-%' and slug not like '%-'),
     check (instr(slug, '--') = 0),
+    check ((deployment_id is null) = (deployment_member is null)),
+    check ((systemd_unit is null) = (systemd_scope is null)),
+    check (deployment_id is null or systemd_unit is null),
+    check (systemd_unit is null or length(trim(systemd_unit)) > 0),
+    check (
+        (systemd_scope is null and systemd_user is null)
+        or (systemd_scope = 'system' and systemd_user is null)
+        or (systemd_scope = 'user' and systemd_user is not null and length(trim(systemd_user)) > 0)
+    ),
+    check (systemd_unit is null or hosting_kind = 'machine'),
+    check (deployment_member is null or length(trim(deployment_member)) > 0),
+    check (
+        deployment_role = 'service'
+        or deployment_role = 'static_content' and deployment_id is not null
+    ),
+    check (deployment_role != 'static_content' or port is null),
     check (
         (hosting_kind = 'machine' and machine_id is not null
             and managed_provider is null
@@ -1313,12 +1362,102 @@ create table instances (
 
 create index instances_service_id_idx on instances (service_id);
 create index instances_machine_id_idx on instances (machine_id);
+create unique index instances_deployment_member_idx
+    on instances (deployment_id, deployment_member)
+    where deployment_id is not null;
+
+create unique index instances_systemd_unit_idx
+    on instances (machine_id, systemd_scope, coalesce(systemd_user, ''), systemd_unit)
+    where systemd_unit is not null;
+
+-- +goose StatementBegin
+create trigger instances_deployment_insert
+before insert on instances
+when new.deployment_id is not null and not exists (
+    select 1 as result from deployments
+    where deployments.id = new.deployment_id and deployments.machine_id = new.machine_id
+        and new.hosting_kind = 'machine'
+)
+begin
+    select raise(abort, 'deployment must be on the instance machine') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instances_deployment_update
+before update of machine_id, hosting_kind, deployment_id on instances
+when new.deployment_id is not null and not exists (
+    select 1 as result from deployments
+    where deployments.id = new.deployment_id and deployments.machine_id = new.machine_id
+        and new.hosting_kind = 'machine'
+)
+begin
+    select raise(abort, 'deployment must be on the instance machine') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instances_static_content_insert
+before insert on instances
+when new.deployment_role = 'static_content' and not exists (
+    select 1 as result from deployments
+    where deployments.id = new.deployment_id
+)
+begin
+    select raise(abort, 'static content must belong to a Compose deployment') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger instances_static_content_update
+before update of deployment_role, deployment_id on instances
+when new.deployment_role = 'static_content' and not exists (
+    select 1 as result from deployments
+    where deployments.id = new.deployment_id
+)
+begin
+    select raise(abort, 'static content must belong to a Compose deployment') as result;
+end;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+create trigger deployments_machine_update
+before update of machine_id on deployments
+when new.machine_id != old.machine_id and exists (
+    select 1 as result from instances
+    where instances.deployment_id = old.id
+)
+begin
+    select raise(abort, 'deployment with instances cannot change machine') as result;
+end;
+-- +goose StatementEnd
 
 create unique index instances_name_idx
     on instances (service_id, coalesce(machine_id, ''), name);
 
 create unique index instances_slug_idx
     on instances (service_id, coalesce(machine_id, ''), slug);
+
+-- This records usage of one exact Instance by another. It does not control
+-- startup order, Compose depends_on, or systemd unit dependencies.
+create table instance_dependencies (
+    id                    text    not null primary key,
+    public_id             text    not null unique,
+    consumer_instance_id  text    not null references instances (id) on delete cascade,
+    provider_instance_id  text    not null references instances (id) on delete restrict,
+    kind                  text    not null default 'uses',
+    notes                 text,
+    created_at            integer not null default (strftime('%s', 'now')),
+    unique (consumer_instance_id, provider_instance_id),
+    check (length(id) = 36),
+    check (length(public_id) = 12),
+    check (public_id not glob '*[^0-9a-z]*'),
+    check (consumer_instance_id != provider_instance_id),
+    check (kind in ('uses', 'served_by'))
+);
+
+create index instance_dependencies_provider_idx
+    on instance_dependencies (provider_instance_id);
 
 create table instance_endpoints (
     id           text    not null primary key,
@@ -1530,8 +1669,10 @@ end;
 -- +goose Down
 
 drop table ingress_routes;
+drop table instance_dependencies;
 drop table instance_endpoints;
 drop table instances;
+drop table deployments;
 drop table service_logos;
 drop table services;
 drop table dns_records;

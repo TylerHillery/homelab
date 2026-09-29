@@ -17,8 +17,10 @@ tags:
   - {name: Machine Users, description: SSH login users assigned to Machines}
   - {name: Networks, description: LAN, Tailnet, cloud, and public networks}
   - {name: Addresses, description: Machine, Area, and equipment network addresses}
+  - {name: Deployments, description: Machine-local Docker Compose projects}
   - {name: Services, description: Service definitions and branding}
-  - {name: Instances, description: Machine-hosted or managed Service deployments}
+  - {name: Instances, description: Machine-hosted or managed Service instances}
+  - {name: Instance Dependencies, description: Exact Instance-to-Instance usage, without implied startup control}
   - {name: Instance Endpoints, description: Network routes or verified managed URLs}
   - {name: Resolver, description: Inventory-backed destination resolution}
 paths:
@@ -361,6 +363,31 @@ paths:
       operationId: createIngressRoute
       requestBody: {$ref: "#/components/requestBodies/IngressRouteWrite"}
       responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/IngressRoute"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /deployments:
+    get:
+      tags: [Deployments]
+      operationId: listDeployments
+      responses: {"200": {description: Deployments, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/Deployment"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Deployments]
+      operationId: createDeployment
+      requestBody: {$ref: "#/components/requestBodies/DeploymentWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Deployment"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /deployments/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Deployments]
+      operationId: getDeployment
+      responses: {"200": {description: Deployment, content: {application/json: {schema: {$ref: "#/components/schemas/Deployment"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Deployments]
+      operationId: updateDeployment
+      requestBody: {$ref: "#/components/requestBodies/DeploymentWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/Deployment"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Deployments]
+      operationId: deleteDeployment
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
   /services:
     get:
       tags: [Services]
@@ -445,6 +472,31 @@ paths:
       tags: [Instances]
       operationId: deleteInstance
       responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
+  /instance-dependencies:
+    get:
+      tags: [Instance Dependencies]
+      operationId: listInstanceDependencies
+      responses: {"200": {description: Recorded usage relationships, content: {application/json: {schema: {type: object, required: [items], properties: {items: {type: array, items: {$ref: "#/components/schemas/InstanceDependency"}}}}}}}, default: {$ref: "#/components/responses/Error"}}
+    post:
+      tags: [Instance Dependencies]
+      operationId: createInstanceDependency
+      requestBody: {$ref: "#/components/requestBodies/InstanceDependencyWrite"}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceDependency"}}}}, default: {$ref: "#/components/responses/Error"}}
+  /instance-dependencies/{publicId}:
+    parameters: [{$ref: "#/components/parameters/PublicId"}]
+    get:
+      tags: [Instance Dependencies]
+      operationId: getInstanceDependency
+      responses: {"200": {description: Relationship, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceDependency"}}}}, default: {$ref: "#/components/responses/Error"}}
+    put:
+      tags: [Instance Dependencies]
+      operationId: updateInstanceDependency
+      requestBody: {$ref: "#/components/requestBodies/InstanceDependencyWrite"}
+      responses: {"200": {description: Updated, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceDependency"}}}}, default: {$ref: "#/components/responses/Error"}}
+    delete:
+      tags: [Instance Dependencies]
+      operationId: deleteInstanceDependency
+      responses: {"204": {description: Deleted}, default: {$ref: "#/components/responses/Error"}}
   /instance-endpoints:
     get:
       tags: [Instance Endpoints]
@@ -512,11 +564,13 @@ components:
     MachineUserWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/MachineUserWrite"}}}}
     NetworkWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/NetworkWrite"}}}}
     AddressWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/AddressWrite"}}}}
+    DeploymentWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DeploymentWrite"}}}}
     DNSZoneWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DNSZoneWrite"}}}}
     DNSRecordWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DNSRecordWrite"}}}}
     IngressRouteWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/IngressRouteWrite"}}}}
     ServiceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ServiceWrite"}}}}
     InstanceWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceWrite"}}}}
+    InstanceDependencyWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceDependencyWrite"}}}}
     InstanceEndpointWrite: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/InstanceEndpointWrite"}}}}
   responses:
     Error: {description: Error response, content: {application/json: {schema: {$ref: "#/components/schemas/Error"}}}}
@@ -1088,6 +1142,26 @@ components:
         target: {type: string, description: Proxy upstream, static document root, or redirect destination.}
     IngressRoute:
       allOf: [{$ref: "#/components/schemas/IngressRouteWrite"}, {type: object, required: [ingressServiceName], properties: {ingressServiceName: {type: string}}}]
+    DeploymentWrite:
+      type: object
+      additionalProperties: false
+      required: [machinePublicId, name, workingDirectory, composeProject, composeFiles]
+      properties:
+        machinePublicId: {$ref: "#/components/schemas/PublicId"}
+        name: {type: string}
+        slug: {$ref: "#/components/schemas/Slug"}
+        workingDirectory: {type: string, description: Absolute directory on the deployment Machine}
+        composeProject: {type: string, description: Stable Compose project name}
+        composeFiles: {type: array, minItems: 1, items: {type: string}, description: Ordered file paths relative to workingDirectory or absolute}
+        notes: {type: string, nullable: true}
+    Deployment:
+      allOf:
+        - {$ref: "#/components/schemas/DeploymentWrite"}
+        - type: object
+          required: [publicId, slug, machineName]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
+            machineName: {type: string}
     ServiceWrite:
       type: object
       additionalProperties: false
@@ -1107,6 +1181,12 @@ components:
         servicePublicId: {$ref: "#/components/schemas/PublicId"}
         hostingKind: {$ref: "#/components/schemas/InstanceHostingKind"}
         machinePublicId: {type: string, nullable: true}
+        deploymentPublicId: {nullable: true, allOf: [{$ref: "#/components/schemas/PublicId"}], description: Optional group on the same Machine; omit for independently running Instances}
+        deploymentMember: {type: string, nullable: true, description: Compose service key or relative content path for static_content; required when deploymentPublicId is set}
+        deploymentRole: {type: string, description: service (default) or static_content for files deployed with a Compose project but served by another member; static content has no backend port}
+        systemdUnit: {type: string, nullable: true, description: Full unit name on the Instance Machine, separate from Compose Deployments}
+        systemdScope: {type: string, nullable: true, description: system or user; required when systemdUnit is set}
+        systemdUser: {type: string, nullable: true, description: Login name of the user manager; required for user-scoped units}
         managedProvider: {type: string, nullable: true}
         name: {type: string}
         slug: {$ref: "#/components/schemas/Slug"}
@@ -1114,6 +1194,22 @@ components:
         notes: {type: string, nullable: true}
     Instance:
       allOf: [{$ref: "#/components/schemas/InstanceWrite"}, {type: object, required: [publicId, slug], properties: {publicId: {type: string}, slug: {$ref: "#/components/schemas/Slug"}}}]
+    InstanceDependencyWrite:
+      type: object
+      additionalProperties: false
+      required: [consumerInstancePublicId, providerInstancePublicId]
+      properties:
+        consumerInstancePublicId: {$ref: "#/components/schemas/PublicId"}
+        providerInstancePublicId: {$ref: "#/components/schemas/PublicId"}
+        kind: {type: string, description: uses (default) or served_by for static content published by an exact ingress Instance}
+        notes: {type: string, nullable: true}
+    InstanceDependency:
+      allOf:
+        - {$ref: "#/components/schemas/InstanceDependencyWrite"}
+        - type: object
+          required: [publicId]
+          properties:
+            publicId: {$ref: "#/components/schemas/PublicId"}
     InstanceEndpointWrite:
       type: object
       additionalProperties: false

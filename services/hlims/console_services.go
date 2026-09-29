@@ -3,6 +3,7 @@ package hlims
 import (
 	"fmt"
 	"net/http"
+	"sort"
 )
 
 type serviceCatalogPage struct {
@@ -17,13 +18,27 @@ type serviceCatalogCard struct {
 	Description string
 	HasLogo     bool
 	Instances   []serviceCatalogInstance
+	Groups      []serviceCatalogGroup
 	PrimaryPath string
 	PrimaryName string
+}
+
+type serviceCatalogGroup struct {
+	PublicID  string
+	Name      string
+	Machine   string
+	MachineID string
+	Instances []serviceCatalogInstance
 }
 
 type serviceCatalogInstance struct {
 	Name            string
 	Kind            string
+	Role            string
+	Member          string
+	SystemdUnit     string
+	SystemdScope    string
+	SystemdUser     string
 	Provider        string
 	MachineName     string
 	MachinePublicID string
@@ -48,6 +63,11 @@ func (s consoleServer) services(w http.ResponseWriter, r *http.Request) {
 	instances, err := s.api.queries.ListInstances(ctx)
 	if err != nil {
 		s.renderError(w, fmt.Errorf("list instances: %w", err))
+		return
+	}
+	deployments, err := s.api.queries.ListDeployments(ctx)
+	if err != nil {
+		s.renderError(w, fmt.Errorf("list deployments: %w", err))
 		return
 	}
 	machines, err := s.api.queries.ListMachineDetails(ctx)
@@ -94,6 +114,13 @@ func (s consoleServer) services(w http.ResponseWriter, r *http.Request) {
 	page := serviceCatalogPage{View: "services", Services: make([]serviceCatalogCard, 0, len(services))}
 	serviceIndex := make(map[string]int, len(services))
 	serviceSlugs := make(map[string]string, len(services))
+	deploymentNames := make(map[string]serviceCatalogGroup, len(deployments))
+	for _, deployment := range deployments {
+		deploymentNames[deployment.PublicID] = serviceCatalogGroup{
+			PublicID: deployment.PublicID, Name: deployment.Name,
+			Machine: deployment.MachineName, MachineID: deployment.MachinePublicID,
+		}
+	}
 	instanceNames := make(map[string]int, len(instances))
 	for _, instance := range instances {
 		instanceNames[instance.ServicePublicID+"/"+instance.Slug]++
@@ -110,7 +137,7 @@ func (s consoleServer) services(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		service := &page.Services[index]
-		item := serviceCatalogInstance{Name: row.Name, Kind: row.HostingKind, Provider: row.ManagedProvider.String, MachinePublicID: row.MachinePublicID.String, MachineName: machineNames[row.MachinePublicID.String], Links: byInstance[row.PublicID]}
+		item := serviceCatalogInstance{Name: row.Name, Kind: row.HostingKind, Role: row.DeploymentRole, Member: row.DeploymentMember.String, SystemdUnit: row.SystemdUnit.String, SystemdScope: row.SystemdScope.String, SystemdUser: row.SystemdUser.String, Provider: row.ManagedProvider.String, MachinePublicID: row.MachinePublicID.String, MachineName: machineNames[row.MachinePublicID.String], Links: byInstance[row.PublicID]}
 		if row.HostingKind == "managed" {
 			page.ManagedCount++
 			item.ResolverPath = "/" + serviceSlugs[row.ServicePublicID] + "/" + row.Slug
@@ -121,9 +148,31 @@ func (s consoleServer) services(w http.ResponseWriter, r *http.Request) {
 			item.ResolverPath = "/" + serviceSlugs[row.ServicePublicID] + "/" + row.Slug + "?host=" + machineSlugs[row.MachinePublicID.String]
 		}
 		service.Instances = append(service.Instances, item)
+		group := deploymentNames[row.DeploymentPublicID.String]
+		if !row.DeploymentPublicID.Valid {
+			group = serviceCatalogGroup{Name: "Independent instances"}
+		}
+		groupIndex := -1
+		for i := range service.Groups {
+			if service.Groups[i].PublicID == group.PublicID {
+				groupIndex = i
+				break
+			}
+		}
+		if groupIndex == -1 {
+			service.Groups = append(service.Groups, group)
+			groupIndex = len(service.Groups) - 1
+		}
+		service.Groups[groupIndex].Instances = append(service.Groups[groupIndex].Instances, item)
 	}
 	for index := range page.Services {
 		service := &page.Services[index]
+		sort.Slice(service.Groups, func(i, j int) bool {
+			if service.Groups[i].PublicID == "" || service.Groups[j].PublicID == "" {
+				return service.Groups[i].PublicID != ""
+			}
+			return service.Groups[i].Name < service.Groups[j].Name
+		})
 		selectedPreferred := false
 		for _, instance := range service.Instances {
 			for _, link := range instance.Links {

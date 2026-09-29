@@ -59,6 +59,20 @@ type AssetLink struct {
 	Url      string         `json:"url"`
 }
 
+type Deployment struct {
+	ID               string         `json:"id"`
+	PublicID         string         `json:"public_id"`
+	MachineID        string         `json:"machine_id"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	WorkingDirectory string         `json:"working_directory"`
+	ComposeProject   string         `json:"compose_project"`
+	ComposeFiles     string         `json:"compose_files"`
+	Notes            sql.NullString `json:"notes"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+}
+
 type DnsRecord struct {
 	ID        string `json:"id"`
 	PublicID  string `json:"public_id"`
@@ -95,18 +109,34 @@ type IngressRoute struct {
 }
 
 type Instance struct {
-	ID              string         `json:"id"`
-	PublicID        string         `json:"public_id"`
-	ServiceID       string         `json:"service_id"`
-	MachineID       sql.NullString `json:"machine_id"`
-	HostingKind     string         `json:"hosting_kind"`
-	ManagedProvider sql.NullString `json:"managed_provider"`
-	Name            string         `json:"name"`
-	Slug            string         `json:"slug"`
-	Port            sql.NullInt64  `json:"port"`
-	Notes           sql.NullString `json:"notes"`
-	CreatedAt       int64          `json:"created_at"`
-	UpdatedAt       int64          `json:"updated_at"`
+	ID               string         `json:"id"`
+	PublicID         string         `json:"public_id"`
+	ServiceID        string         `json:"service_id"`
+	MachineID        sql.NullString `json:"machine_id"`
+	DeploymentID     sql.NullString `json:"deployment_id"`
+	DeploymentMember sql.NullString `json:"deployment_member"`
+	DeploymentRole   string         `json:"deployment_role"`
+	SystemdUnit      sql.NullString `json:"systemd_unit"`
+	SystemdScope     sql.NullString `json:"systemd_scope"`
+	SystemdUser      sql.NullString `json:"systemd_user"`
+	HostingKind      string         `json:"hosting_kind"`
+	ManagedProvider  sql.NullString `json:"managed_provider"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Port             sql.NullInt64  `json:"port"`
+	Notes            sql.NullString `json:"notes"`
+	CreatedAt        int64          `json:"created_at"`
+	UpdatedAt        int64          `json:"updated_at"`
+}
+
+type InstanceDependency struct {
+	ID                 string         `json:"id"`
+	PublicID           string         `json:"public_id"`
+	ConsumerInstanceID string         `json:"consumer_instance_id"`
+	ProviderInstanceID string         `json:"provider_instance_id"`
+	Kind               string         `json:"kind"`
+	Notes              sql.NullString `json:"notes"`
+	CreatedAt          int64          `json:"created_at"`
 }
 
 type InstanceEndpoint struct {

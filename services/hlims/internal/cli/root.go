@@ -420,10 +420,14 @@ func createExample(resource apiclient.Resource) string {
 		return `{"name":"Home LAN","kind":"lan","cidr":"192.168.68.0/24"}`
 	case apiclient.Addresses:
 		return `{"networkPublicId":"homelan7k2p9","machinePublicId":"badmach8k2q5","address":"192.168.68.60"}`
+	case apiclient.Deployments:
+		return `{"machinePublicId":"badmach8k2q5","name":"Shared Infrastructure","kind":"compose","workingDirectory":"/srv/shared","composeProject":"shared","composeFiles":["compose.yaml"]}`
 	case apiclient.Services:
 		return `{"name":"Grafana"}`
 	case apiclient.Instances:
 		return `{"servicePublicId":"grafana5k2mx","machinePublicId":"badmach8k2q5n","name":"Production","port":3000}`
+	case apiclient.InstanceDependencies:
+		return `{"consumerInstancePublicId":"appinst8k2q5","providerInstancePublicId":"sharedpg8k2q5"}`
 	case apiclient.InstanceEndpoints:
 		return `{"instancePublicId":"grafprd8n4qx","addressPublicId":"badts4n8p2km","name":"Tailnet","scheme":"https","port":443}`
 	default:

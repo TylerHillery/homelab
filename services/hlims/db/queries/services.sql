@@ -90,6 +90,12 @@ insert into instances (
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -97,12 +103,18 @@ insert into instances (
     port,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -118,6 +130,12 @@ select
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -137,14 +155,21 @@ select
     instances.port,
     instances.hosting_kind,
     instances.managed_provider,
+    instances.deployment_member,
+    instances.deployment_role,
+    instances.systemd_unit,
+    instances.systemd_scope,
+    instances.systemd_user,
     instances.notes,
     instances.created_at,
     instances.updated_at,
-    services.public_id as service_public_id,
-    machines.public_id as machine_public_id
+    services.public_id    as service_public_id,
+    machines.public_id    as machine_public_id,
+    deployments.public_id as deployment_public_id
 from instances
 inner join services on instances.service_id = services.id
 left join machines on instances.machine_id = machines.id
+left join deployments on instances.deployment_id = deployments.id
 where instances.public_id = ?;
 
 -- name: ListInstances :many
@@ -155,11 +180,17 @@ select
     instances.port,
     instances.hosting_kind,
     instances.managed_provider,
+    instances.deployment_member,
+    instances.deployment_role,
+    instances.systemd_unit,
+    instances.systemd_scope,
+    instances.systemd_user,
     instances.notes,
     instances.created_at,
     instances.updated_at,
-    services.public_id as service_public_id,
-    machines.public_id as machine_public_id,
+    services.public_id    as service_public_id,
+    machines.public_id    as machine_public_id,
+    deployments.public_id as deployment_public_id,
     exists(
         select 1 as result
         from instance_endpoints
@@ -168,7 +199,7 @@ select
         where
             instance_endpoints.instance_id = instances.id
             and networks.kind = 'lan'
-    )                  as has_lan_route,
+    )                     as has_lan_route,
     exists(
         select 1 as result
         from instance_endpoints
@@ -177,10 +208,11 @@ select
         where
             instance_endpoints.instance_id = instances.id
             and networks.kind = 'tailnet'
-    )                  as has_tailnet_route
+    )                     as has_tailnet_route
 from instances
 inner join services on instances.service_id = services.id
 left join machines on instances.machine_id = machines.id
+left join deployments on instances.deployment_id = deployments.id
 order by services.name, instances.name;
 
 -- name: UpdateInstance :one
@@ -188,6 +220,12 @@ update instances
 set
     service_id = ?,
     machine_id = ?,
+    deployment_id = ?,
+    deployment_member = ?,
+    deployment_role = ?,
+    systemd_unit = ?,
+    systemd_scope = ?,
+    systemd_user = ?,
     hosting_kind = ?,
     managed_provider = ?,
     name = ?,
@@ -201,6 +239,12 @@ returning
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,

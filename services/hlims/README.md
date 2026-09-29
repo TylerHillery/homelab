@@ -85,7 +85,7 @@ The server provides:
 |---|---|
 | `/` | Redirect to Machine Topology |
 | `/api/v1` | Versioned JSON API |
-| `/console/machines/` | Machine Topology console |
+| `/console/machines/` | Machine Topology, including single-host Compose projects and systemd units |
 | `/console/services/` | Service-first catalog of hosted and managed instances |
 | `/console/inventory/` | Owned Products and physical Assets, including uninstalled parts |
 | `/console/orders/` | Purchase history with selected inventory lines and related Assets |
@@ -113,6 +113,24 @@ and endpoints control to inspect its full set of links in a floating panel
 without moving other cards. Machine-hosted workers and ingress-only processes
 can have no port or endpoint; they remain visible on Machines and Services
 without a dead "Open" link. A port is recorded only for a verified listener.
+
+Deployments optionally group Machine-hosted Instances by Compose project,
+recording a project name, working directory, ordered Compose files, and service
+keys. Systemd units instead belong to individual Instances with a scope and
+user where applicable; Machine cards show units sharing a manager together,
+without inventing Deployments for them. Compose groups contain only their
+member Services and Instances; instances without either mechanism retain their
+existing Service grouping. The global Services catalog groups Instance details
+by Deployment. Static files produced in a Compose project can be grouped with
+the project as `static_content` and linked to the exact publishing Instance as
+`served_by`, without inventing another Compose service. Cross-Deployment usage
+identifies exact provider Instances, not start order or live health. Compose
+projects and systemd managers use locally bundled icons from the
+[Docker Simple Icons artwork](https://github.com/simple-icons/simple-icons/blob/develop/icons/docker.svg)
+and the [systemd project logo](https://github.com/systemd/systemd/blob/main/docs/assets/systemd-logo.svg).
+Staging is never seeded with demo Deployments; `mise run dev` uses disposable
+examples with shared PostgreSQL, separate Compose projects, independent local
+Instances, and two systemd units on one Machine.
 
 Selecting a system or rack Asset reveals contained Assets recursively. Component
 drawers link to their parent Asset as well as the associated Machine and
@@ -165,6 +183,8 @@ backend.
 
 ```sh
 hlims products list
+hlims deployments list
+hlims instance-dependencies list
 hlims machines list --slug badger
 hlims services get opencode
 hlims instances list --service opencode

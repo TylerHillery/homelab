@@ -43,6 +43,12 @@ insert into instances (
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -50,12 +56,18 @@ insert into instances (
     port,
     notes
 )
-values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 returning
     id,
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -67,16 +79,22 @@ returning
 `
 
 type CreateInstanceParams struct {
-	ID              string         `json:"id"`
-	PublicID        string         `json:"public_id"`
-	ServiceID       string         `json:"service_id"`
-	MachineID       sql.NullString `json:"machine_id"`
-	HostingKind     string         `json:"hosting_kind"`
-	ManagedProvider sql.NullString `json:"managed_provider"`
-	Name            string         `json:"name"`
-	Slug            string         `json:"slug"`
-	Port            sql.NullInt64  `json:"port"`
-	Notes           sql.NullString `json:"notes"`
+	ID               string         `json:"id"`
+	PublicID         string         `json:"public_id"`
+	ServiceID        string         `json:"service_id"`
+	MachineID        sql.NullString `json:"machine_id"`
+	DeploymentID     sql.NullString `json:"deployment_id"`
+	DeploymentMember sql.NullString `json:"deployment_member"`
+	DeploymentRole   string         `json:"deployment_role"`
+	SystemdUnit      sql.NullString `json:"systemd_unit"`
+	SystemdScope     sql.NullString `json:"systemd_scope"`
+	SystemdUser      sql.NullString `json:"systemd_user"`
+	HostingKind      string         `json:"hosting_kind"`
+	ManagedProvider  sql.NullString `json:"managed_provider"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Port             sql.NullInt64  `json:"port"`
+	Notes            sql.NullString `json:"notes"`
 }
 
 func (q *Queries) CreateInstance(ctx context.Context, arg CreateInstanceParams) (Instance, error) {
@@ -85,6 +103,12 @@ func (q *Queries) CreateInstance(ctx context.Context, arg CreateInstanceParams) 
 		arg.PublicID,
 		arg.ServiceID,
 		arg.MachineID,
+		arg.DeploymentID,
+		arg.DeploymentMember,
+		arg.DeploymentRole,
+		arg.SystemdUnit,
+		arg.SystemdScope,
+		arg.SystemdUser,
 		arg.HostingKind,
 		arg.ManagedProvider,
 		arg.Name,
@@ -98,6 +122,12 @@ func (q *Queries) CreateInstance(ctx context.Context, arg CreateInstanceParams) 
 		&i.PublicID,
 		&i.ServiceID,
 		&i.MachineID,
+		&i.DeploymentID,
+		&i.DeploymentMember,
+		&i.DeploymentRole,
+		&i.SystemdUnit,
+		&i.SystemdScope,
+		&i.SystemdUser,
 		&i.HostingKind,
 		&i.ManagedProvider,
 		&i.Name,
@@ -295,6 +325,12 @@ select
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -315,6 +351,12 @@ func (q *Queries) GetInstanceByPublicID(ctx context.Context, publicID string) (I
 		&i.PublicID,
 		&i.ServiceID,
 		&i.MachineID,
+		&i.DeploymentID,
+		&i.DeploymentMember,
+		&i.DeploymentRole,
+		&i.SystemdUnit,
+		&i.SystemdScope,
+		&i.SystemdUser,
 		&i.HostingKind,
 		&i.ManagedProvider,
 		&i.Name,
@@ -335,29 +377,42 @@ select
     instances.port,
     instances.hosting_kind,
     instances.managed_provider,
+    instances.deployment_member,
+    instances.deployment_role,
+    instances.systemd_unit,
+    instances.systemd_scope,
+    instances.systemd_user,
     instances.notes,
     instances.created_at,
     instances.updated_at,
-    services.public_id as service_public_id,
-    machines.public_id as machine_public_id
+    services.public_id    as service_public_id,
+    machines.public_id    as machine_public_id,
+    deployments.public_id as deployment_public_id
 from instances
 inner join services on instances.service_id = services.id
 left join machines on instances.machine_id = machines.id
+left join deployments on instances.deployment_id = deployments.id
 where instances.public_id = ?
 `
 
 type GetInstanceDetailByPublicIDRow struct {
-	PublicID        string         `json:"public_id"`
-	Name            string         `json:"name"`
-	Slug            string         `json:"slug"`
-	Port            sql.NullInt64  `json:"port"`
-	HostingKind     string         `json:"hosting_kind"`
-	ManagedProvider sql.NullString `json:"managed_provider"`
-	Notes           sql.NullString `json:"notes"`
-	CreatedAt       int64          `json:"created_at"`
-	UpdatedAt       int64          `json:"updated_at"`
-	ServicePublicID string         `json:"service_public_id"`
-	MachinePublicID sql.NullString `json:"machine_public_id"`
+	PublicID           string         `json:"public_id"`
+	Name               string         `json:"name"`
+	Slug               string         `json:"slug"`
+	Port               sql.NullInt64  `json:"port"`
+	HostingKind        string         `json:"hosting_kind"`
+	ManagedProvider    sql.NullString `json:"managed_provider"`
+	DeploymentMember   sql.NullString `json:"deployment_member"`
+	DeploymentRole     string         `json:"deployment_role"`
+	SystemdUnit        sql.NullString `json:"systemd_unit"`
+	SystemdScope       sql.NullString `json:"systemd_scope"`
+	SystemdUser        sql.NullString `json:"systemd_user"`
+	Notes              sql.NullString `json:"notes"`
+	CreatedAt          int64          `json:"created_at"`
+	UpdatedAt          int64          `json:"updated_at"`
+	ServicePublicID    string         `json:"service_public_id"`
+	MachinePublicID    sql.NullString `json:"machine_public_id"`
+	DeploymentPublicID sql.NullString `json:"deployment_public_id"`
 }
 
 func (q *Queries) GetInstanceDetailByPublicID(ctx context.Context, publicID string) (GetInstanceDetailByPublicIDRow, error) {
@@ -370,11 +425,17 @@ func (q *Queries) GetInstanceDetailByPublicID(ctx context.Context, publicID stri
 		&i.Port,
 		&i.HostingKind,
 		&i.ManagedProvider,
+		&i.DeploymentMember,
+		&i.DeploymentRole,
+		&i.SystemdUnit,
+		&i.SystemdScope,
+		&i.SystemdUser,
 		&i.Notes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ServicePublicID,
 		&i.MachinePublicID,
+		&i.DeploymentPublicID,
 	)
 	return i, err
 }
@@ -578,11 +639,17 @@ select
     instances.port,
     instances.hosting_kind,
     instances.managed_provider,
+    instances.deployment_member,
+    instances.deployment_role,
+    instances.systemd_unit,
+    instances.systemd_scope,
+    instances.systemd_user,
     instances.notes,
     instances.created_at,
     instances.updated_at,
-    services.public_id as service_public_id,
-    machines.public_id as machine_public_id,
+    services.public_id    as service_public_id,
+    machines.public_id    as machine_public_id,
+    deployments.public_id as deployment_public_id,
     exists(
         select 1 as result
         from instance_endpoints
@@ -591,7 +658,7 @@ select
         where
             instance_endpoints.instance_id = instances.id
             and networks.kind = 'lan'
-    )                  as has_lan_route,
+    )                     as has_lan_route,
     exists(
         select 1 as result
         from instance_endpoints
@@ -600,27 +667,34 @@ select
         where
             instance_endpoints.instance_id = instances.id
             and networks.kind = 'tailnet'
-    )                  as has_tailnet_route
+    )                     as has_tailnet_route
 from instances
 inner join services on instances.service_id = services.id
 left join machines on instances.machine_id = machines.id
+left join deployments on instances.deployment_id = deployments.id
 order by services.name, instances.name
 `
 
 type ListInstancesRow struct {
-	PublicID        string         `json:"public_id"`
-	Name            string         `json:"name"`
-	Slug            string         `json:"slug"`
-	Port            sql.NullInt64  `json:"port"`
-	HostingKind     string         `json:"hosting_kind"`
-	ManagedProvider sql.NullString `json:"managed_provider"`
-	Notes           sql.NullString `json:"notes"`
-	CreatedAt       int64          `json:"created_at"`
-	UpdatedAt       int64          `json:"updated_at"`
-	ServicePublicID string         `json:"service_public_id"`
-	MachinePublicID sql.NullString `json:"machine_public_id"`
-	HasLanRoute     bool           `json:"has_lan_route"`
-	HasTailnetRoute bool           `json:"has_tailnet_route"`
+	PublicID           string         `json:"public_id"`
+	Name               string         `json:"name"`
+	Slug               string         `json:"slug"`
+	Port               sql.NullInt64  `json:"port"`
+	HostingKind        string         `json:"hosting_kind"`
+	ManagedProvider    sql.NullString `json:"managed_provider"`
+	DeploymentMember   sql.NullString `json:"deployment_member"`
+	DeploymentRole     string         `json:"deployment_role"`
+	SystemdUnit        sql.NullString `json:"systemd_unit"`
+	SystemdScope       sql.NullString `json:"systemd_scope"`
+	SystemdUser        sql.NullString `json:"systemd_user"`
+	Notes              sql.NullString `json:"notes"`
+	CreatedAt          int64          `json:"created_at"`
+	UpdatedAt          int64          `json:"updated_at"`
+	ServicePublicID    string         `json:"service_public_id"`
+	MachinePublicID    sql.NullString `json:"machine_public_id"`
+	DeploymentPublicID sql.NullString `json:"deployment_public_id"`
+	HasLanRoute        bool           `json:"has_lan_route"`
+	HasTailnetRoute    bool           `json:"has_tailnet_route"`
 }
 
 func (q *Queries) ListInstances(ctx context.Context) ([]ListInstancesRow, error) {
@@ -639,11 +713,17 @@ func (q *Queries) ListInstances(ctx context.Context) ([]ListInstancesRow, error)
 			&i.Port,
 			&i.HostingKind,
 			&i.ManagedProvider,
+			&i.DeploymentMember,
+			&i.DeploymentRole,
+			&i.SystemdUnit,
+			&i.SystemdScope,
+			&i.SystemdUser,
 			&i.Notes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ServicePublicID,
 			&i.MachinePublicID,
+			&i.DeploymentPublicID,
 			&i.HasLanRoute,
 			&i.HasTailnetRoute,
 		); err != nil {
@@ -879,6 +959,12 @@ update instances
 set
     service_id = ?,
     machine_id = ?,
+    deployment_id = ?,
+    deployment_member = ?,
+    deployment_role = ?,
+    systemd_unit = ?,
+    systemd_scope = ?,
+    systemd_user = ?,
     hosting_kind = ?,
     managed_provider = ?,
     name = ?,
@@ -892,6 +978,12 @@ returning
     public_id,
     service_id,
     machine_id,
+    deployment_id,
+    deployment_member,
+    deployment_role,
+    systemd_unit,
+    systemd_scope,
+    systemd_user,
     hosting_kind,
     managed_provider,
     name,
@@ -903,21 +995,33 @@ returning
 `
 
 type UpdateInstanceParams struct {
-	ServiceID       string         `json:"service_id"`
-	MachineID       sql.NullString `json:"machine_id"`
-	HostingKind     string         `json:"hosting_kind"`
-	ManagedProvider sql.NullString `json:"managed_provider"`
-	Name            string         `json:"name"`
-	Slug            string         `json:"slug"`
-	Port            sql.NullInt64  `json:"port"`
-	Notes           sql.NullString `json:"notes"`
-	PublicID        string         `json:"public_id"`
+	ServiceID        string         `json:"service_id"`
+	MachineID        sql.NullString `json:"machine_id"`
+	DeploymentID     sql.NullString `json:"deployment_id"`
+	DeploymentMember sql.NullString `json:"deployment_member"`
+	DeploymentRole   string         `json:"deployment_role"`
+	SystemdUnit      sql.NullString `json:"systemd_unit"`
+	SystemdScope     sql.NullString `json:"systemd_scope"`
+	SystemdUser      sql.NullString `json:"systemd_user"`
+	HostingKind      string         `json:"hosting_kind"`
+	ManagedProvider  sql.NullString `json:"managed_provider"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Port             sql.NullInt64  `json:"port"`
+	Notes            sql.NullString `json:"notes"`
+	PublicID         string         `json:"public_id"`
 }
 
 func (q *Queries) UpdateInstance(ctx context.Context, arg UpdateInstanceParams) (Instance, error) {
 	row := q.db.QueryRowContext(ctx, updateInstance,
 		arg.ServiceID,
 		arg.MachineID,
+		arg.DeploymentID,
+		arg.DeploymentMember,
+		arg.DeploymentRole,
+		arg.SystemdUnit,
+		arg.SystemdScope,
+		arg.SystemdUser,
 		arg.HostingKind,
 		arg.ManagedProvider,
 		arg.Name,
@@ -932,6 +1036,12 @@ func (q *Queries) UpdateInstance(ctx context.Context, arg UpdateInstanceParams) 
 		&i.PublicID,
 		&i.ServiceID,
 		&i.MachineID,
+		&i.DeploymentID,
+		&i.DeploymentMember,
+		&i.DeploymentRole,
+		&i.SystemdUnit,
+		&i.SystemdScope,
+		&i.SystemdUser,
 		&i.HostingKind,
 		&i.ManagedProvider,
 		&i.Name,

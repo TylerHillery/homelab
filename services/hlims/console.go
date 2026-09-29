@@ -25,16 +25,16 @@ var consoleTemplates = template.Must(template.New("console").Funcs(template.Func
 	"reachabilityBadge": consoleReachabilityBadge,
 	"kindLabel":         consoleKindLabel,
 	"machineViews":      consoleMachineViews,
-	"favoriteMachineViews": func(machines []api.TopologyMachine) []consoleMachineView {
-		result := consoleMachineViews(machines, false)
+	"favoriteMachineViews": func(machines []api.TopologyMachine, index machineDeploymentIndex) []consoleMachineView {
+		result := consoleMachineViews(machines, false, index)
 		for index := range result {
 			result[index].ShowChildren = false
 			result[index].IsFavoriteCopy = true
 		}
 		return result
 	},
-	"nestedMachineViews": func(machines []api.TopologyMachine, expandAll bool, parentName string) []consoleMachineView {
-		result := consoleMachineViews(machines, expandAll)
+	"nestedMachineViews": func(machines []api.TopologyMachine, expandAll bool, parentName string, index machineDeploymentIndex) []consoleMachineView {
+		result := consoleMachineViews(machines, expandAll, index)
 		for index := range result {
 			result[index].ParentName = parentName
 		}
@@ -60,6 +60,7 @@ type consolePage struct {
 	Favorites      []api.TopologyMachine
 	ActiveProvider string
 	Expansion      string
+	Deployments    machineDeploymentIndex
 }
 
 type consoleMachineView struct {
@@ -69,11 +70,16 @@ type consoleMachineView struct {
 	ShowChildren   bool
 	IsFavoriteCopy bool
 	SSH            *consoleSSHControl
+	Deployments    machineDeploymentIndex
+	Groups         []machineDeploymentGroup
+	SystemdGroups  []machineSystemdGroup
+	Independent    []machineServiceView
 }
 
 type consoleMachineChildren struct {
-	Machines   []api.TopologyMachine
-	ParentName string
+	Machines    []api.TopologyMachine
+	ParentName  string
+	Deployments machineDeploymentIndex
 }
 
 type reachabilityBadge struct {
@@ -180,8 +186,13 @@ func (s consoleServer) children(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "machine not found", http.StatusNotFound)
 		return
 	}
+	index, err := loadMachineDeploymentIndex(r.Context(), s.api.queries)
+	if err != nil {
+		s.renderError(w, err)
+		return
+	}
 	w.Header().Set("Vary", "HX-Request")
-	s.render(w, "machine-children", consoleMachineChildren{Machines: machine.Children, ParentName: machine.Name})
+	s.render(w, "machine-children", consoleMachineChildren{Machines: machine.Children, ParentName: machine.Name, Deployments: index})
 }
 
 func (s consoleServer) machineFavorite(w http.ResponseWriter, r *http.Request) {
@@ -227,6 +238,11 @@ func (s consoleServer) pageData(w http.ResponseWriter, r *http.Request, provider
 		return consolePage{}, false
 	}
 	page := newConsolePage(topology, providerID)
+	page.Deployments, err = loadMachineDeploymentIndex(r.Context(), s.api.queries)
+	if err != nil {
+		s.renderError(w, err)
+		return consolePage{}, false
+	}
 	if providerID != "" && len(page.Providers) == 0 {
 		http.Error(w, "provider not found", http.StatusNotFound)
 		return consolePage{}, false
@@ -464,10 +480,14 @@ func consoleProcessorSummary(hardware []api.TopologyMachineHardware) string {
 	return strings.Join(models, ", ")
 }
 
-func consoleMachineViews(machines []api.TopologyMachine, expandAll bool) []consoleMachineView {
+func consoleMachineViews(machines []api.TopologyMachine, expandAll bool, index machineDeploymentIndex) []consoleMachineView {
 	result := make([]consoleMachineView, 0, len(machines))
 	for _, machine := range machines {
-		result = append(result, consoleMachineView{TopologyMachine: machine, ExpandAll: expandAll, ShowChildren: true, SSH: consoleSSHControlFor(machine)})
+		independent, groups, systemdGroups := machineServicesAndDeployments(machine, index)
+		result = append(result, consoleMachineView{
+			TopologyMachine: machine, ExpandAll: expandAll, ShowChildren: true,
+			SSH: consoleSSHControlFor(machine), Deployments: index, Groups: groups, SystemdGroups: systemdGroups, Independent: independent,
+		})
 	}
 	return result
 }

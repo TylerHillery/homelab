@@ -23,19 +23,21 @@ const maxResponseSize = 16 << 20
 type Resource string
 
 const (
-	MachineProviders  Resource = "machine-providers"
-	Areas             Resource = "areas"
-	Manufacturers     Resource = "manufacturers"
-	Products          Resource = "products"
-	Assets            Resource = "assets"
-	Purchases         Resource = "purchases"
-	Machines          Resource = "machines"
-	MachineUsers      Resource = "machine-users"
-	Networks          Resource = "networks"
-	Addresses         Resource = "addresses"
-	Services          Resource = "services"
-	Instances         Resource = "instances"
-	InstanceEndpoints Resource = "instance-endpoints"
+	MachineProviders     Resource = "machine-providers"
+	Areas                Resource = "areas"
+	Manufacturers        Resource = "manufacturers"
+	Products             Resource = "products"
+	Assets               Resource = "assets"
+	Purchases            Resource = "purchases"
+	Machines             Resource = "machines"
+	MachineUsers         Resource = "machine-users"
+	Networks             Resource = "networks"
+	Addresses            Resource = "addresses"
+	Deployments          Resource = "deployments"
+	Services             Resource = "services"
+	Instances            Resource = "instances"
+	InstanceDependencies Resource = "instance-dependencies"
+	InstanceEndpoints    Resource = "instance-endpoints"
 )
 
 var resources = []Resource{
@@ -49,8 +51,10 @@ var resources = []Resource{
 	MachineUsers,
 	Networks,
 	Addresses,
+	Deployments,
 	Services,
 	Instances,
+	InstanceDependencies,
 	InstanceEndpoints,
 }
 
@@ -87,10 +91,14 @@ func (r Resource) SingularLabel() string {
 		return "network"
 	case Addresses:
 		return "address"
+	case Deployments:
+		return "deployment"
 	case Services:
 		return "service"
 	case Instances:
 		return "instance"
+	case InstanceDependencies:
+		return "instance dependency"
 	case InstanceEndpoints:
 		return "instance endpoint"
 	default:
@@ -211,6 +219,8 @@ func (c *Client) ListFiltered(ctx context.Context, resource Resource, filter Lis
 		response, err = c.api.ListNetworks(ctx)
 	case Addresses:
 		response, err = c.api.ListAddresses(ctx)
+	case Deployments:
+		response, err = c.api.ListDeployments(ctx)
 	case Services:
 		params := &api.ListServicesParams{}
 		if filter.Slug != "" {
@@ -233,6 +243,8 @@ func (c *Client) ListFiltered(ctx context.Context, resource Resource, filter Lis
 			params.HostingKind = &kind
 		}
 		response, err = c.api.ListInstances(ctx, params)
+	case InstanceDependencies:
+		response, err = c.api.ListInstanceDependencies(ctx)
 	case InstanceEndpoints:
 		params := &api.ListInstanceEndpointsParams{}
 		if filter.InstancePublicID != "" {
@@ -290,10 +302,14 @@ func (c *Client) Get(ctx context.Context, resource Resource, publicID string) (*
 		response, err = c.api.GetNetwork(ctx, publicID)
 	case Addresses:
 		response, err = c.api.GetAddress(ctx, publicID)
+	case Deployments:
+		response, err = c.api.GetDeployment(ctx, publicID)
 	case Services:
 		response, err = c.api.GetService(ctx, publicID)
 	case Instances:
 		response, err = c.api.GetInstance(ctx, publicID)
+	case InstanceDependencies:
+		response, err = c.api.GetInstanceDependency(ctx, publicID)
 	case InstanceEndpoints:
 		response, err = c.api.GetInstanceEndpoint(ctx, publicID)
 	default:
@@ -396,10 +412,14 @@ func (c *Client) Create(ctx context.Context, resource Resource, body []byte) (*R
 		response, err = c.api.CreateNetworkWithBody(ctx, "application/json", bytes.NewReader(body))
 	case Addresses:
 		response, err = c.api.CreateAddressWithBody(ctx, "application/json", bytes.NewReader(body))
+	case Deployments:
+		response, err = c.api.CreateDeploymentWithBody(ctx, "application/json", bytes.NewReader(body))
 	case Services:
 		response, err = c.api.CreateServiceWithBody(ctx, "application/json", bytes.NewReader(body))
 	case Instances:
 		response, err = c.api.CreateInstanceWithBody(ctx, "application/json", bytes.NewReader(body))
+	case InstanceDependencies:
+		response, err = c.api.CreateInstanceDependencyWithBody(ctx, "application/json", bytes.NewReader(body))
 	case InstanceEndpoints:
 		response, err = c.api.CreateInstanceEndpointWithBody(ctx, "application/json", bytes.NewReader(body))
 	default:
@@ -445,10 +465,14 @@ func (c *Client) UpdateIfMatch(ctx context.Context, resource Resource, publicID 
 		response, err = c.api.UpdateNetworkWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Addresses:
 		response, err = c.api.UpdateAddressWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
+	case Deployments:
+		response, err = c.api.UpdateDeploymentWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Services:
 		response, err = c.api.UpdateServiceWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case Instances:
 		response, err = c.api.UpdateInstanceWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
+	case InstanceDependencies:
+		response, err = c.api.UpdateInstanceDependencyWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	case InstanceEndpoints:
 		response, err = c.api.UpdateInstanceEndpointWithBody(ctx, publicID, "application/json", bytes.NewReader(body), editors...)
 	default:
@@ -482,10 +506,14 @@ func (c *Client) Delete(ctx context.Context, resource Resource, publicID string)
 		response, err = c.api.DeleteNetwork(ctx, publicID)
 	case Addresses:
 		response, err = c.api.DeleteAddress(ctx, publicID)
+	case Deployments:
+		response, err = c.api.DeleteDeployment(ctx, publicID)
 	case Services:
 		response, err = c.api.DeleteService(ctx, publicID)
 	case Instances:
 		response, err = c.api.DeleteInstance(ctx, publicID)
+	case InstanceDependencies:
+		response, err = c.api.DeleteInstanceDependency(ctx, publicID)
 	case InstanceEndpoints:
 		response, err = c.api.DeleteInstanceEndpoint(ctx, publicID)
 	default:

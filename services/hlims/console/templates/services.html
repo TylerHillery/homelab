@@ -17,15 +17,20 @@
     <div class="service-catalog-popover">
       {{if .Description}}<p class="service-catalog-description">{{.Description}}</p>{{end}}
       {{if not .Instances}}<p class="service-empty">No instances recorded.</p>{{end}}
+      {{range .Groups}}
+      <div class="service-group-heading">{{if .PublicID}}<a href="/console/machines/#machine-{{.MachineID}}"><img src="/console/static/deployment-docker.svg" alt="">{{.Name}}</a> <span>· {{.Machine}}</span>{{else}}<span>Independent instances</span>{{end}}</div>
       {{range .Instances}}
       <section class="service-deployment">
         <div class="service-deployment-title"><h3>{{.Name}}</h3><span>{{if eq .Kind "managed"}}Managed · {{.Provider}}{{else}}Machine-hosted{{end}}</span></div>
         {{if .MachinePublicID}}<p class="service-location">Machine: <a href="/console/machines/#machine-{{.MachinePublicID}}">{{.MachineName}}</a></p>{{end}}
+        {{if .SystemdUnit}}<p class="service-location"><img class="service-manager-icon" src="/console/static/deployment-systemd.svg" alt="">systemd · {{.SystemdScope}}{{if .SystemdUser}} ({{.SystemdUser}}){{end}} · <code>{{.SystemdUnit}}</code></p>{{end}}
+        {{if eq .Role "static_content"}}<p class="service-location">Static files: <code>{{.Member}}</code></p>{{end}}
         {{if .Links}}
           <ul class="service-links">{{range .Links}}<li><span>{{.Name}}{{if .Preferred}} · preferred{{end}} <small>{{.Network}}</small></span><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{.URL}} ↗</a></li>{{end}}</ul>
           <a class="service-resolve" href="{{.ResolverPath}}" target="_blank" rel="noopener noreferrer">Open preferred route ↗</a>
         {{else}}<p class="service-empty">Internal service · no URL recorded.</p>{{end}}
       </section>
+      {{end}}
       {{end}}
     </div>
   </details>

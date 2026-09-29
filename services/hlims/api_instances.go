@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/TylerHillery/homelab/services/hlims/generated/api"
@@ -49,7 +50,7 @@ func (s apiServer) ListInstances(w http.ResponseWriter, r *http.Request, params 
 			params.HostingKind != nil && row.HostingKind != string(*params.HostingKind) {
 			continue
 		}
-		items = append(items, instanceResponse(row.PublicID, row.ServicePublicID, row.MachinePublicID, row.HostingKind, row.ManagedProvider, row.Name, row.Slug, row.Port, row.Notes))
+		items = append(items, instanceResponse(row.PublicID, row.ServicePublicID, row.MachinePublicID, row.DeploymentPublicID, row.DeploymentMember, row.DeploymentRole, row.SystemdUnit, row.SystemdScope, row.SystemdUser, row.HostingKind, row.ManagedProvider, row.Name, row.Slug, row.Port, row.Notes))
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Items []api.Instance `json:"items"`
@@ -66,12 +67,22 @@ func (s apiServer) CreateInstance(w http.ResponseWriter, r *http.Request) {
 		s.writeParentOrInputError(w, err)
 		return
 	}
+	deploymentID, member, role, err := s.instanceDeployment(r, body, kind, machineID)
+	if err != nil {
+		s.writeParentOrInputError(w, err)
+		return
+	}
+	systemdUnit, systemdScope, systemdUser, err := instanceSystemdValues(body, kind, deploymentID)
+	if err != nil {
+		writeInputError(w, err)
+		return
+	}
 	id, publicID, err := newIDs()
 	if err != nil {
 		writeDatabaseError(w, err)
 		return
 	}
-	_, err = s.queries.CreateInstance(r.Context(), database.CreateInstanceParams{ID: id, PublicID: publicID, ServiceID: service.ID, MachineID: machineID, HostingKind: kind, ManagedProvider: provider, Name: name, Slug: slug, Port: port, Notes: nullString(body.Notes, false)})
+	_, err = s.queries.CreateInstance(r.Context(), database.CreateInstanceParams{ID: id, PublicID: publicID, ServiceID: service.ID, MachineID: machineID, DeploymentID: deploymentID, DeploymentMember: member, DeploymentRole: role, SystemdUnit: systemdUnit, SystemdScope: systemdScope, SystemdUser: systemdUser, HostingKind: kind, ManagedProvider: provider, Name: name, Slug: slug, Port: port, Notes: nullString(body.Notes, false)})
 	if err != nil {
 		writeDatabaseError(w, err)
 		return
@@ -112,9 +123,76 @@ func (s apiServer) instanceWriteValues(r *http.Request, body api.InstanceWrite, 
 	}
 }
 
-func instanceResponse(publicID, serviceID string, machineID sql.NullString, kind string, provider sql.NullString, name, slug string, port sql.NullInt64, notes sql.NullString) api.Instance {
+func (s apiServer) instanceDeployment(r *http.Request, body api.InstanceWrite, kind string, machineID sql.NullString) (sql.NullString, sql.NullString, string, error) {
+	role := "service"
+	if body.DeploymentRole != nil {
+		role = *body.DeploymentRole
+	}
+	if role != "service" && role != "static_content" {
+		return sql.NullString{}, sql.NullString{}, "", errors.New("deploymentRole must be service or static_content")
+	}
+	if role == "static_content" && body.Port != nil {
+		return sql.NullString{}, sql.NullString{}, "", errors.New("static content has no backend listener port; its publisher owns the port")
+	}
+	if body.DeploymentPublicId == nil && body.DeploymentMember == nil {
+		if role == "static_content" {
+			return sql.NullString{}, sql.NullString{}, "", errors.New("static content requires a Compose deployment")
+		}
+		return sql.NullString{}, sql.NullString{}, role, nil
+	}
+	if body.DeploymentPublicId == nil || body.DeploymentMember == nil || strings.TrimSpace(*body.DeploymentMember) == "" || kind != "machine" {
+		return sql.NullString{}, sql.NullString{}, "", errors.New("machine deployment requires both deploymentPublicId and deploymentMember")
+	}
+	deployment, err := s.queries.GetDeploymentByPublicID(r.Context(), *body.DeploymentPublicId)
+	if err != nil {
+		return sql.NullString{}, sql.NullString{}, "", err
+	}
+	if deployment.MachineID != machineID.String {
+		return sql.NullString{}, sql.NullString{}, "", errors.New("deployment must be on the instance machine")
+	}
+	member := strings.TrimSpace(*body.DeploymentMember)
+	if role == "static_content" {
+		if filepath.IsAbs(member) || filepath.Clean(member) != member || member == "." || member == ".." || strings.HasPrefix(member, "../") {
+			return sql.NullString{}, sql.NullString{}, "", errors.New("static content requires a clean relative path in a Compose deployment")
+		}
+	}
+	return sql.NullString{String: deployment.ID, Valid: true}, sql.NullString{String: member, Valid: true}, role, nil
+}
+
+func instanceSystemdValues(body api.InstanceWrite, kind string, deploymentID sql.NullString) (sql.NullString, sql.NullString, sql.NullString, error) {
+	if body.SystemdUnit == nil && body.SystemdScope == nil && body.SystemdUser == nil {
+		return sql.NullString{}, sql.NullString{}, sql.NullString{}, nil
+	}
+	if kind != "machine" || deploymentID.Valid || body.SystemdUnit == nil || body.SystemdScope == nil {
+		return sql.NullString{}, sql.NullString{}, sql.NullString{}, errors.New("systemd unit requires a Machine and scope, without a Compose deployment")
+	}
+	unit := strings.TrimSpace(*body.SystemdUnit)
+	if unit == "" || strings.ContainsAny(unit, "/\\ \t\n") {
+		return sql.NullString{}, sql.NullString{}, sql.NullString{}, errors.New("systemdUnit must name one unit on the Machine")
+	}
+	scope := *body.SystemdScope
+	if scope != "system" && scope != "user" {
+		return sql.NullString{}, sql.NullString{}, sql.NullString{}, errors.New("systemdScope must be system or user")
+	}
+	user := sql.NullString{}
+	if scope == "user" {
+		if body.SystemdUser == nil || strings.TrimSpace(*body.SystemdUser) == "" {
+			return sql.NullString{}, sql.NullString{}, sql.NullString{}, errors.New("user-scoped systemd unit requires systemdUser")
+		}
+		user = sql.NullString{String: strings.TrimSpace(*body.SystemdUser), Valid: true}
+	} else if body.SystemdUser != nil {
+		return sql.NullString{}, sql.NullString{}, sql.NullString{}, errors.New("system-scoped systemd unit cannot specify systemdUser")
+	}
+	return sql.NullString{String: unit, Valid: true}, sql.NullString{String: scope, Valid: true}, user, nil
+}
+
+func instanceResponse(publicID, serviceID string, machineID, deploymentID, member sql.NullString, role string, unit, scope, user sql.NullString, kind string, provider sql.NullString, name, slug string, port sql.NullInt64, notes sql.NullString) api.Instance {
 	hostingKind := api.InstanceHostingKind(kind)
-	return api.Instance{PublicId: publicID, ServicePublicId: serviceID, MachinePublicId: stringPointer(machineID), HostingKind: &hostingKind, ManagedProvider: stringPointer(provider), Name: name, Slug: slug, Port: intPointer(port), Notes: stringPointer(notes)}
+	response := api.Instance{PublicId: publicID, ServicePublicId: serviceID, MachinePublicId: stringPointer(machineID), DeploymentPublicId: stringPointer(deploymentID), DeploymentMember: stringPointer(member), SystemdUnit: stringPointer(unit), SystemdScope: stringPointer(scope), SystemdUser: stringPointer(user), HostingKind: &hostingKind, ManagedProvider: stringPointer(provider), Name: name, Slug: slug, Port: intPointer(port), Notes: stringPointer(notes)}
+	if deploymentID.Valid {
+		response.DeploymentRole = &role
+	}
+	return response
 }
 
 func (s apiServer) writeParentOrInputError(w http.ResponseWriter, err error) {
@@ -135,7 +213,7 @@ func (s apiServer) writeInstance(w http.ResponseWriter, r *http.Request, publicI
 		writeDatabaseError(w, err)
 		return
 	}
-	writeJSON(w, status, instanceResponse(row.PublicID, row.ServicePublicID, row.MachinePublicID, row.HostingKind, row.ManagedProvider, row.Name, row.Slug, row.Port, row.Notes))
+	writeJSON(w, status, instanceResponse(row.PublicID, row.ServicePublicID, row.MachinePublicID, row.DeploymentPublicID, row.DeploymentMember, row.DeploymentRole, row.SystemdUnit, row.SystemdScope, row.SystemdUser, row.HostingKind, row.ManagedProvider, row.Name, row.Slug, row.Port, row.Notes))
 }
 
 func (s apiServer) UpdateInstance(w http.ResponseWriter, r *http.Request, publicID api.PublicId) {
@@ -153,7 +231,17 @@ func (s apiServer) UpdateInstance(w http.ResponseWriter, r *http.Request, public
 		s.writeParentOrInputError(w, err)
 		return
 	}
-	_, err = s.queries.UpdateInstance(r.Context(), database.UpdateInstanceParams{ServiceID: service.ID, MachineID: machineID, HostingKind: kind, ManagedProvider: provider, Name: name, Slug: slug, Port: port, Notes: nullString(body.Notes, false), PublicID: publicID})
+	deploymentID, member, role, err := s.instanceDeployment(r, body, kind, machineID)
+	if err != nil {
+		s.writeParentOrInputError(w, err)
+		return
+	}
+	systemdUnit, systemdScope, systemdUser, err := instanceSystemdValues(body, kind, deploymentID)
+	if err != nil {
+		writeInputError(w, err)
+		return
+	}
+	_, err = s.queries.UpdateInstance(r.Context(), database.UpdateInstanceParams{ServiceID: service.ID, MachineID: machineID, DeploymentID: deploymentID, DeploymentMember: member, DeploymentRole: role, SystemdUnit: systemdUnit, SystemdScope: systemdScope, SystemdUser: systemdUser, HostingKind: kind, ManagedProvider: provider, Name: name, Slug: slug, Port: port, Notes: nullString(body.Notes, false), PublicID: publicID})
 	if err != nil {
 		writeDatabaseError(w, err)
 		return

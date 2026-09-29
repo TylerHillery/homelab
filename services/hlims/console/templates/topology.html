@@ -35,7 +35,7 @@
       <span class="group-count">{{len .Favorites}} machines</span>
     </summary>
     <div class="favorite-content">
-      <div class="favorite-machines">{{range favoriteMachineViews .Favorites}}{{template "machine-card" .}}{{end}}</div>
+      <div class="favorite-machines">{{range favoriteMachineViews .Favorites $.Deployments}}{{template "machine-card" .}}{{end}}</div>
     </div>
   </details>
 {{end}}
@@ -58,7 +58,7 @@
       </header>
       {{if .Machines}}
       <div class="root-machines">
-        {{range machineViews .Machines (eq $.Expansion "all")}}{{template "machine-card" .}}{{end}}
+        {{range machineViews .Machines (eq $.Expansion "all") $.Deployments}}{{template "machine-card" .}}{{end}}
       </div>
       {{else}}<p class="empty-inline">No machines placed in this area.</p>{{end}}
     </section>
@@ -146,24 +146,48 @@
     </ul>
   </details>
   {{end}}
-  {{if .Services}}
+  {{if .Groups}}
+  <section class="machine-deployments" aria-label="Deployments on {{.Name}}">
+    <span class="section-label">Deployments / {{len .Groups}}</span>
+    {{range .Groups}}
+    <section class="machine-deployment"{{if not $.IsFavoriteCopy}} id="deployment-{{.PublicID}}"{{end}} aria-label="{{.Name}} deployment">
+      <header><img src="/console/static/deployment-docker.svg" alt=""><div><strong>{{.Name}}</strong><small>Docker Compose</small></div><span>{{len .Services}} {{if eq (len .Services) 1}}service{{else}}services{{end}}</span></header>
+      <p>Project <code>{{.Project}}</code> · <code>{{.Directory}}</code>{{range .Files}} · <code>{{.}}</code>{{end}}</p>
+      {{if .Notes}}<p>{{.Notes}}</p>{{end}}
+      {{if .Services}}<div class="service-grid">{{range .Services}}{{template "service-card" .}}{{end}}</div>{{else}}<p>No instances assigned yet.</p>{{end}}
+    </section>
+    {{end}}
+  </section>
+  {{end}}
+  {{if .SystemdGroups}}
+  <section class="machine-systemd" aria-label="systemd units on {{.Name}}">
+    <span class="section-label">systemd units</span>
+    {{range .SystemdGroups}}
+    <div class="machine-systemd-manager">
+      <header><img src="/console/static/deployment-systemd.svg" alt=""><strong>{{.Scope}}{{if .User}} · {{.User}}{{end}}</strong></header>
+      <div class="service-grid">{{range .Services}}{{template "service-card" .}}{{end}}</div>
+    </div>
+    {{end}}
+  </section>
+  {{end}}
+  {{if .Independent}}
   <section class="service-deck" aria-label="Services on {{.Name}}">
-    <span class="section-label">Services / {{len .Services}}</span>
-    <div class="service-grid">{{range .Services}}{{template "service-card" .}}{{end}}</div>
+    <span class="section-label">{{if or .Groups .SystemdGroups}}Independent services{{else}}Services{{end}} / {{len .Independent}}</span>
+    <div class="service-grid">{{range .Independent}}{{template "service-card" .}}{{end}}</div>
   </section>
   {{end}}
   {{if and .ShowChildren .Children}}
   <details class="hosted-environments" {{if .ExpandAll}}open{{else}}hx-get="/console/machines/{{.PublicId}}/children"
            hx-trigger="toggle once" hx-target="find .machine-children" hx-swap="innerHTML"{{end}}>
     <summary title="Virtual Machines whose parent is {{.Name}}"><span>Virtual machines</span><b>{{len .Children}}</b><i class="collapse-caret" aria-hidden="true"></i></summary>
-    <div class="machine-children">{{if .ExpandAll}}{{range nestedMachineViews .Children true .Name}}{{template "machine-card" .}}{{end}}{{else}}<div class="subtree-loading htmx-indicator">Loading environments...</div>{{end}}</div>
+    <div class="machine-children">{{if .ExpandAll}}{{range nestedMachineViews .Children true .Name .Deployments}}{{template "machine-card" .}}{{end}}{{else}}<div class="subtree-loading htmx-indicator">Loading environments...</div>{{end}}</div>
   </details>
   {{end}}
 </article>
 {{end}}
 
 {{define "machine-children"}}
-{{range nestedMachineViews .Machines false .ParentName}}{{template "machine-card" .}}{{end}}
+{{range nestedMachineViews .Machines false .ParentName .Deployments}}{{template "machine-card" .}}{{end}}
 {{end}}
 
 {{define "service-card"}}
@@ -194,6 +218,9 @@
       </details>
       {{end}}
     </div>
+    {{if .Member}}<small class="instance-member">{{if eq .Role "static_content"}}Static files · {{end}}{{.Member}}</small>{{end}}
+    {{if .SystemdUnit}}<small class="instance-member">{{.SystemdUnit}}</small>{{end}}
+    {{if .Uses}}<p class="instance-uses">{{range .Uses}}{{if eq .Kind "served_by"}}Served by{{else}}Uses{{end}} {{.ServiceName}} / {{.InstanceName}}{{if .DeploymentName}} · {{.DeploymentName}}{{end}}{{if .MachineName}} on {{.MachineName}}{{end}}<br>{{end}}</p>{{end}}
     {{end}}
   </div>
 </article>

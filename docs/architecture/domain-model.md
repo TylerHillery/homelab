@@ -106,6 +106,18 @@ or redirect target. The application Instance remains associated with the host
 Machine even if its own backend port is not publicly exposed. These are
 inventory snapshots, not deployed web-server configuration.
 
+A Machine-local Deployment optionally groups Instances under a Docker Compose
+project. It records the project name, working directory, ordered files, and
+each member Instance's service key. A systemd-managed Instance instead records
+its own unit name, scope, and user where relevant; sharing the same systemd
+manager does not make multiple units a Deployment. Without either mechanism,
+an Instance remains independently inventoried. An Instance Dependency identifies
+the exact provider Instance consumed by another Instance, even across
+Deployments; it does not encode startup order or live health.
+A `static_content` Instance in a Compose Deployment instead identifies a path
+to files published by another member. Its `served_by` relation points at that
+server Instance; the static files are not a fabricated container.
+
 ## Core Relationships
 
 ```text
@@ -113,6 +125,8 @@ Manufacturer -> Product -> Asset -> Machine
 Machine Provider -> Area -> Machine
 Network -> Address -> Machine, Area, or network Asset
 Service -> Instance (Machine or managed provider) -> Instance Endpoint (Address or direct URL)
+Machine -> Compose Deployment -> optional member Instances; Instance -> provider Instance (uses)
+Machine -> Instance -> optional systemd unit (scope and user)
 DNS Zone -> DNS Record -> Address; Instance Endpoint -> DNS Record
 Instance Endpoint -> Ingress Route -> ingress Instance
 Purchase -> one or more Assets

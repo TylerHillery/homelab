@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -210,8 +211,136 @@ func seedDemoInventory(ctx context.Context, store *SQLiteDB) error {
 			return err
 		}
 	}
+	postgres, err := createDemoService(ctx, queries, "PostgreSQL", "postgresql", "Database instances in separate deployments", color.RGBA{R: 51, G: 103, B: 145, A: 255}, 2)
+	if err != nil {
+		return err
+	}
+	app, err := createDemoService(ctx, queries, "Example API", "example-api", "Application using shared infrastructure", color.RGBA{R: 107, G: 80, B: 175, A: 255}, 4)
+	if err != nil {
+		return err
+	}
+	agent, err := createDemoService(ctx, queries, "Metrics Agent", "metrics-agent", "Host-level telemetry process", color.RGBA{R: 82, G: 157, B: 109, A: 255}, 5)
+	if err != nil {
+		return err
+	}
+	watcher, err := createDemoService(ctx, queries, "Log Watcher", "log-watcher", "Another host-level systemd unit", color.RGBA{R: 70, G: 105, B: 133, A: 255}, 6)
+	if err != nil {
+		return err
+	}
+	docs, err := createDemoService(ctx, queries, "Example Docs", "example-docs", "Static docs served by the example API", color.RGBA{R: 34, G: 126, B: 149, A: 255}, 3)
+	if err != nil {
+		return err
+	}
+	shared, err := createDemoDeployment(ctx, queries, badger, "Shared Infrastructure", "shared-infrastructure", "/srv/stacks/shared", "shared", []string{"compose.yaml"})
+	if err != nil {
+		return err
+	}
+	web, err := createDemoDeployment(ctx, queries, badger, "Web Application", "web-application", "/srv/apps/example", "example", []string{"compose.yaml", "compose.local.yaml"})
+	if err != nil {
+		return err
+	}
+	sharedDB, err := createDemoBareInstance(ctx, queries, postgres, badger, shared, "Shared DB", "shared-db", "db")
+	if err != nil {
+		return err
+	}
+	if _, err := createDemoBareInstance(ctx, queries, postgres, badger, web, "App DB", "app-db", "db"); err != nil {
+		return err
+	}
+	for _, local := range []struct{ name, slug string }{{"Local CLI A", "local-cli-a"}, {"Local CLI B", "local-cli-b"}} {
+		if _, err := createDemoBareInstance(ctx, queries, postgres, badger, demoRecord{}, local.name, local.slug, ""); err != nil {
+			return err
+		}
+	}
+	appAPI, err := createDemoBareInstance(ctx, queries, app, badger, web, "Production", "production", "api")
+	if err != nil {
+		return err
+	}
+	if _, err := createDemoSystemdInstance(ctx, queries, agent, brewer, "Primary", "primary", "metrics-agent.service"); err != nil {
+		return err
+	}
+	if _, err := createDemoSystemdInstance(ctx, queries, watcher, brewer, "Primary", "primary", "log-watcher.service"); err != nil {
+		return err
+	}
+	dependency, err := newDemoRecord()
+	if err != nil {
+		return err
+	}
+	if _, err := queries.CreateInstanceDependency(ctx, database.CreateInstanceDependencyParams{
+		ID: dependency.id, PublicID: dependency.publicID,
+		ConsumerInstanceID: appAPI.id, ProviderInstanceID: sharedDB.id, Kind: "uses",
+	}); err != nil {
+		return fmt.Errorf("create shared database usage: %w", err)
+	}
+	staticDocs, err := newDemoRecord()
+	if err != nil {
+		return err
+	}
+	if _, err := queries.CreateInstance(ctx, database.CreateInstanceParams{
+		ID: staticDocs.id, PublicID: staticDocs.publicID, ServiceID: docs.id,
+		MachineID: nullableDemoID(badger), DeploymentID: nullableDemoID(web),
+		DeploymentMember: nullableDemoString("site/dist"), DeploymentRole: "static_content",
+		HostingKind: "machine", Name: "Site", Slug: "site",
+	}); err != nil {
+		return fmt.Errorf("create static documentation instance: %w", err)
+	}
+	publication, err := newDemoRecord()
+	if err != nil {
+		return err
+	}
+	if _, err := queries.CreateInstanceDependency(ctx, database.CreateInstanceDependencyParams{
+		ID: publication.id, PublicID: publication.publicID,
+		ConsumerInstanceID: staticDocs.id, ProviderInstanceID: appAPI.id, Kind: "served_by",
+	}); err != nil {
+		return fmt.Errorf("create documentation publication: %w", err)
+	}
 
 	return tx.Commit()
+}
+
+func createDemoDeployment(ctx context.Context, queries *database.Queries, machine demoRecord, name, slug, directory, project string, files []string) (demoRecord, error) {
+	record, err := newDemoRecord()
+	if err != nil {
+		return record, err
+	}
+	params := database.CreateDeploymentParams{
+		ID: record.id, PublicID: record.publicID, MachineID: machine.id,
+		Name: name, Slug: slug, WorkingDirectory: directory, ComposeProject: project,
+	}
+	if files != nil {
+		encoded, err := json.Marshal(files)
+		if err != nil {
+			return record, err
+		}
+		params.ComposeFiles = string(encoded)
+	}
+	_, err = queries.CreateDeployment(ctx, params)
+	return demoCreateResult(record, "deployment "+name, err)
+}
+
+func createDemoSystemdInstance(ctx context.Context, queries *database.Queries, service, machine demoRecord, name, slug, unit string) (demoRecord, error) {
+	record, err := newDemoRecord()
+	if err != nil {
+		return record, err
+	}
+	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{
+		ID: record.id, PublicID: record.publicID, ServiceID: service.id, MachineID: nullableDemoID(machine),
+		DeploymentRole: "service", SystemdUnit: nullableDemoString(unit), SystemdScope: nullableDemoString("system"),
+		HostingKind: "machine", Name: name, Slug: slug,
+	})
+	return demoCreateResult(record, "systemd instance "+name, err)
+}
+
+func createDemoBareInstance(ctx context.Context, queries *database.Queries, service, machine, deployment demoRecord, name, slug, member string) (demoRecord, error) {
+	record, err := newDemoRecord()
+	if err != nil {
+		return record, err
+	}
+	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{
+		ID: record.id, PublicID: record.publicID, ServiceID: service.id,
+		MachineID: nullableDemoID(machine), DeploymentID: nullableDemoID(deployment),
+		DeploymentMember: nullableDemoString(member), DeploymentRole: "service", HostingKind: "machine", Name: name, Slug: slug,
+	})
+	return demoCreateResult(record, "instance "+name, err)
 }
 
 func newDemoRecord() (demoRecord, error) {
@@ -340,7 +469,7 @@ func createDemoInstance(ctx context.Context, queries *database.Queries, service,
 	if err != nil {
 		return err
 	}
-	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instance.id, PublicID: instance.publicID, ServiceID: service.id, MachineID: sql.NullString{String: machine.id, Valid: true}, HostingKind: "machine", Name: name, Slug: slug, Port: sql.NullInt64{Int64: port, Valid: true}})
+	_, err = queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instance.id, PublicID: instance.publicID, ServiceID: service.id, MachineID: sql.NullString{String: machine.id, Valid: true}, DeploymentRole: "service", HostingKind: "machine", Name: name, Slug: slug, Port: sql.NullInt64{Int64: port, Valid: true}})
 	if err != nil {
 		return fmt.Errorf("create instance %s: %w", name, err)
 	}

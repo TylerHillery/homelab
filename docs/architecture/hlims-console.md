@@ -1,7 +1,7 @@
 # HLIMS Console Pages
 
-Status: Machines, Services, Inventory, and Orders are current. Networks & DNS
-remains deferred.
+Status: Machines (including Deployments), Services, Inventory, and Orders are
+current. Networks & DNS remains deferred.
 
 ## Purpose
 
@@ -21,7 +21,7 @@ copying every field into Machine Topology.
 
 | Page | Primary question | Source entities |
 |---|---|---|
-| Machine Topology | What runs where and how can I reach it? | Machine Providers, Areas, Machines, Addresses, Machine Users, Services, Instances, Endpoints |
+| Machine Topology | What runs where and how can I reach it? | Machine Providers, Areas, Machines, Deployments, Addresses, Machine Users, Services, Instances, Endpoints |
 | Inventory | What physical equipment do I own, including spares? | Manufacturers, Products, Assets, placement, installed components |
 | Orders | What did I buy, when, for how much, and which Assets were included? | Purchases, selected lines, Purchase Assets, links |
 | Networks & DNS | Which addresses and names exist, and what do they point to? | Networks, Addresses, DNS Zones, DNS Records |
@@ -54,8 +54,9 @@ layout on small devices.
 
 Do not invent a Product for unidentified spare RAM. Wait for module labels and
 capacity before adding its physical Assets. Product port profiles describe model
-capabilities, not which installed jacks are connected; a future connections
-view needs verified port labels and cable endpoints.
+capabilities, not which installed jacks are connected. Keep site-specific cable
+drawings in private documentation rather than presenting them as a universal
+HLIMS topology.
 
 ### Purchases
 
@@ -98,6 +99,20 @@ panels that can open above the card near the bottom of the viewport. A
 future ingress detail view can show which Instance proxies, serves, or redirects
 an Endpoint; the current catalog lists direct links without claiming to manage
 the external provider or its DNS.
+
+When the same Service has Instances in several Deployments, show a separate
+section for each Deployment inside that Service's detail panel. Its member
+list includes only that Deployment's Instances; independent and managed
+Instances keep their own section. Inside each Machine card, Compose Deployments
+group only their assigned Instances, with service keys, file paths, and
+cross-Deployment usage. Systemd-managed Instances appear together by
+system/user manager and user, showing full unit names without inventing a
+Deployment for each unit.
+Static-file Instances can appear under their Compose project with a content
+path and a `served_by` link to the actual server, without being shown as a
+separate container.
+Independent Instances keep the original Machine Service layout. Neither view
+reports “running” from static inventory: runtime status is not checked yet.
 
 ## Navigation Rules
 

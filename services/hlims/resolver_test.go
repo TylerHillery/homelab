@@ -229,7 +229,7 @@ func newResolverTestDB(t *testing.T) *SQLiteDB {
 	mustSucceed(t, err)
 	_, err = db.queries.CreateService(ctx, database.CreateServiceParams{ID: serviceID, PublicID: servicePublicID, Name: "OpenCode", Slug: "opencode"})
 	mustSucceed(t, err)
-	_, err = db.queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instanceID, PublicID: instancePublicID, ServiceID: serviceID, MachineID: sql.NullString{String: machineID, Valid: true}, HostingKind: "machine", Name: "Production", Slug: "production", Port: sql.NullInt64{Int64: 4096, Valid: true}})
+	_, err = db.queries.CreateInstance(ctx, database.CreateInstanceParams{ID: instanceID, PublicID: instancePublicID, ServiceID: serviceID, MachineID: sql.NullString{String: machineID, Valid: true}, DeploymentRole: "service", HostingKind: "machine", Name: "Production", Slug: "production", Port: sql.NullInt64{Int64: 4096, Valid: true}})
 	mustSucceed(t, err)
 	_, err = db.queries.CreateInstanceEndpoint(ctx, database.CreateInstanceEndpointParams{ID: lanEndpointID, PublicID: lanEndpointPublicID, InstanceID: instanceID, AddressID: sql.NullString{String: lanAddressID, Valid: true}, Name: "LAN", Scheme: sql.NullString{String: "http", Valid: true}, Port: sql.NullInt64{Int64: 4096, Valid: true}, HostType: "auto"})
 	mustSucceed(t, err)
