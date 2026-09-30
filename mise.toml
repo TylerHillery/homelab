@@ -10,6 +10,7 @@ age = "1.2.1"
 bitwarden = "2026.9.0"
 fnox = "1.35.3"
 hk = "2.0.1"
+shfmt = "3.13.1"
 taplo = "0.10.0"
 "pipx:yamllint" = "1.38.0"
 

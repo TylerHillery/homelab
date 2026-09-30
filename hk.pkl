@@ -5,6 +5,7 @@ import "package://github.com/jdx/hk/releases/download/v2.0.1/hk@2.0.1#/Builtins.
 steps {
   ["merge-conflicts"] = Builtins.check_merge_conflict
   ["toml"] = Builtins.taplo
+  ["shell-format"] = Builtins.shfmt
   ["yaml"] = (Builtins.yamllint) {
     check = "yamllint -d '{rules: {}}' {{files}}"
   }

@@ -12,9 +12,8 @@ operations.
 | [Secret Management](secret-management.md) | Current | Interactive secret storage and delivery |
 | [HLIMS Roadmap](hlims-roadmap.md) | Planned | Model additions triggered by real needs |
 | [HLIMS Console Pages](hlims-console.md) | Current / planned | Inventory, orders, and future DNS navigation |
-| [Machine Management](machine-management.md) | Pilot | Host convergence evaluation |
-| [Zero-Touch Provisioning](zero-touch-provisioning.md) | Planned | Unattended installation and enrollment |
+| [Machine Provisioning](provisioning-spec.md) | Current build / later phases | Ansible host configuration, local testing, imaging, and future unattended installation |
+| [Provisioning Glossary](provisioning-glossary.md) | Reference | Boot, installer, and attestation terminology |
 | [Observability](observability.md) | Planned | Central telemetry pipeline |
-| [Shared Machine Configuration](ansible-machine-profiles.md) | Proposal | Reusable platform-specific Tailscale automation |
 
 Historical designs belong in [`docs/archive`](../archive/).

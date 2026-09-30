@@ -14,7 +14,7 @@ These tools operate at different layers:
 | Container runtime | Docker Engine, Podman | Runs individual containers |
 | Single-host orchestrator | Docker Compose | Defines and coordinates related containers on one Machine |
 | Fleet scheduler | Nomad, Kubernetes, Docker Swarm | Selects Machines and schedules workloads across them |
-| Machine converger | mise bootstrap, Ansible | Applies host, systemd, firewall, and Compose configuration |
+| Machine converger | Ansible | Applies profile-owned host, systemd, firewall, and Compose configuration |
 | Deployment controller | Komodo, Coolify, Kamal | Delivers new application versions |
 | Ingress publisher | Caddy, Tailscale Serve, Traefik | Makes a backend reachable at a stable URL |
 | Inventory and catalog | HLIMS | Records Machines, Services, Instances, endpoints, and relationships |
@@ -46,12 +46,13 @@ ansible
 manual
 ```
 
-The distinction allows mise or Ansible to manage either Compose or systemd
-while Komodo specializes in Compose. mise is the initial Machine converger;
-Ansible remains a fallback while the approach in
-[Machine Management](machine-management.md) is piloted. A single container can
-still use a small Compose definition instead of introducing a separate
-raw-Docker deployment model.
+The distinction allows Ansible to manage machine configuration while mise
+provides operator tasks and personal userland bootstrap. A mise deployment
+provider describes a deployment initiated by a mise task, not a second machine
+converger; Komodo specializes in Compose. See
+[Machine Provisioning](provisioning-spec.md) for the ownership boundary. A single
+container can still use a small Compose definition instead of introducing a
+separate raw-Docker deployment model.
 
 HLIMS remains authoritative for identity, placement, relationships, and
 reachable endpoints. Deployment controllers remain authoritative for execution,

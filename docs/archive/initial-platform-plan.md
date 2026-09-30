@@ -3,7 +3,7 @@
 Status: deferred on 2026-09-12.
 
 The current provisioning direction is documented in
-[Zero-Touch Provisioning](../architecture/zero-touch-provisioning.md). This
+[Machine Provisioning](../architecture/provisioning-spec.md). This
 archive records design intent; the provisioning and attestation systems were
 not implemented on the archived branch.
 

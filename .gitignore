@@ -1,5 +1,6 @@
 .env
 /ORDERS.md
+/NOTES.md
 .agents/
 .opencode/*
 !.opencode/skills/
