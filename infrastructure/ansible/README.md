@@ -1,11 +1,12 @@
-# Ubuntu machine configuration
+# Machine and firewall configuration
 
 `ubuntu-dev.yml` configures already-enrolled Ubuntu mini PCs one host at a
 time: Tailscale policy, an admin/security-update baseline, rootless Podman,
 and a user-owned dotfiles checkout with mise tools. It does **not** enroll
 Tailscale, install Ubuntu, manage OpenCode or Tailscale Serve, change the
 login shell, or run the full dotfiles bootstrap. Caddy ingress is a separate
-[opt-in playbook](../ingress/caddy/README.md).
+[opt-in playbook](../ingress/caddy/README.md). The OPNsense firewall uses a
+[separate playbook](OPNSENSE.md), never the Ubuntu composition.
 
 ## Prepare a new mini PC
 
@@ -61,7 +62,7 @@ units and Serve are outside this profile. Do not disable OpenSSH until the
 Tailscale SSH and console recovery path is proven for that host. The role
 supports only already-enrolled nodes and never changes Tailscale tags or
 subnet routes implicitly. Sudo remains prompted; automated secret delivery,
-new-host enrollment, OPNsense migration and WSL restart tests are follow-ups.
+new-host enrollment and WSL restart tests are follow-ups.
 
 Run `mise //infrastructure/ansible:check` for yamllint, ansible-lint and
 syntax checks. `inventory/local.yml`, if needed for connection details, is

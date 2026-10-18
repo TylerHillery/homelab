@@ -2,6 +2,7 @@
 extends: default
 ignore:
   - .venv/
+  - collections/
 rules:
   braces:
     max-spaces-inside: 1

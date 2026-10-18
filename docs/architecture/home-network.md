@@ -28,7 +28,8 @@ household router
 
 The household router remains responsible for household connectivity. OPNsense
 owns lab routing, DHCP, DNS, and policy. Site addresses are configuration, not
-architecture; discover them with the [OPNsense setup runbook](../../opnsense/SETUP.md).
+architecture; discover them with the
+[OPNsense setup runbook](../../infrastructure/ansible/OPNSENSE-SETUP.md).
 
 ## Policy
 
@@ -56,11 +57,11 @@ tailnet access policy separate from firewall policy.
 OPNsense is managed through Ansible over its tailnet endpoint. Tailscale Serve
 provides trusted HTTPS. The operational sources of truth are:
 
-- [`opnsense/site.example.yml`](../../opnsense/site.example.yml): site variable
-  template
-- `opnsense/group_vars/all/site.yml`: ignored site configuration
-- [`opnsense/playbooks/site.yml`](../../opnsense/playbooks/site.yml)
-- [`opnsense/SETUP.md`](../../opnsense/SETUP.md)
+- [`infrastructure/ansible/inventory/opnsense.example.yml`](../../infrastructure/ansible/inventory/opnsense.example.yml):
+  site variable template
+- `infrastructure/ansible/inventory/host_vars/opnsense.yml`: ignored site configuration
+- [`infrastructure/ansible/playbooks/opnsense.yml`](../../infrastructure/ansible/playbooks/opnsense.yml)
+- [`infrastructure/ansible/OPNSENSE-SETUP.md`](../../infrastructure/ansible/OPNSENSE-SETUP.md)
 
 ## Growth
 

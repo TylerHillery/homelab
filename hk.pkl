@@ -36,10 +36,6 @@ steps {
     glob = "services/hlims/db/**/*.sql"
     check = "mise //services/hlims:sql:lint"
   }
-  ["opnsense-ansible-syntax"] {
-    glob = List("opnsense/**/*.yml", "opnsense/**/*.yaml", "opnsense/**/*.toml")
-    check = "mise //opnsense:syntax"
-  }
   ["ubuntu-ansible-check"] {
     glob = List("infrastructure/ansible/**/*.yml", "infrastructure/ansible/**/*.yaml", "infrastructure/ansible/**/*.toml", "infrastructure/ansible/**/*.cfg", "infrastructure/ansible/uv.lock")
     check = "mise //infrastructure/ansible:check"

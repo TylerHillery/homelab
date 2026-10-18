@@ -1,6 +1,11 @@
 [tools]
 uv = "0.11.23"
 
+[tasks."opnsense:collection-install"]
+description = "Install the pinned OPNsense Ansible collection locally"
+dir = "{{ config_root }}"
+run = "uv run --locked ansible-galaxy collection install -r requirements.yml -p collections"
+
 [tasks.yaml]
 description = "Lint Ansible YAML"
 dir = "{{ config_root }}"
@@ -9,16 +14,33 @@ run = "uv run --locked yamllint -c .yamllint.yml ."
 [tasks.lint]
 description = "Lint Ansible playbooks and roles"
 dir = "{{ config_root }}"
+depends = ["opnsense:collection-install"]
 run = "uv run --locked ansible-lint"
 
 [tasks.syntax]
 description = "Check all Ansible playbooks without contacting hosts"
 dir = "{{ config_root }}"
+depends = ["opnsense:collection-install"]
 run = 'for playbook in playbooks/*.yml; do uv run --locked ansible-playbook --syntax-check "$playbook" || exit; done'
 
 [tasks.check]
 description = "Run YAML lint, Ansible lint, and playbook syntax checks"
 depends = ["yaml", "lint", "syntax"]
+
+[tasks."opnsense:preview"]
+description = "Preview the OPNsense firewall without applying changes"
+dir = "{{ config_root }}"
+interactive = true
+depends = ["opnsense:collection-install"]
+run = "mise //:fnox:exec uv run --locked ansible-playbook -i inventory/example.yml --limit opnsense --check --diff playbooks/opnsense.yml"
+
+[tasks."opnsense:apply"]
+description = "Apply reviewed OPNsense configuration"
+dir = "{{ config_root }}"
+interactive = true
+depends = ["opnsense:collection-install"]
+confirm = { message = "Apply OPNsense changes? Confirm backup, access, and opnsense:preview first.", default = "no" }
+run = "mise //:fnox:exec uv run --locked ansible-playbook -i inventory/example.yml --limit opnsense playbooks/opnsense.yml"
 
 [tasks."caddy:preview"]
 description = "Preview opt-in Caddy ingress on one host"

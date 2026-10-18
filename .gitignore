@@ -13,9 +13,8 @@
 coverage.out
 fnox.local.toml
 skills-lock.json
-opnsense/collections/
-opnsense/group_vars/all/site.yml
 infrastructure/ansible/inventory/local.yml
+infrastructure/ansible/inventory/host_vars/opnsense.yml
 infrastructure/ansible/collections/
 infrastructure/ansible/.venv/
 infrastructure/ansible/.reviews/

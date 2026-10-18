@@ -6,9 +6,8 @@ Monorepo for homelab software, infrastructure, and operations.
 
 - [`services/hlims`](services/hlims/): inventory, service catalog, resolver, and
   management clients
-- [`opnsense`](opnsense/): declarative firewall, DHCP, DNS, and Tailscale
-  configuration
 - [`infrastructure/ansible`](infrastructure/ansible/): Ubuntu machine configuration
+  and opt-in OPNsense firewall management
 - [`infrastructure/ingress`](infrastructure/ingress/): tailnet-only HTTPS ingress
 - [`infrastructure/opentofu`](infrastructure/opentofu/): shared DNS records
 
@@ -18,7 +17,6 @@ Monorepo for homelab software, infrastructure, and operations.
 docs/           architecture and archived designs
 infrastructure/ shared machine, ingress, and DNS configuration
 mise-tasks/     shared executable tasks
-opnsense/       OPNsense Ansible project and setup runbook
 services/       applications and platform services
 ```
 

@@ -56,13 +56,13 @@ infrastructure/ansible/
     wsl/                    # proposed: WSL-only settings
     ubuntu_surface/         # proposed: Surface-specific Linux configuration
     ubuntu_nvidia_gpu/      # proposed: reusable NVIDIA driver configuration
-    opnsense_firewall/      # proposed: migrate from opnsense/
+    opnsense_firewall/      # current: OPNsense API and Tailscale SSH
   playbooks/
     ubuntu-dev.yml          # current: Ubuntu development mini PCs
     caddy-ingress.yml       # current: opt-in ingress, separate from ubuntu-dev
     ubuntu-wsl.yml          # proposed: Ubuntu dev plus WSL settings
     ubuntu-surface-gpu.yml  # proposed: Ubuntu dev plus Surface and NVIDIA roles
-    opnsense.yml            # proposed: Tailscale plus firewall configuration
+    opnsense.yml            # current: opt-in OPNsense firewall configuration
 ```
 
 A separate WSL2 Ubuntu distro was used to test the common and Podman roles
@@ -94,20 +94,19 @@ credentials to managed hosts. Cloud-init and image builders can later consume
 the same profile-owned values without copying their definitions; identity and
 build-only inputs stay separate.
 
-### First scope and OPNsense migration
+### First scope and OPNsense
 
 1. Finish the reviewed, real no-change second applies of the final `ubuntu-dev`
    composition on each mini PC. Retain console recovery and review planned
    reboots separately. Mise remains the package owner for personal dev devices
    that use dotfiles.
-2. Preserve the working [`opnsense/`](../../opnsense/) project while adding a
-   shared playbook. Initially reuse/wrap existing behavior; then move its tasks,
-   collection requirements, site variables, mise commands, and setup runbook
-   into the shared layout. Retire the old project only after operational parity.
-3. Compare syntax, reviewed check-mode output, real apply results, management
-   access, and a no-change second run. Confirm firewall, DHCP, DNS, Tailscale
-   Serve, and API/SSH access before removing the old path. Check mode is a
-   preview, not a guarantee of safety or an exact prediction of every task.
+2. OPNsense runs through the opt-in [firewall playbook](../../infrastructure/ansible/OPNSENSE.md),
+   independent of Ubuntu roles. The migrated playbook passed syntax checks, a
+   reviewed check-mode preview, and a real apply reporting zero changes.
+   Read-only checks confirmed firewall isolation, DHCP, DNS, Tailscale Serve,
+   and API/SSH access after apply; physical console recovery remains separate.
+   Check mode is a preview, not a guarantee of safety or an exact prediction
+   of every task.
 
 Tailscale policy should document per-host node name, tag, accept-DNS, Tailscale
 SSH, and explicit opt-ins for exit-node advertisement, subnet routes, and Serve.

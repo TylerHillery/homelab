@@ -1,0 +1,6 @@
+---
+- name: Configure the homelab OPNsense firewall
+  hosts: opnsense_firewall
+  gather_facts: false
+  roles:
+    - role: opnsense_firewall

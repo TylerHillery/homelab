@@ -87,34 +87,37 @@ Approve the exit node in the Tailscale admin console.
 
 ## 6. Configure Ansible
 
-Create the ignored site configuration:
+From `infrastructure/ansible/`, create the ignored site configuration:
 
 ```sh
-cp site.example.yml group_vars/all/site.yml
+cp inventory/opnsense.example.yml inventory/host_vars/opnsense.yml
 ```
 
-Set these values in `group_vars/all/site.yml`:
+Set these values in `inventory/host_vars/opnsense.yml`:
 
 | Variable | Value |
 |---|---|
-| `opnsense_api_host` | `<TAILSCALE_FQDN>` |
-| `opnsense_lan_address` | `<FIREWALL_LAN_IP>` |
-| `opnsense_tailnet_hostname` | `<TAILSCALE_FQDN>` |
-| `lab_lan_subnet` | `<LAB_CIDR>` |
-| `lab_dhcp_range` | `<DHCP_START>` through `<DHCP_END>` |
+| `opnsense_firewall_api_host` | `<TAILSCALE_FQDN>` |
+| `opnsense_firewall_lan_address` | `<FIREWALL_LAN_IP>` |
+| `opnsense_firewall_tailnet_hostname` | `<TAILSCALE_FQDN>` |
+| `opnsense_firewall_lab_lan_subnet` | `<LAB_CIDR>` |
+| `opnsense_firewall_lab_dhcp_range` | `<DHCP_START>` through `<DHCP_END>` |
 
 Update site-specific firewall destinations if `<UPSTREAM_CIDR>` changes the
 required isolation policy.
 
 ## 7. Apply Configuration
 
-From `opnsense/`, run:
+First obtain an encrypted configuration backup as described in section 9 and
+confirm direct management or console recovery. From the repository root, run:
 
 ```sh
-mise run syntax
-mise run check
-mise run apply
+mise //infrastructure/ansible:check
+mise //infrastructure/ansible:opnsense:preview
 ```
+
+Review the preview before running
+`mise //infrastructure/ansible:opnsense:apply`.
 
 Ansible configures Tailscale Serve, trusted HTTPS, firewall policy, DHCP, and
 DNS. Close the temporary tunnel after the apply succeeds.
@@ -122,7 +125,7 @@ DNS. Close the temporary tunnel after the apply succeeds.
 ## 8. Verify
 
 1. Open `https://<TAILSCALE_FQDN>/` without a certificate warning.
-2. Confirm `mise run check` reports zero changes.
+2. Confirm the real apply reports zero changes on a second run.
 3. From a lab client, run `ping -c 3 <UPSTREAM_GATEWAY>` and expect no replies.
 4. Run `getent ahostsv4 example.com` and confirm DNS succeeds.
 5. Run `curl -I --max-time 10 https://example.com` and confirm HTTPS succeeds.
