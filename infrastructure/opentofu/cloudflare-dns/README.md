@@ -14,6 +14,11 @@ mise install --monorepo
 mise //infrastructure/opentofu/cloudflare-dns:check
 ```
 
+The check runs `tofu fmt -check`, backend-disabled provider initialization and
+`tofu validate`, then TFLint's Terraform rules. The same check runs from hk
+when OpenTofu configuration or its tool configuration changes. It does not
+plan, apply, or need the Cloudflare token.
+
 Local state is the initial choice. It is ignored by Git and **not backed up by
 OpenTofu**. A backup is deferred for the pilot; losing this file would require
 recovering or importing managed records before safe future applies. Commit the

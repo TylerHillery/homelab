@@ -40,4 +40,8 @@ steps {
     glob = List("opnsense/**/*.yml", "opnsense/**/*.yaml", "opnsense/**/*.toml")
     check = "mise //opnsense:syntax"
   }
+  ["opentofu-check"] {
+    glob = List("infrastructure/opentofu/**/*.tf", "infrastructure/opentofu/**/*.tf.json", "infrastructure/opentofu/**/*.tfvars", "infrastructure/opentofu/**/*.tfvars.json", "infrastructure/opentofu/**/.terraform.lock.hcl", "infrastructure/opentofu/**/.tflint.hcl", "infrastructure/opentofu/**/mise.toml")
+    check = "mise //infrastructure/opentofu/...:check"
+  }
 }
