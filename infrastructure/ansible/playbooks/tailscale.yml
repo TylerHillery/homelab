@@ -1,0 +1,6 @@
+---
+- name: Audit and converge existing Ubuntu Tailscale nodes
+  hosts: ubuntu_dev
+  gather_facts: true
+  roles:
+    - role: tailscale

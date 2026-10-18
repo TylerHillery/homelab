@@ -8,11 +8,15 @@ Monorepo for homelab software, infrastructure, and operations.
   management clients
 - [`opnsense`](opnsense/): declarative firewall, DHCP, DNS, and Tailscale
   configuration
+- [`infrastructure/ansible`](infrastructure/ansible/): Ubuntu machine configuration
+- [`infrastructure/ingress`](infrastructure/ingress/): tailnet-only HTTPS ingress
+- [`infrastructure/opentofu`](infrastructure/opentofu/): shared DNS records
 
 ## Repository
 
 ```text
 docs/           architecture and archived designs
+infrastructure/ shared machine, ingress, and DNS configuration
 mise-tasks/     shared executable tasks
 opnsense/       OPNsense Ansible project and setup runbook
 services/       applications and platform services

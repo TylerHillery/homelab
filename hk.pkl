@@ -40,6 +40,10 @@ steps {
     glob = List("opnsense/**/*.yml", "opnsense/**/*.yaml", "opnsense/**/*.toml")
     check = "mise //opnsense:syntax"
   }
+  ["ubuntu-ansible-check"] {
+    glob = List("infrastructure/ansible/**/*.yml", "infrastructure/ansible/**/*.yaml", "infrastructure/ansible/**/*.toml", "infrastructure/ansible/**/*.cfg", "infrastructure/ansible/uv.lock")
+    check = "mise //infrastructure/ansible:check"
+  }
   ["opentofu-check"] {
     glob = List("infrastructure/opentofu/**/*.tf", "infrastructure/opentofu/**/*.tf.json", "infrastructure/opentofu/**/*.tfvars", "infrastructure/opentofu/**/*.tfvars.json", "infrastructure/opentofu/**/.terraform.lock.hcl", "infrastructure/opentofu/**/.tflint.hcl", "infrastructure/opentofu/**/mise.toml")
     check = "mise //infrastructure/opentofu/...:check"

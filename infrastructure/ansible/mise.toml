@@ -54,3 +54,48 @@ if [ "${usage_host?}" = framework13-wsl ]; then connection=local; fi
 uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler \
   --connection "$connection" --limit "${usage_host?}" playbooks/caddy-ingress.yml
 '''
+
+[tasks."dev:preflight"]
+description = "Inspect one enrolled Ubuntu mini PC without changing it"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Mini PC to inspect" {
+  choices "badger" "brewer" "buck"
+}
+'''
+run = 'uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler --limit "${usage_host?}" playbooks/preflight.yml'
+
+[tasks."dev:verify-common"]
+description = "Verify the common Ubuntu baseline on one mini PC without changing it"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Mini PC to verify" {
+  choices "badger" "brewer" "buck"
+}
+'''
+run = 'uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler --limit "${usage_host?}" playbooks/verify-common.yml'
+
+[tasks."dev:preview"]
+description = "Preview the Ubuntu dev profile on one mini PC"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Mini PC to preview" {
+  choices "badger" "brewer" "buck"
+}
+'''
+run = 'uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler --limit "${usage_host?}" --ask-become-pass --check --diff playbooks/ubuntu-dev.yml'
+
+[tasks."dev:apply"]
+description = "Apply the reviewed Ubuntu dev profile to one mini PC"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Mini PC to configure" {
+  choices "badger" "brewer" "buck"
+}
+'''
+confirm = { message = "Apply ubuntu-dev to {{ usage.host }}? Review dev:preview first and retain console access.", default = "no" }
+run = 'uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler --limit "${usage_host?}" --ask-become-pass playbooks/ubuntu-dev.yml'

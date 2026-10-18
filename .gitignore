@@ -19,6 +19,7 @@ infrastructure/ansible/inventory/local.yml
 infrastructure/ansible/collections/
 infrastructure/ansible/.venv/
 infrastructure/ansible/.reviews/
+infrastructure/ansible/**/__pycache__/
 infrastructure/opentofu/**/.terraform/
 infrastructure/opentofu/**/*.tfstate
 infrastructure/opentofu/**/*.tfstate.*

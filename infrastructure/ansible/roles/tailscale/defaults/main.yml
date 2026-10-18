@@ -1,0 +1,7 @@
+---
+tailscale_expected_name: "{{ inventory_hostname }}"
+tailscale_expected_tag: ""
+tailscale_expected_exit_node: false
+tailscale_expected_subnet_routes: []
+tailscale_accept_dns: false
+tailscale_ssh: true

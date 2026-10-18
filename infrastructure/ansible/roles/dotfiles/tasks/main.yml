@@ -1,0 +1,239 @@
+---
+- name: Require supported Ubuntu architecture for mise bootstrap
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['architecture'] == 'x86_64'
+      - dotfiles_user != 'root'
+    fail_msg: >-
+      The dotfiles bootstrap requires a non-root user on x86-64 Ubuntu.
+
+- name: Look up the existing development user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ dotfiles_user }}"
+    fail_key: false
+
+- name: Require an existing development user
+  ansible.builtin.assert:
+    that:
+      - dotfiles_user in ansible_facts['getent_passwd']
+
+- name: Check that git is already available for the dotfiles-owned package set
+  ansible.builtin.command:
+    argv: [git, --version]
+  changed_when: false
+  check_mode: false
+
+- name: Install a checksum-verified mise bootstrap executable
+  ansible.builtin.get_url:
+    url: >-
+      {{ 'https://github.com/jdx/mise/releases/download/v'
+         ~ dotfiles_mise_version ~ '/mise-v'
+         ~ dotfiles_mise_version ~ '-linux-x64' }}
+    dest: /usr/local/bin/mise
+    owner: root
+    group: root
+    mode: "0755"
+    checksum: "sha256:{{ dotfiles_mise_sha256 }}"
+  become: true
+
+- name: Check for an existing dotfiles worktree
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  register: dotfiles_directory
+
+- name: Check whether the existing dotfiles directory is a Git worktree
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles/.git"
+  register: dotfiles_git_metadata
+  when: dotfiles_directory.stat.exists
+
+- name: Refuse to replace a non-Git dotfiles directory
+  ansible.builtin.assert:
+    that:
+      - not dotfiles_directory.stat.exists or dotfiles_git_metadata.stat.exists
+    fail_msg: The dotfiles path exists but is not a Git worktree; review it manually.
+
+- name: Create the development user's code directory
+  ansible.builtin.file:
+    path: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal"
+    state: directory
+    owner: "{{ dotfiles_user }}"
+    group: "{{ ansible_facts['getent_passwd'][dotfiles_user][2] }}"
+    mode: "0755"
+  become: true
+
+- name: Preview dotfiles checkout after the code directory is created
+  ansible.builtin.debug:
+    msg: Would clone the development user's dotfiles checkout on main
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - not dotfiles_directory.stat.exists
+
+- name: Clone the public dotfiles repository only when absent
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+    version: "{{ dotfiles_branch }}"
+    update: false
+    force: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  when:
+    - not dotfiles_directory.stat.exists
+    - not ansible_check_mode
+
+- name: Check whether the dotfiles checkout is present
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles/mise.toml"
+  register: dotfiles_checkout
+
+- name: Require a complete existing dotfiles checkout
+  ansible.builtin.assert:
+    that:
+      - not dotfiles_directory.stat.exists or dotfiles_checkout.stat.exists
+    fail_msg: >-
+      The existing dotfiles worktree has no mise.toml. Fix the checkout
+      manually; Ansible will not replace or repair your development worktree.
+
+- name: Check whether mise is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/mise
+  register: dotfiles_mise_executable
+
+- name: Trust the two checked-out mise configurations for the development user
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/mise
+      - trust
+      - "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles/{{ item }}"
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  loop:
+    - mise.toml
+    - mise.linux.toml
+  changed_when: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when:
+    - not ansible_check_mode
+    - dotfiles_checkout.stat.exists
+
+- name: Read apt packages declared by the dotfiles checkout
+  ansible.builtin.command:
+    argv: [/usr/local/bin/mise, bootstrap, packages, status, --json]
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  register: dotfiles_packages
+  changed_when: false
+  check_mode: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when:
+    - dotfiles_checkout.stat.exists
+    - not ansible_check_mode or dotfiles_mise_executable.stat.exists
+
+- name: Require Node's runtime dependency in the development user's package list
+  ansible.builtin.assert:
+    that:
+      - (dotfiles_packages.stdout | from_json).apt.available
+      - >-
+        'libatomic1' in ((dotfiles_packages.stdout | from_json).apt.packages
+        | map(attribute='package') | list)
+    fail_msg: >-
+      The local dotfiles checkout must declare apt:libatomic1 before installing
+      the Node runtime. Review and update the checkout yourself.
+  when: not dotfiles_packages.skipped | default(false)
+
+- name: Install the apt packages declared by the dotfiles checkout before mise tools
+  ansible.builtin.apt:
+    name: >-
+      {{ (dotfiles_packages.stdout | from_json).apt.packages
+         | map(attribute='package') | list }}
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+  become: true
+  when: not dotfiles_packages.skipped | default(false)
+
+- name: Read the user's managed-dotfiles status
+  ansible.builtin.command:
+    argv: [/usr/local/bin/mise, bootstrap, dotfiles, status, --json]
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  register: dotfiles_status
+  changed_when: false
+  check_mode: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when:
+    - dotfiles_checkout.stat.exists
+    - not ansible_check_mode or dotfiles_mise_executable.stat.exists
+
+- name: Refuse to replace user-edited or missing-source dotfiles
+  ansible.builtin.assert:
+    that:
+      - >-
+        (dotfiles_status.stdout | from_json).files
+        | selectattr('state', 'in', ['differs', 'source_missing']) | list | length == 0
+    fail_msg: >-
+      One or more live dotfiles differ from the repository. Review them
+      before applying the dotfiles role; Ansible will not overwrite them.
+  when: not dotfiles_status.skipped | default(false)
+
+- name: Find development tools mise has not installed yet
+  ansible.builtin.command:
+    argv: [/usr/local/bin/mise, ls, --missing, --json]
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  register: dotfiles_missing_tools
+  changed_when: false
+  check_mode: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when: not dotfiles_status.skipped | default(false)
+
+- name: Preview the selected mise userland phases
+  ansible.builtin.debug:
+    msg: Would apply dotfiles and install mise tools, without package hooks or bootstrap tasks
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - >-
+      dotfiles_status.skipped | default(false)
+      or ((dotfiles_status.stdout | from_json).files
+      | rejectattr('state', 'equalto', 'applied') | list | length > 0)
+      or (dotfiles_missing_tools.stdout | from_json | length > 0)
+
+- name: Apply dotfiles and install mise tools without package hooks or bootstrap tasks
+  ansible.builtin.command:
+    argv: [/usr/local/bin/mise, bootstrap, --only, "dotfiles,tools", --yes]
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  changed_when: true
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when:
+    - not ansible_check_mode
+    - >-
+      ((dotfiles_status.stdout | from_json).files
+      | rejectattr('state', 'equalto', 'applied') | list | length > 0)
+      or (dotfiles_missing_tools.stdout | from_json | length > 0)
+
+- name: Verify the user's managed dotfiles are applied
+  ansible.builtin.command:
+    argv: [/usr/local/bin/mise, bootstrap, dotfiles, status, --missing]
+    chdir: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}/code/personal/dotfiles"
+  changed_when: false
+  become: true
+  become_user: "{{ dotfiles_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][dotfiles_user][4] }}"
+  when: not ansible_check_mode

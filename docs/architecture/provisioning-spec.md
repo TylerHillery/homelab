@@ -1,9 +1,11 @@
 # Machine Provisioning
 
-Status: Ansible machine configuration is the current build; imaging, unattended
-installation, and attestation are later phases. Their tools and detailed flows are
-proposals, not implementation commitments. See the [glossary](provisioning-glossary.md)
-for boot and attestation terminology.
+Status: The shared Ansible project manages the Ubuntu development baseline on
+Badger, Brewer and Buck. The user ran the full mise bootstrap separately.
+Real second applies of the final clone-only dotfiles role are still pending
+on all three; see the [rollout runbook](../../infrastructure/ansible/README.md).
+Imaging, unattended installation, and attestation are later design directions,
+not implementation commitments. See the [glossary](provisioning-glossary.md).
 
 ## Boundaries
 
@@ -12,9 +14,10 @@ for boot and attestation terminology.
   after a machine is installed. It does not install the operating system.
 - **mise owns personal userland**: dotfiles, user tools, and bootstrap tasks. On
   personal development devices it may also own system packages defined in the
-  dotfiles repo; Ansible must not manage the same packages there. Profiles without
-  dotfiles can opt into Ansible-managed system packages. Assign each setting one
-  owner rather than relying on a universal package-ownership rule.
+  dotfiles repo; Ansible may install that list from the checked-out config with
+  normal privilege escalation, but must not duplicate the package declarations.
+  Profiles without dotfiles can opt into Ansible-owned system packages. Assign
+  each setting one source of truth rather than relying on a universal package rule.
 - **HLIMS owns durable inventory**: machine identity, placement, relationships,
   addresses, and management endpoints. It does not store credentials, Tailscale
   policy, DHCP leases, or Ansible's desired configuration.
@@ -26,42 +29,47 @@ for boot and attestation terminology.
 
 ## Current build: Ansible machine configuration
 
-The shared project will live in `infrastructure/ansible/`. Shared infrastructure
-belongs under `infrastructure/`; application-owned infrastructure can live beside
-its application, with independent OpenTofu state where needed. Shared Cloudflare
-DNS has a separate scaffold at `infrastructure/opentofu/cloudflare-dns/`; its
-provider is pinned and the two Framework WSL DNS records have been applied.
-Machine configuration does not own its state or DNS records.
+`infrastructure/ansible/` contains the `common`, `tailscale`, `dotfiles`, and
+`podman` roles and the `ubuntu-dev.yml` composition. The separate opt-in Caddy
+ingress role is not in that composition and does not manage Tailscale Serve.
+Shared Cloudflare DNS is managed from `infrastructure/opentofu/cloudflare-dns/`,
+not by the machine configuration.
+
+The **intended layout** below includes both implemented and proposed roles and
+playbooks. Entries marked `proposed` are not files to run today:
 
 ```text
 infrastructure/ansible/
   ansible.cfg
   requirements.yml
-  inventory/               # example inventory; real connection details as needed
-  group_vars/              # non-secret profile defaults
-  host_vars/               # per-host exceptions, if needed
+  inventory/
+    example.yml             # current: named hosts, no credentials
+    group_vars/             # current: non-secret profile defaults
+    host_vars/              # current: per-host exceptions
   roles/
-    common/
-    tailscale/
-    dotfiles/               # thin wrapper around the existing mise userland
-    docker/
-    wsl/                    # WSL-only settings, composed with Ubuntu roles
-    ubuntu_surface/         # future: Surface-specific Linux configuration
-    ubuntu_nvidia_gpu/      # future: reusable NVIDIA driver configuration
-    opnsense_firewall/      # future migration from opnsense/
+    common/                 # current: Ubuntu baseline
+    tailscale/              # current: already-enrolled Ubuntu nodes
+    dotfiles/               # current: mise-owned development userland
+    podman/                 # current: rootless containers
+    caddy/                  # current: opt-in tailnet ingress
+    docker/                 # proposed: define scope before implementing
+    wsl/                    # proposed: WSL-only settings
+    ubuntu_surface/         # proposed: Surface-specific Linux configuration
+    ubuntu_nvidia_gpu/      # proposed: reusable NVIDIA driver configuration
+    opnsense_firewall/      # proposed: migrate from opnsense/
   playbooks/
-    ubuntu-dev.yml          # first build: Ubuntu development machines
-    ubuntu-wsl.yml          # pilot: Ubuntu dev composition plus WSL settings
-    ubuntu-surface-gpu.yml  # later: Ubuntu dev plus Surface and NVIDIA roles
-    opnsense.yml            # later: Tailscale plus firewall configuration
+    ubuntu-dev.yml          # current: Ubuntu development mini PCs
+    caddy-ingress.yml       # current: opt-in ingress, separate from ubuntu-dev
+    ubuntu-wsl.yml          # proposed: Ubuntu dev plus WSL settings
+    ubuntu-surface-gpu.yml  # proposed: Ubuntu dev plus Surface and NVIDIA roles
+    opnsense.yml            # proposed: Tailscale plus firewall configuration
 ```
 
-These are intended compositions, not implemented files. `ubuntu-dev` is the
-first build for the Ubuntu mini PCs; pilot its applicable roles against a
-**separate WSL2 Ubuntu distro** on the Framework 13 before applying to a mini.
-The WSL playbook adds WSL configuration to the Ubuntu composition. Surface and
-NVIDIA roles remain independently reusable; their combined playbook describes a
-machine class, not a particular Surface Book.
+A separate WSL2 Ubuntu distro was used to test the common and Podman roles
+before the mini-PC rollout, then removed; it did not test an independent
+Tailscale node. The proposed WSL playbook would add WSL-specific settings to
+the Ubuntu composition. Surface and NVIDIA roles remain independently
+reusable; their combined playbook describes a machine class, not one device.
 
 Playbooks compose capability roles; there is no profile inheritance mechanism.
 Start with a `tailscale` role whose shared interface describes policy and whose
@@ -88,11 +96,10 @@ build-only inputs stay separate.
 
 ### First scope and OPNsense migration
 
-1. Build and pilot `ubuntu-dev` and the WSL-specific composition. Start with
-   `common`, `tailscale`, and the optional `dotfiles` wrapper; add `docker` as
-   applicable. Mise remains the package owner for personal dev devices that use
-   dotfiles. Validate each supported role's actual behavior on the pilot before
-   applying to a mini PC.
+1. Finish the reviewed, real no-change second applies of the final `ubuntu-dev`
+   composition on each mini PC. Retain console recovery and review planned
+   reboots separately. Mise remains the package owner for personal dev devices
+   that use dotfiles.
 2. Preserve the working [`opnsense/`](../../opnsense/) project while adding a
    shared playbook. Initially reuse/wrap existing behavior; then move its tasks,
    collection requirements, site variables, mise commands, and setup runbook
@@ -109,27 +116,35 @@ GUI Serve; preserve that behavior during migration, while making it explicit in
 the new configuration rather than a Linux default. Keep `os-tailscale`, API
 management, SSH/HTTPS checks, and clearing the one-time auth key after enrollment.
 Ubuntu should enroll only when needed and avoid restarting an already healthy
-node on a no-op run. A new host needs initial LAN/SSH or console access before
+node on a no-op run. A new host needs initial management or console access before
 the tailnet can be its normal management path. Review firewall check output and
 retain a recovery path before any apply.
 
+For the Ubuntu mini PCs, Tailscale SSH is the normal Ansible transport.
+Disable the separate OpenSSH server only after verifying Tailscale SSH,
+privilege escalation, and local-console recovery on each host. Bitwarden/fnox
+can supply a scoped one-time enrollment key for an interactive run, but cannot
+provide first contact to an unenrolled machine by itself.
+
 ## Fast feedback and verification
 
-1. **Static, on every change:** extend the existing [hk](../../hk.pkl) hooks with
-   `yamllint`, `ansible-lint`, and syntax checks for the new playbooks. Pin tools
-   and collections through mise and Ansible requirements as in `opnsense/`.
-2. **Local converge loop:** use the separate WSL2 distro to exercise Ubuntu
-   configuration over the intended connection, assert end state, and verify a
-   second run makes no changes. WSL shares a kernel with Windows: it cannot
-   validate Surface drivers, kernel changes, or every service/network behavior.
-3. **Role isolation where useful:** evaluate Molecule with a container scenario
-   for roles whose behavior is meaningful in containers; keep an instance up for
+1. **Static, on every change:** [hk](../../hk.pkl) runs the shared Ansible
+   `yamllint`, `ansible-lint`, and playbook syntax checks. Tool versions are
+   pinned via mise and the Ansible project's `uv.lock`.
+2. **Local converge loop:** for new roles, use a disposable Ubuntu VM or WSL
+   distro to assert end state and a no-change second run. WSL distros on this
+   machine share a network namespace and `tailscale0`; do not enroll another
+   normal Tailscale daemon there. WSL cannot validate independent network or
+   kernel/boot behavior; test SSH transport and sudo on the actual lab host.
+3. **Role isolation where useful:** evaluate Molecule with Podman containers
+   for roles whose behavior is meaningful in OCI containers; keep an instance up for
    repeated `converge`/`verify` runs. Add idempotence checks and Ansible `verify.yml`
    assertions for promised end state. Do not require a container scenario for
    roles that need a real init system, kernel, reboot, or OPNsense API.
-4. **System-level tests when required:** evaluate Incus system containers/VMs and
-   snapshots for Linux roles needing systemd or kernel behavior. A delegated
-   Molecule scenario is one integration path; choose it after the first role
+4. **System-level tests when required:** evaluate Incus system containers for
+   fuller Linux/systemd behavior, and Incus VMs for kernel or boot behavior.
+   Use snapshots where helpful. A delegated Molecule scenario is one integration
+   path; choose it after the first role
    demonstrates the need. Run reviewed `--check --diff` on real lab hosts before
    applying, then verify the resulting state and repeatability.
 
@@ -172,6 +187,5 @@ enrollment keys or change production firewall state.
   direct management before removing it; do not make that host a permanent
   dependency. Audit failures, retries, and reprovisioning.
 
-The first implementation is deliberately smaller than this roadmap: converge
-Ubuntu reliably, learn from the WSL pilot, then migrate the working firewall
-automation without losing its management path.
+The next step is to verify Ubuntu idempotence on the real hosts, then migrate
+working firewall automation without losing its management path.

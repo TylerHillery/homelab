@@ -1,0 +1,10 @@
+---
+- name: Configure Ubuntu development mini PCs
+  hosts: ubuntu_dev
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: tailscale
+    - role: common
+    - role: podman
+    - role: dotfiles

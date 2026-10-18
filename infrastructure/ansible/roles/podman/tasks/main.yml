@@ -1,0 +1,39 @@
+---
+- name: Require Ubuntu for rootless Podman
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - podman_user != 'root'
+    fail_msg: Rootless Podman needs Ubuntu and a non-root development user.
+
+- name: Read subordinate UID allocations
+  ansible.builtin.slurp:
+    src: /etc/subuid
+  register: podman_subuids
+
+- name: Read subordinate GID allocations
+  ansible.builtin.slurp:
+    src: /etc/subgid
+  register: podman_subgids
+
+- name: Require existing subordinate ID allocations
+  ansible.builtin.assert:
+    that:
+      - >-
+        (podman_subuids.content | b64decode).splitlines()
+        | select('match', '^' ~ podman_user ~ ':[0-9]+:[0-9]+$') | list | length > 0
+      - >-
+        (podman_subgids.content | b64decode).splitlines()
+        | select('match', '^' ~ podman_user ~ ':[0-9]+:[0-9]+$') | list | length > 0
+    fail_msg: Allocate non-overlapping subordinate UID/GID ranges before enabling rootless Podman.
+
+- name: Install rootless Podman and its networking/storage helpers
+  ansible.builtin.apt:
+    name:
+      - podman
+      - uidmap
+      - slirp4netns
+      - fuse-overlayfs
+    state: present
+    update_cache: false
+  become: true

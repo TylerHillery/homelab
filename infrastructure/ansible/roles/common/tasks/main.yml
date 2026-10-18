@@ -1,0 +1,60 @@
+---
+- name: Require Ubuntu with systemd for the common baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: The common baseline currently supports Ubuntu with systemd only.
+
+- name: Look up the existing administrative account
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ common_admin_user }}"
+    fail_key: false
+
+- name: Require an existing non-root administrative account
+  ansible.builtin.assert:
+    that:
+      - common_admin_user != 'root'
+      - common_admin_user in ansible_facts['getent_passwd']
+    fail_msg: Create an administrative account before applying the common role.
+
+- name: Keep the administrative account in the Ubuntu sudo group
+  ansible.builtin.user:
+    name: "{{ common_admin_user }}"
+    groups: sudo
+    append: true
+  become: true
+
+- name: Install unattended security updates
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+    update_cache: false
+  become: true
+  when: common_automatic_security_updates
+
+- name: Enable daily security updates without automatic reboot
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52homelab-security-updates
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      // Preserve Ubuntu's unattended-upgrades allowed-origin defaults.
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "false";
+  become: true
+  when: common_automatic_security_updates
+
+- name: Keep Ubuntu's apt update timers enabled
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+  become: true
+  when: common_automatic_security_updates

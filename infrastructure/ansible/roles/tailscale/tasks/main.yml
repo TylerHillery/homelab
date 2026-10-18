@@ -1,0 +1,169 @@
+---
+- name: Require Ubuntu for the current Tailscale implementation
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - tailscale_ssh | bool
+    fail_msg: >-
+      This role currently supports Ubuntu with Tailscale SSH on;
+      disabling SSH requires a separate access review.
+
+- name: Look for an existing Tailscale installation
+  ansible.builtin.stat:
+    path: /usr/bin/tailscale
+  register: tailscale_binary
+
+- name: Require an already installed Tailscale node
+  ansible.builtin.assert:
+    that:
+      - tailscale_binary.stat.exists
+    fail_msg: >-
+      Tailscale installation and first-contact enrollment are not implemented.
+      Use console/bootstrap access; never pass a reusable key through inventory.
+
+- name: Read Tailscale node state
+  ansible.builtin.command:
+    argv: [tailscale, status, --json]
+  register: tailscale_status_result
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  no_log: true
+
+- name: Require a healthy enrolled Tailscale node
+  ansible.builtin.assert:
+    that:
+      - tailscale_status_result.rc == 0
+      - tailscale_status_result.stdout | length > 0
+    fail_msg: >-
+      This host is not an enrolled, running Tailscale node. Bootstrap it from
+      console or another approved management path before using this role.
+
+- name: Read Tailscale preferences
+  ansible.builtin.command:
+    argv: [tailscale, debug, prefs]
+  register: tailscale_prefs_result
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  no_log: true
+
+- name: Require readable Tailscale preferences
+  ansible.builtin.assert:
+    that:
+      - tailscale_prefs_result.rc == 0
+      - tailscale_prefs_result.stdout | length > 0
+    fail_msg: Cannot read this node's Tailscale preferences.
+
+- name: Parse node state and preferences
+  ansible.builtin.set_fact:
+    tailscale_node: "{{ tailscale_status_result.stdout | from_json }}"
+    tailscale_preferences: "{{ tailscale_prefs_result.stdout | from_json }}"
+  no_log: true
+
+- name: Protect the existing enrollment, tag, and advertised routes
+  ansible.builtin.assert:
+    that:
+      - tailscale_node.BackendState == 'Running'
+      - tailscale_node.Self.HostName == tailscale_expected_name
+      - tailscale_expected_tag in (tailscale_node.Self.Tags | default([], true))
+      - >-
+        ('::/0' in tailscale_preferences.AdvertiseRoutes)
+        == ('0.0.0.0/0' in tailscale_preferences.AdvertiseRoutes)
+      - >-
+        (tailscale_preferences.AdvertiseRoutes
+        | difference(['0.0.0.0/0', '::/0']) | sort)
+        == (tailscale_expected_subnet_routes | sort)
+    fail_msg: >-
+      Node identity, enrollment, tag, or route policy differs from inventory.
+      Review the live node and recovery access before changing route policy.
+
+- name: Preview Tailscale DNS setting change
+  ansible.builtin.debug:
+    msg: "Would set accept-DNS to {{ tailscale_accept_dns | bool }}"
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - (tailscale_preferences.CorpDNS | bool) != (tailscale_accept_dns | bool)
+
+- name: Configure Tailscale DNS without reenrolling the node
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - set
+      - "--accept-dns={{ tailscale_accept_dns | bool | lower }}"
+  become: true
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - (tailscale_preferences.CorpDNS | bool) != (tailscale_accept_dns | bool)
+
+- name: Preview Tailscale SSH setting change
+  ansible.builtin.debug:
+    msg: Would enable Tailscale SSH on this node
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - not tailscale_preferences.RunSSH | bool
+
+- name: Enable Tailscale SSH without reenrolling the node
+  ansible.builtin.command:
+    argv: [tailscale, set, --ssh=true]
+  become: true
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - not tailscale_preferences.RunSSH | bool
+
+- name: Preview exit-node advertisement change
+  ansible.builtin.debug:
+    msg: "Would set exit-node advertisement to {{ tailscale_expected_exit_node | bool }}"
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - >-
+      ('0.0.0.0/0' in tailscale_preferences.AdvertiseRoutes)
+      != (tailscale_expected_exit_node | bool)
+
+- name: Configure exit-node advertisement without changing subnet routes
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - set
+      - "--advertise-exit-node={{ tailscale_expected_exit_node | bool | lower }}"
+  become: true
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      ('0.0.0.0/0' in tailscale_preferences.AdvertiseRoutes)
+      != (tailscale_expected_exit_node | bool)
+
+- name: Read preferences after convergence
+  ansible.builtin.command:
+    argv: [tailscale, debug, prefs]
+  register: tailscale_final_prefs_result
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Verify requested settings and protected subnet routes
+  ansible.builtin.assert:
+    that:
+      - (tailscale_final_prefs.CorpDNS | bool) == (tailscale_accept_dns | bool)
+      - tailscale_final_prefs.RunSSH | bool
+      - >-
+        ('0.0.0.0/0' in tailscale_final_prefs.AdvertiseRoutes)
+        == (tailscale_expected_exit_node | bool)
+      - >-
+        ('::/0' in tailscale_final_prefs.AdvertiseRoutes)
+        == (tailscale_expected_exit_node | bool)
+      - >-
+        (tailscale_final_prefs.AdvertiseRoutes
+        | difference(['0.0.0.0/0', '::/0']) | sort)
+        == (tailscale_expected_subnet_routes | sort)
+    fail_msg: Tailscale did not converge or the subnet-route policy changed unexpectedly.
+  vars:
+    tailscale_final_prefs: "{{ tailscale_final_prefs_result.stdout | from_json }}"
+  when: not ansible_check_mode

@@ -1,0 +1,6 @@
+---
+- name: Configure the development user's dotfiles and tools
+  hosts: ubuntu_dev
+  gather_facts: true
+  roles:
+    - role: dotfiles

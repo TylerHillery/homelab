@@ -1,0 +1,6 @@
+---
+- name: Configure rootless Podman on Ubuntu development hosts
+  hosts: ubuntu_dev
+  gather_facts: true
+  roles:
+    - role: podman

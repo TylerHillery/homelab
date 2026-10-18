@@ -1,0 +1,55 @@
+---
+- name: Verify the Ubuntu common baseline without changing hosts
+  hosts: ubuntu_dev
+  gather_facts: true
+  tasks:
+    - name: Require Ubuntu with systemd
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['service_mgr'] == 'systemd'
+
+    - name: Read the existing admin account's groups
+      ansible.builtin.command:
+        argv: [id, -nG, "{{ common_admin_user | default(ansible_facts['user_id']) }}"]
+      register: common_admin_groups
+      changed_when: false
+
+    - name: Verify admin membership in the sudo group
+      ansible.builtin.assert:
+        that:
+          - "'sudo' in common_admin_groups.stdout.split()"
+
+    - name: Check the unattended-upgrades package
+      ansible.builtin.package_facts:
+        manager: apt
+
+    - name: Read the automatic-update policy
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/52homelab-security-updates
+      register: common_update_policy
+
+    - name: Verify daily security updates without automatic reboots
+      ansible.builtin.assert:
+        that:
+          - "'unattended-upgrades' in ansible_facts.packages"
+          - >-
+            'APT::Periodic::Unattended-Upgrade "1";'
+            in (common_update_policy.content | b64decode)
+          - >-
+            'Unattended-Upgrade::Automatic-Reboot "false";'
+            in (common_update_policy.content | b64decode)
+
+    - name: Read apt timer enablement
+      ansible.builtin.command:
+        argv: [systemctl, is-enabled, "{{ item }}"]
+      loop:
+        - apt-daily.timer
+        - apt-daily-upgrade.timer
+      register: common_timer_status
+      changed_when: false
+
+    - name: Verify both apt timers are enabled
+      ansible.builtin.assert:
+        that:
+          - common_timer_status.results | map(attribute='stdout') | unique | list == ['enabled']

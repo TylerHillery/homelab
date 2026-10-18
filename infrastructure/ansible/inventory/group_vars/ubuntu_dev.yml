@@ -1,0 +1,8 @@
+---
+# Preserve the state observed on badger, brewer, and buck. Changing exit-node
+# policy is a separate reviewed operation, not an implicit Linux default.
+tailscale_expected_tag: tag:homelab
+tailscale_expected_exit_node: true
+tailscale_expected_subnet_routes: []
+tailscale_accept_dns: true
+tailscale_ssh: true
