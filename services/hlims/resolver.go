@@ -243,6 +243,7 @@ func endpointURL(target endpoint, remainder string, query url.Values) (string, e
 }
 
 func joinURLPath(base, remainder string) string {
+	trailingSlash := strings.HasSuffix(base, "/")
 	base = strings.Trim(base, "/")
 	remainder = strings.Trim(remainder, "/")
 	switch {
@@ -251,6 +252,9 @@ func joinURLPath(base, remainder string) string {
 	case base == "":
 		return "/" + remainder
 	case remainder == "":
+		if trailingSlash {
+			return "/" + base + "/"
+		}
 		return "/" + base
 	default:
 		return "/" + base + "/" + remainder

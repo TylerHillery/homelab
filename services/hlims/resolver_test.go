@@ -16,6 +16,37 @@ import (
 	database "github.com/TylerHillery/homelab/services/hlims/generated/db"
 )
 
+func TestJoinURLPathPreservesConfiguredTrailingSlash(t *testing.T) {
+	for _, test := range []struct{ base, remainder, want string }{
+		{"/console/machines/", "", "/console/machines/"},
+		{"/console/machines/", "detail", "/console/machines/detail"},
+		{"/console/machines", "", "/console/machines"},
+		{"", "", "/"},
+	} {
+		if got := joinURLPath(test.base, test.remainder); got != test.want {
+			t.Errorf("joinURLPath(%q, %q) = %q; want %q", test.base, test.remainder, got, test.want)
+		}
+	}
+}
+
+func TestEndpointURLPreservesConfiguredTrailingSlash(t *testing.T) {
+	target := endpoint{
+		address:  "100.64.0.10",
+		dnsName:  sql.NullString{String: "hlims.example.test", Valid: true},
+		hostType: "dns",
+		scheme:   "https",
+		port:     443,
+		basePath: "/console/machines/",
+	}
+	got, err := endpointURL(target, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "https://hlims.example.test/console/machines/"; got != want {
+		t.Fatalf("endpoint URL = %q; want %q", got, want)
+	}
+}
+
 func TestResolver(t *testing.T) {
 	db := newResolverTestDB(t)
 	resolver := resolver{queries: db.queries}
