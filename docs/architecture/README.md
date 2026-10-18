@@ -9,6 +9,7 @@ operations.
 | [HLIMS](hlims.md) | Current | Application boundaries and request flow |
 | [HLIMS Domain Model](domain-model.md) | Current | Inventory concepts and relationships |
 | [Home Network](home-network.md) | Current | Network topology and policy |
+| [Infrastructure as Code Layout](infrastructure-as-code.md) | Current | OpenTofu root and state boundaries |
 | [Secret Management](secret-management.md) | Current | Interactive secret storage and delivery |
 | [HLIMS Roadmap](hlims-roadmap.md) | Planned | Model additions triggered by real needs |
 | [HLIMS Console Pages](hlims-console.md) | Current / planned | Inventory, orders, and future DNS navigation |

@@ -11,6 +11,9 @@ mise //infrastructure/ansible:caddy:preview framework13-wsl
 mise //infrastructure/ansible:caddy:apply framework13-wsl # after reviewing the preview
 ```
 
+The shared `check` builds Caddy first; the explicit `build` command is only
+needed when preparing the binary for Ansible deployment without running checks.
+
 For each host, provide `infrastructure/ingress/HOST/{Caddyfile,fnox.toml}`;
 the latter contains a **Bitwarden reference, never a token**. Install the pinned
 fnox and Bitwarden CLIs and an age-encrypted session at

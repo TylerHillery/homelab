@@ -14,6 +14,7 @@ GOBIN="$PWD/.build" go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7
 [tasks.check]
 description = "Verify the locally built Caddy binary includes Cloudflare DNS"
 dir = "{{ config_root }}"
+depends = ["build"]
 run = '''
 set -eu
 test -x .build/caddy

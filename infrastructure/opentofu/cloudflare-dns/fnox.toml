@@ -7,3 +7,5 @@ type = "bitwarden"
 
 [secrets]
 CLOUDFLARE_API_TOKEN = { provider = "bitwarden", value = "homelab-cloudflare-dns-opentofu/password", if_missing = "error", description = "Zone-scoped Cloudflare DNS token for interactive OpenTofu runs" }
+AWS_ACCESS_KEY_ID = { provider = "bitwarden", value = "homelab-cloudflare-r2-opentofu-state/username", if_missing = "error", description = "Bucket-scoped R2 S3 access key ID for OpenTofu state" }
+AWS_SECRET_ACCESS_KEY = { provider = "bitwarden", value = "homelab-cloudflare-r2-opentofu-state/password", if_missing = "error", description = "Bucket-scoped R2 S3 secret access key for OpenTofu state" }

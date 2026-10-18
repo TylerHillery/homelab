@@ -1,0 +1,9 @@
+#:schema https://fnox.jdx.dev/schema.json
+env = "exec"
+if_missing = "error"
+
+[providers.bitwarden]
+type = "bitwarden"
+
+[secrets]
+CLOUDFLARE_API_TOKEN = { provider = "bitwarden", value = "homelab-cloudflare-r2-bootstrap/password", if_missing = "error", description = "Account-scoped R2 bucket provisioning token (not an R2 S3 access key)" }

@@ -9,7 +9,8 @@ Monorepo for homelab software, infrastructure, and operations.
 - [`infrastructure/ansible`](infrastructure/ansible/): Ubuntu machine configuration
   and opt-in OPNsense firewall management
 - [`infrastructure/ingress`](infrastructure/ingress/): tailnet-only HTTPS ingress
-- [`infrastructure/opentofu`](infrastructure/opentofu/): shared DNS records
+- [`infrastructure/opentofu`](infrastructure/opentofu/): shared DNS records and
+  state storage bootstrap
 
 ## Repository
 

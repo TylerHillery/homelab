@@ -120,6 +120,11 @@ the tailnet can be its normal management path. Review firewall check output and
 retain a recovery path before any apply.
 
 For the Ubuntu mini PCs, Tailscale SSH is the normal Ansible transport.
+Today the operator manually installs and enrolls Tailscale from console or
+another initial management path before Ansible can reach the node; the role
+only converges already-enrolled machines. Automated first contact, enrollment,
+and per-device identity belong to the later unattended boot flow below.
+
 Disable the separate OpenSSH server only after verifying Tailscale SSH,
 privilege escalation, and local-console recovery on each host. Bitwarden/fnox
 can supply a scoped one-time enrollment key for an interactive run, but cannot

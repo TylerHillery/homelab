@@ -5,4 +5,13 @@ tflint = "0.64.0"
 [tasks.check]
 description = "Format, validate, and lint the Cloudflare DNS OpenTofu root"
 dir = "{{ config_root }}"
-run = 'tofu fmt -check -recursive && tofu init -backend=false -input=false -lockfile=readonly && tofu validate && tflint'
+run = '''
+set -eu
+# Keep validation plugins separate from the live R2 backend, but reuse them
+# across checks so the commit hook does not download the provider each time.
+export TF_DATA_DIR="$PWD/.terraform/check"
+tofu fmt -check -recursive
+tofu init -backend=false -input=false -lockfile=readonly
+tofu validate
+tflint
+'''

@@ -1,0 +1,8 @@
+[tools]
+opentofu = "1.12.6"
+tflint = "0.64.0"
+
+[tasks.check]
+description = "Format, validate, and lint the state bootstrap OpenTofu root"
+dir = "{{ config_root }}"
+run = 'tofu fmt -check -recursive && tofu init -backend=false -input=false -lockfile=readonly && tofu validate && tflint'

@@ -1,6 +1,7 @@
 [tasks.check]
 description = "Check the host Caddyfile with the shared Caddy build without starting it"
 dir = "{{ config_root }}"
+depends = ["//infrastructure/ingress/caddy:check"]
 run = '''
 set -eu
 caddy="../caddy/.build/caddy"
