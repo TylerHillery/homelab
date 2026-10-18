@@ -51,13 +51,12 @@ and apt timers; Podman and the dotfiles/tool state need separate verification.
 
 Badger, Brewer, and Buck have the baseline, user-run full dotfiles bootstrap,
 editable `main` checkouts, and working rootless Podman. Read-only host checks
-and static Ansible checks pass. **No real second apply has yet been recorded
-for the final clone-only dotfiles role on any of the three.** Perform reviewed
-preview/apply runs for each before calling this rollout idempotent.
+and static Ansible checks pass. The operator confirms reviewed real second
+applies of the final clone-only dotfiles role on all three hosts reported no
+changes. The Ubuntu mini-PC provisioning slice is complete.
 
-All three report `/var/run/reboot-required`; plan separate reviewed reboots
-and recheck Tailscale SSH, Podman and optional services afterward. Boot
-persistence and local-console recovery have not been reverified. OpenCode user
+Reboots and post-reboot persistence checks are deferred separately; they are
+not a prerequisite for completing this provisioning slice. OpenCode user
 units and Serve are outside this profile. Do not disable OpenSSH until the
 Tailscale SSH and console recovery path is proven for that host. The role
 supports only already-enrolled nodes and never changes Tailscale tags or

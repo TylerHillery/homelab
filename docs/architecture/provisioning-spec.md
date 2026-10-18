@@ -96,10 +96,10 @@ build-only inputs stay separate.
 
 ### First scope and OPNsense
 
-1. Finish the reviewed, real no-change second applies of the final `ubuntu-dev`
-   composition on each mini PC. Retain console recovery and review planned
-   reboots separately. Mise remains the package owner for personal dev devices
-   that use dotfiles.
+1. The Ubuntu mini-PC composition is deployed on Badger, Brewer, and Buck;
+   the operator confirms reviewed real second applies reported no changes.
+   Reboots and post-reboot checks are deferred separately. Mise remains the
+   package owner for personal dev devices that use dotfiles.
 2. OPNsense runs through the opt-in [firewall playbook](../../infrastructure/ansible/OPNSENSE.md),
    independent of Ubuntu roles. The migrated playbook passed syntax checks, a
    reviewed check-mode preview, and a real apply reporting zero changes.
