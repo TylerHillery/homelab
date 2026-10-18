@@ -42,5 +42,16 @@ The playbook manages:
 - Lab isolation and firewall aliases
 - DHCP and Unbound DNS
 
+The DNS-tagged tasks also preserve any existing Unbound private domains and
+allow private-address answers for `homelab.tylertries.com`. This is necessary
+for the public DNS names pointing to tailnet IPs to resolve through OPNsense;
+DNS rebinding protection stays enabled for other domains. Preview and apply
+only this DNS section when changing the exception:
+
+```sh
+mise //:fnox:exec ansible-playbook --check --diff --tags dns playbooks/site.yml
+mise //:fnox:exec ansible-playbook --tags dns playbooks/site.yml
+```
+
 Physical interface assignment, initial API credentials, and encrypted
 configuration backups remain bootstrap and recovery tasks.

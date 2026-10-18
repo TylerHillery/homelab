@@ -17,6 +17,8 @@ opnsense_tailscale_settings:
 
 lab_lan_interface: "lan"
 tailnet_ipv4_subnet: "100.64.0.0/10"
+opnsense_unbound_private_domains:
+  - homelab.tylertries.com
 lab_rfc1918_networks:
   - "10.0.0.0/8"
   - "172.16.0.0/12"

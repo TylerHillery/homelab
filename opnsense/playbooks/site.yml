@@ -474,3 +474,97 @@
         dns64_prefix: "64:ff9b::/96"
         reload: true
       tags: [dns]
+
+    - name: Read Unbound private domains
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/unbound/settings/get"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+      register: unbound_settings_before
+      check_mode: false
+      no_log: true
+      tags: [dns]
+
+    - name: Collect existing Unbound private domains
+      ansible.builtin.set_fact:
+        unbound_existing_private_domains: >-
+          {{ unbound_settings_before.json.unbound.advanced.privatedomain
+             | dict2items | map(attribute='value')
+             | selectattr('selected', 'equalto', 1)
+             | map(attribute='value') | reject('equalto', '') | list }}
+      tags: [dns]
+
+    - name: Preserve existing Unbound private domains
+      ansible.builtin.set_fact:
+        unbound_private_domains: "{{ unbound_existing_private_domains | union(opnsense_unbound_private_domains) }}"
+      tags: [dns]
+
+    - name: Preview Unbound private domain additions
+      ansible.builtin.debug:
+        msg: "Add Unbound private domains: {{ opnsense_unbound_private_domains | difference(unbound_existing_private_domains) }}"
+      changed_when: opnsense_unbound_private_domains | difference(unbound_existing_private_domains) | length > 0
+      tags: [dns]
+
+    - name: Allow tailnet DNS answers for homelab private domains
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/unbound/settings/set"
+        method: POST
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+        body_format: json
+        body:
+          unbound:
+            advanced:
+              privatedomain: "{{ unbound_private_domains | join(',') }}"
+      register: unbound_private_domains_update
+      changed_when: true
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - opnsense_unbound_private_domains | difference(unbound_existing_private_domains) | length > 0
+      tags: [dns]
+
+    - name: Apply Unbound private domain settings
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/unbound/service/reconfigure"
+        method: POST
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+        body_format: json
+        body: {}
+      no_log: true
+      when: unbound_private_domains_update is changed
+      tags: [dns]
+
+    - name: Verify Unbound private domains
+      ansible.builtin.uri:
+        url: "{{ opnsense_api_url }}/api/unbound/settings/get"
+        method: GET
+        user: "{{ lookup('env', 'OPNSENSE_API_KEY') }}"
+        password: "{{ lookup('env', 'OPNSENSE_API_SECRET') }}"
+        force_basic_auth: true
+        validate_certs: "{{ opnsense_ssl_verify }}"
+      register: unbound_settings_after
+      check_mode: false
+      no_log: true
+      when: not ansible_check_mode
+      tags: [dns]
+
+    - name: Assert Unbound permits private homelab answers
+      ansible.builtin.assert:
+        that:
+          - >-
+            opnsense_unbound_private_domains | difference(
+              unbound_settings_after.json.unbound.advanced.privatedomain
+              | dict2items | map(attribute='value')
+              | selectattr('selected', 'equalto', 1)
+              | map(attribute='value') | list) | length == 0
+      when: not ansible_check_mode
+      tags: [dns]
