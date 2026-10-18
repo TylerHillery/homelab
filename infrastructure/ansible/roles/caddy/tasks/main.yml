@@ -1,0 +1,152 @@
+---
+- name: Require an existing Ubuntu user session for Caddy ingress
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['architecture'] == 'x86_64'
+      - ansible_facts['service_mgr'] == 'systemd'
+      - ansible_facts['user_id'] != 'root'
+    fail_msg: Caddy ingress requires a non-root Ubuntu x86-64 systemd user session.
+
+- name: Check the controller's pinned Caddy build
+  ansible.builtin.stat:
+    path: "{{ caddy_ingress_binary_source }}"
+  register: caddy_ingress_build
+  delegate_to: localhost
+
+- name: Check the host-specific Caddyfile on the controller
+  ansible.builtin.stat:
+    path: "{{ caddy_ingress_caddyfile_source }}"
+  register: caddy_ingress_source
+  delegate_to: localhost
+
+- name: Check the host-specific fnox provider references on the controller
+  ansible.builtin.stat:
+    path: "{{ caddy_ingress_fnox_source }}"
+  register: caddy_ingress_fnox_source_stat
+  delegate_to: localhost
+
+- name: Require the shared build and per-host configuration
+  ansible.builtin.assert:
+    that:
+      - caddy_ingress_build.stat.executable | default(false)
+      - caddy_ingress_source.stat.isreg | default(false)
+      - caddy_ingress_fnox_source_stat.stat.isreg | default(false)
+    fail_msg: Build Caddy and provide this host's Caddyfile and fnox.toml.
+
+- name: Verify the build has Cloudflare DNS support
+  ansible.builtin.command:
+    argv: ["{{ caddy_ingress_binary_source }}", list-modules]
+  register: caddy_ingress_modules
+  changed_when: false
+  check_mode: false
+  delegate_to: localhost
+
+- name: Require the Cloudflare DNS module
+  ansible.builtin.assert:
+    that: "'dns.providers.cloudflare' in caddy_ingress_modules.stdout_lines"
+
+- name: Adapt the host Caddyfile without issuing certificates
+  ansible.builtin.command:
+    argv:
+      - "{{ caddy_ingress_binary_source }}"
+      - adapt
+      - --config
+      - "{{ caddy_ingress_caddyfile_source }}"
+  register: caddy_ingress_adapted
+  environment:
+    CF_API_TOKEN: placeholder
+  changed_when: false
+  check_mode: false
+  delegate_to: localhost
+
+- name: Require every HTTP listener to stay on the selected loopback socket
+  ansible.builtin.assert:
+    that:
+      - caddy_ingress_http_servers | length > 0
+      - >-
+        caddy_ingress_http_servers
+        | map(attribute='listen') | flatten | unique | list
+        == [caddy_ingress_expected_listener]
+    fail_msg: A host Caddyfile must bind only the configured loopback listener.
+  vars:
+    caddy_ingress_http_servers: >-
+      {{ (caddy_ingress_adapted.stdout | from_json).apps.http.servers.values() | list }}
+
+- name: Check the encrypted session bootstrap without reading it
+  ansible.builtin.stat:
+    path: "{{ caddy_ingress_session_config_path }}"
+  register: caddy_ingress_session_config
+
+- name: Check that fnox and Bitwarden are installed for the user unit
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ caddy_ingress_fnox_binary }}"
+    - "{{ caddy_ingress_bw_binary }}"
+  register: caddy_ingress_tools
+
+- name: Require encrypted session bootstrap and pinned secret tools
+  ansible.builtin.assert:
+    that:
+      - caddy_ingress_session_config.stat.isreg | default(false)
+      - caddy_ingress_tools.results | map(attribute='stat.executable') | list == [true, true]
+    fail_msg: >-
+      Set up an age-encrypted Bitwarden session and install pinned fnox and bw
+      for this user before enabling Caddy.
+
+- name: Create user-owned Caddy installation directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ caddy_ingress_binary_path | dirname }}"
+    - "{{ caddy_ingress_runner_path | dirname }}"
+    - "{{ caddy_ingress_config_path | dirname }}"
+    - "{{ ansible_facts['user_dir'] }}/.config/systemd/user"
+
+- name: Install the pinned Caddy binary
+  ansible.builtin.copy:
+    src: "{{ caddy_ingress_binary_source }}"
+    dest: "{{ caddy_ingress_binary_path }}"
+    mode: "0755"
+  notify: Restart Caddy ingress
+
+- name: Install the credential-aware Caddy runner
+  ansible.builtin.copy:
+    src: run.sh
+    dest: "{{ caddy_ingress_runner_path }}"
+    mode: "0755"
+  notify: Restart Caddy ingress
+
+- name: Install this host's Caddyfile without editing its source
+  ansible.builtin.copy:
+    src: "{{ caddy_ingress_caddyfile_source }}"
+    dest: "{{ caddy_ingress_config_path }}"
+    mode: "0644"
+  notify: Restart Caddy ingress
+
+- name: Install the host's fnox provider references (never the secret values)
+  ansible.builtin.copy:
+    src: "{{ caddy_ingress_fnox_source }}"
+    dest: "{{ caddy_ingress_fnox_config_path }}"
+    mode: "0644"
+  notify: Restart Caddy ingress
+
+- name: Install the Caddy user unit
+  ansible.builtin.template:
+    src: caddy.service.j2
+    dest: >-
+      {{ ansible_facts['user_dir'] }}/.config/systemd/user/{{ caddy_ingress_unit_name }}.service
+    mode: "0644"
+  notify: Restart Caddy ingress
+
+- name: Enable or disable the explicitly selected Caddy user unit
+  ansible.builtin.systemd_service:
+    name: "{{ caddy_ingress_unit_name }}.service"
+    scope: user
+    daemon_reload: true
+    enabled: "{{ caddy_ingress_enabled }}"
+    state: "{{ 'started' if caddy_ingress_started else 'stopped' }}"
+  when: not ansible_check_mode

@@ -1,0 +1,11 @@
+---
+all:
+  children:
+    ubuntu_dev:
+      hosts:
+        badger:
+        brewer:
+        buck:
+    caddy_ingress:
+      hosts:
+        framework13-wsl:

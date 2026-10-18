@@ -46,6 +46,6 @@ mise run bw:unlock
 mise run fnox:exec <command>
 ```
 
-`bw:bootstrap-age` creates the ignored local fnox configuration when needed.
+`bw:bootstrap-age` creates `~/.config/homelab/fnox.local.toml` outside the checkout.
 
 Historical platform plans remain in [`docs/archive`](docs/archive/).

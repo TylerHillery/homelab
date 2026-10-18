@@ -1,0 +1,7 @@
+---
+- name: Install opt-in tailnet Caddy ingress on selected hosts
+  hosts: caddy_ingress
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: caddy

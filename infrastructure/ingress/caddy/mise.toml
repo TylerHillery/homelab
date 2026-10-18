@@ -1,0 +1,21 @@
+[tools]
+go = "1.27.2"
+
+[tasks.build]
+description = "Build pinned Caddy with the Cloudflare DNS module for x86-64 Linux hosts"
+dir = "{{ config_root }}"
+run = '''
+set -eu
+mkdir -p .build
+GOBIN="$PWD/.build" go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7
+.build/xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4 --output "$PWD/.build/caddy"
+'''
+
+[tasks.check]
+description = "Verify the locally built Caddy binary includes Cloudflare DNS"
+dir = "{{ config_root }}"
+run = '''
+set -eu
+test -x .build/caddy
+.build/caddy list-modules | grep -qx dns.providers.cloudflare
+'''

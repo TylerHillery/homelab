@@ -7,9 +7,9 @@ unset BW_SESSION
 
 age_dir="$HOME/.config/fnox"
 age_file="$age_dir/age.txt"
-repo_root="$(realpath "$(dirname "${BASH_SOURCE[0]}")/../..")"
-local_config="$repo_root/fnox.local.toml"
+local_config="$HOME/.config/homelab/fnox.local.toml"
 mkdir -p "$age_dir"
+install -d -m 700 "$(dirname "$local_config")"
 
 if [[ -e "$age_file" ]]; then
 	chmod 600 "$age_file"

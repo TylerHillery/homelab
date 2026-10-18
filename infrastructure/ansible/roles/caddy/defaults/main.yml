@@ -1,0 +1,21 @@
+---
+caddy_ingress_binary_source: "{{ playbook_dir }}/../../ingress/caddy/.build/caddy"
+caddy_ingress_caddyfile_source: >-
+  {{ playbook_dir }}/../../ingress/{{ inventory_hostname }}/Caddyfile
+caddy_ingress_binary_path: "{{ ansible_facts['user_dir'] }}/.local/bin/caddy-homelab"
+caddy_ingress_runner_path: "{{ ansible_facts['user_dir'] }}/.local/libexec/homelab/caddy-ingress"
+caddy_ingress_config_path: "{{ ansible_facts['user_dir'] }}/.config/homelab/caddy/Caddyfile"
+caddy_ingress_fnox_source: >-
+  {{ playbook_dir }}/../../ingress/{{ inventory_hostname }}/fnox.toml
+caddy_ingress_fnox_config_path: >-
+  {{ ansible_facts['user_dir'] }}/.config/homelab/caddy/fnox.toml
+caddy_ingress_session_config_path: >-
+  {{ ansible_facts['user_dir'] }}/.config/homelab/fnox.local.toml
+caddy_ingress_fnox_binary: >-
+  {{ ansible_facts['user_dir'] }}/.local/share/mise/installs/fnox/1.35.3/fnox
+caddy_ingress_bw_binary: >-
+  {{ ansible_facts['user_dir'] }}/.local/share/mise/installs/bitwarden/2026.9.0/bw
+caddy_ingress_expected_listener: 127.0.0.1:8444
+caddy_ingress_unit_name: caddy-ingress
+caddy_ingress_enabled: false
+caddy_ingress_started: true

@@ -2,7 +2,7 @@ monorepo_root = true
 min_version = "2026.9.5"
 
 [monorepo]
-config_roots = ["services/*", "opnsense", "infrastructure/opentofu/*", "infrastructure/ingress/*"]
+config_roots = ["services/*", "opnsense", "infrastructure/ansible", "infrastructure/opentofu/*", "infrastructure/ingress/*"]
 lockfile = true
 
 [tools]
@@ -18,18 +18,18 @@ taplo = "0.10.0"
 description = "Unlock Bitwarden and refresh fnox's age-encrypted session"
 dir = "{{ config_root }}"
 interactive = true
-run = 'unset BW_SESSION; session="$(bw unlock --raw)" && [ -n "$session" ] && printf "%s" "$session" | fnox -c fnox.local.toml set BW_SESSION --provider age'
+run = 'unset BW_SESSION; session="$(bw unlock --raw)" && [ -n "$session" ] && printf "%s" "$session" | fnox -c "$HOME/.config/homelab/fnox.local.toml" set BW_SESSION --provider age'
 
 [tasks."fnox:exec"]
 description = "Run a command with fnox secrets and the Bitwarden session"
 dir = "{{ cwd }}"
 interactive = true
 raw_args = true
-run = 'session="$(fnox -c "{{ config_root }}/fnox.local.toml" get BW_SESSION)" && BW_SESSION="$session" fnox exec -- "$@"'
+run = 'session="$(fnox -c "$HOME/.config/homelab/fnox.local.toml" get BW_SESSION)" && BW_SESSION="$session" fnox exec -- "$@"'
 
 [tasks.check]
 description = "Run checks for every project"
-depends = ["//services/...:check", "//opnsense:syntax", "//infrastructure/opentofu/...:check"]
+depends = ["//services/...:check", "//opnsense:syntax", "//infrastructure/ansible:check", "//infrastructure/opentofu/...:check"]
 
 [tasks."precommit"]
 description = "Run all repository pre-commit hooks"

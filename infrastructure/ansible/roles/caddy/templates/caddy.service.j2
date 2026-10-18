@@ -1,0 +1,13 @@
+[Unit]
+Description=Caddy tailnet ingress
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{ caddy_ingress_runner_path }} {{ caddy_ingress_fnox_binary }} {{ caddy_ingress_bw_binary }} {{ caddy_ingress_session_config_path }} {{ caddy_ingress_fnox_config_path }} {{ caddy_ingress_binary_path }} run --config {{ caddy_ingress_config_path }} --adapter caddyfile
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

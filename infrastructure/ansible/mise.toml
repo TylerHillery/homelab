@@ -1,0 +1,56 @@
+[tools]
+uv = "0.11.23"
+
+[tasks.yaml]
+description = "Lint Ansible YAML"
+dir = "{{ config_root }}"
+run = "uv run --locked yamllint -c .yamllint.yml ."
+
+[tasks.lint]
+description = "Lint Ansible playbooks and roles"
+dir = "{{ config_root }}"
+run = "uv run --locked ansible-lint"
+
+[tasks.syntax]
+description = "Check all Ansible playbooks without contacting hosts"
+dir = "{{ config_root }}"
+run = 'for playbook in playbooks/*.yml; do uv run --locked ansible-playbook --syntax-check "$playbook" || exit; done'
+
+[tasks.check]
+description = "Run YAML lint, Ansible lint, and playbook syntax checks"
+depends = ["yaml", "lint", "syntax"]
+
+[tasks."caddy:preview"]
+description = "Preview opt-in Caddy ingress on one host"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Caddy ingress host to preview" {
+  choices "framework13-wsl"
+}
+'''
+run = '''
+set -eu
+connection=ssh
+if [ "${usage_host?}" = framework13-wsl ]; then connection=local; fi
+uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler \
+  --connection "$connection" --limit "${usage_host?}" --check --diff playbooks/caddy-ingress.yml
+'''
+
+[tasks."caddy:apply"]
+description = "Apply reviewed opt-in Caddy ingress to one host"
+dir = "{{ config_root }}"
+interactive = true
+usage = '''
+arg "<host>" help="Caddy ingress host to configure" {
+  choices "framework13-wsl"
+}
+'''
+confirm = { message = "Apply Caddy ingress to {{ usage.host }}? Review caddy:preview first.", default = "no" }
+run = '''
+set -eu
+connection=ssh
+if [ "${usage_host?}" = framework13-wsl ]; then connection=local; fi
+uv run --locked ansible-playbook -i inventory/example.yml -e ansible_user=tyler \
+  --connection "$connection" --limit "${usage_host?}" playbooks/caddy-ingress.yml
+'''

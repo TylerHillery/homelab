@@ -1,23 +1,10 @@
-[tools]
-go = "1.27.2"
-
-[tasks.build]
-description = "Build pinned Caddy with the Cloudflare DNS module for the local pilot"
-dir = "{{ config_root }}"
-run = '''
-set -eu
-mkdir -p .build
-GOBIN="$PWD/.build" go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.7
-.build/xcaddy build v2.11.7 --with github.com/caddy-dns/cloudflare@v0.2.4 --output "$PWD/.build/caddy"
-'''
-
 [tasks.check]
-description = "Verify the local Caddy build and inspect the pilot configuration without starting it"
+description = "Check the host Caddyfile with the shared Caddy build without starting it"
 dir = "{{ config_root }}"
 run = '''
 set -eu
-test -x .build/caddy
-.build/caddy list-modules | grep -qx dns.providers.cloudflare
-CF_API_TOKEN=placeholder .build/caddy adapt --config Caddyfile >/dev/null
-.build/caddy fmt Caddyfile | cmp -s Caddyfile -
+caddy="../caddy/.build/caddy"
+test -x "$caddy"
+CF_API_TOKEN=placeholder "$caddy" adapt --config Caddyfile >/dev/null
+"$caddy" fmt Caddyfile | cmp -s Caddyfile -
 '''

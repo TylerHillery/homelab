@@ -1,0 +1,10 @@
+---
+- name: Restart Caddy ingress
+  ansible.builtin.systemd_service:
+    name: "{{ caddy_ingress_unit_name }}.service"
+    scope: user
+    daemon_reload: true
+    state: restarted
+  when:
+    - not ansible_check_mode
+    - caddy_ingress_started

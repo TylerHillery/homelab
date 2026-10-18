@@ -12,9 +12,9 @@ Bitwarden -> fnox -> command environment
 ```
 
 The repository's `fnox.toml` contains provider references, not Bitwarden secret
-values. The ignored `fnox.local.toml` contains the age recipient and encrypted
-`BW_SESSION` bootstrap. The private age identity stays outside Git and can be
-restored from Bitwarden.
+values. `~/.config/homelab/fnox.local.toml` contains the age recipient and
+encrypted `BW_SESSION` bootstrap. The private age identity stays outside Git
+and can be restored from Bitwarden.
 
 Root mise tasks provide the operator workflow:
 
