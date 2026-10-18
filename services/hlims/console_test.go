@@ -84,7 +84,7 @@ func TestConsoleRendersTopologyAndHTMXFragments(t *testing.T) {
 	for _, expected := range []string{
 		"<!doctype html>", "HLIMS / Machine Topology", "<b>H</b>ome <b>L</b>ab <b>I</b>nformation <b>M</b>anagement <b>S</b>ystem", "Homelab", "Primary Home", "Badger", "Grafana",
 		`href="/grafana/production?host=badger" target="_blank" rel="noopener noreferrer"`, `hx-trigger="toggle once"`, "/console/static/htmx-4.0.0.min.js",
-		"/console/static/theme.js", "/console/static/route-menu.js", "/console/static/favicon.svg", "data-theme-toggle",
+		"/console/static/theme.js", "/console/static/route-menu.js", "/console/static/favicon.svg", `rel="manifest" href="/console/static/manifest.json"`, "data-theme-toggle",
 		"expansion=all", "expansion=none", `class="provider-group"`,
 		"data-tooltip=\"Expand all\"", "/api/v1/machine-providers/" + providerID + "/logo",
 		"/api/v1/services/" + service["publicId"].(string) + "/logo",
@@ -374,6 +374,23 @@ func TestConsoleRoutesAreIsolatedFromResolver(t *testing.T) {
 	assertStatus(t, favicon, http.StatusOK)
 	if !strings.Contains(favicon.Body.String(), `fill="#a599b5"`) {
 		t.Fatal("console favicon does not contain the square mark")
+	}
+	manifest := consoleRequest(handler, http.MethodGet, "/console/static/manifest.json", false)
+	assertStatus(t, manifest, http.StatusOK)
+	if !strings.Contains(manifest.Header().Get("Content-Type"), "json") {
+		t.Fatalf("manifest content type = %q", manifest.Header().Get("Content-Type"))
+	}
+	for _, expected := range []string{`"start_url": "/console/machines/"`, `"scope": "/console/"`, `"display": "standalone"`, `"sizes": "192x192"`, `"sizes": "512x512"`} {
+		if !strings.Contains(manifest.Body.String(), expected) {
+			t.Errorf("console manifest does not contain %q", expected)
+		}
+	}
+	for _, icon := range []string{"icon-192.png", "icon-512.png"} {
+		response := consoleRequest(handler, http.MethodGet, "/console/static/"+icon, false)
+		assertStatus(t, response, http.StatusOK)
+		if response.Header().Get("Content-Type") != "image/png" {
+			t.Errorf("%s content type = %q", icon, response.Header().Get("Content-Type"))
+		}
 	}
 }
 

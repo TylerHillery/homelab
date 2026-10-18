@@ -74,6 +74,11 @@ python3 -c 'import sqlite3,sys; src=sqlite3.connect(sys.argv[1]); dst=sqlite3.co
   "$HOME/.local/state/hlims/staging.db" /path/to/private/backup.db
 ```
 
+The console exposes an installable web-app manifest and square icons. Installing
+it starts at `/console/machines/` in a standalone window; it does **not** cache
+inventory or work offline. On Chrome for Android, reopen or refresh the staging
+page before trying **Install** again after a deployment.
+
 The user service starts with the WSL distribution; systemd does not start WSL
 at Windows boot.
 
