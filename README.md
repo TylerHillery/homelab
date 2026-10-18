@@ -40,6 +40,9 @@ Root mise configuration owns shared tools and operations. Projects add local
 tools and tasks in their own `mise.toml`. Use `mise //path:task` across projects
 or `mise run task` inside a project.
 
+See [Infrastructure as Code Layout](docs/architecture/infrastructure-as-code.md)
+for how OpenTofu roots, state, and reusable modules are organized.
+
 Secrets are resolved through fnox and Bitwarden:
 
 ```sh

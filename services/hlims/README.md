@@ -79,10 +79,13 @@ HLIMS staging is reachable at
 from the tailnet. Framework WSL's Tailscale Serve forwards raw TCP 443 to a
 loopback-only Caddy TLS listener, which routes HLIMS to `127.0.0.1:8081` by
 hostname. Cloudflare's record is DNS-only and points at the Framework's
-Tailscale IP; Funnel is off. The tailnet's current allow-all ACL permits every
-tailnet device to reach staging; this is intentional for now. HLIMS has no
-application login, so revisit that policy before admitting untrusted devices.
-See `infrastructure/ingress/framework13-wsl/README.md` for status and rollback.
+Tailscale IP; Funnel is off. HLIMS has no built-in authentication or login:
+staging relies on tailnet-only ingress for network-level access control, not
+application-level access control. The current tailnet policy permits every
+enrolled device to reach staging, so tighten that policy before admitting
+untrusted devices.
+See `infrastructure/ingress/framework13-wsl/README.md` for current status and
+configuration.
 
 The staging inventory records the custom-domain HTTPS endpoints for HLIMS and
 Framework OpenCode as preferred; the Framework localhost endpoints remain

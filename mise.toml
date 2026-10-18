@@ -29,7 +29,7 @@ run = 'session="$(fnox -c "$HOME/.config/homelab/fnox.local.toml" get BW_SESSION
 
 [tasks.check]
 description = "Run checks for every project"
-depends = ["//services/...:check", "//infrastructure/ansible:check", "//infrastructure/opentofu/...:check"]
+depends = ["//services/...:check", "//infrastructure/ansible:check", "//infrastructure/opentofu/...:check", "//infrastructure/ingress/framework13-wsl:check"]
 
 [tasks."precommit"]
 description = "Run all repository pre-commit hooks"

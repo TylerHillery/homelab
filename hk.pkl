@@ -44,4 +44,8 @@ steps {
     glob = List("infrastructure/opentofu/**/*.tf", "infrastructure/opentofu/**/*.tf.json", "infrastructure/opentofu/**/*.tfvars", "infrastructure/opentofu/**/*.tfvars.json", "infrastructure/opentofu/**/.terraform.lock.hcl", "infrastructure/opentofu/**/.tflint.hcl", "infrastructure/opentofu/**/mise.toml")
     check = "mise //infrastructure/opentofu/...:check"
   }
+  ["ingress-check"] {
+    glob = List("infrastructure/ingress/**/*.toml", "infrastructure/ingress/**/Caddyfile", "infrastructure/ansible/roles/caddy/**/*.yml", "infrastructure/ansible/roles/caddy/**/*.j2", "infrastructure/ansible/roles/caddy/**/*.sh")
+    check = "mise //infrastructure/ingress/framework13-wsl:check"
+  }
 }
