@@ -25,3 +25,17 @@ Verify both HTTPS names from another tailnet device with `curl` and normal
 certificate checks (no `-k`). Changing the Tailscale IP requires a reviewed DNS
 update. Stopping the unit makes both names unavailable; Serve is configured
 separately and remains in place.
+
+## Optional follow-ups
+
+Investigate whether Caddy should bind directly to Framework WSL's Tailscale
+IP on port 443 instead of using Serve's raw TCP forward to `127.0.0.1:8444`;
+review privileged-port permissions, Tailscale startup/IP changes, credential
+recovery, and a tested rollback before changing the working path.
+Serve is part of the existing Tailscale daemon, not an extra process; Caddy
+still supplies custom-domain TLS and routes by hostname either way.
+Separately, investigate a LAN fallback through Windows-to-WSL reachability,
+restricted firewall rules, and local DNS for the same HTTPS names.
+HLIMS has no built-in login, so define trusted LAN clients or proxy
+authentication before opening any LAN path; neither change narrows the
+tailnet's current allow-all policy on its own.
