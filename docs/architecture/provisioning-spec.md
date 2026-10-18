@@ -28,8 +28,10 @@ for boot and attestation terminology.
 
 The shared project will live in `infrastructure/ansible/`. Shared infrastructure
 belongs under `infrastructure/`; application-owned infrastructure can live beside
-its application, with independent OpenTofu state where needed. No OpenTofu layout
-or provider is prescribed by this machine-configuration work.
+its application, with independent OpenTofu state where needed. Shared Cloudflare
+DNS has a separate scaffold at `infrastructure/opentofu/cloudflare-dns/`; its
+provider is pinned and the two Framework WSL DNS records have been applied.
+Machine configuration does not own its state or DNS records.
 
 ```text
 infrastructure/ansible/

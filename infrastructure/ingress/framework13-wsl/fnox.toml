@@ -1,0 +1,9 @@
+#:schema https://fnox.jdx.dev/schema.json
+env = "exec"
+if_missing = "error"
+
+[providers.bitwarden]
+type = "bitwarden"
+
+[secrets]
+CF_API_TOKEN = { provider = "bitwarden", value = "homelab-cloudflare-dns-caddy/password", if_missing = "error", description = "Caddy DNS-01 token scoped to tylertries.com" }

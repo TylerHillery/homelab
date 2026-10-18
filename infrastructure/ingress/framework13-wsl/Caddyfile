@@ -1,0 +1,22 @@
+{
+	auto_https disable_redirects
+}
+
+# Pilot on loopback only. A pinned Caddy build includes the Cloudflare DNS
+# module; the user unit provides its own DNS-01 token, not the OpenTofu token.
+# Tailscale Serve forwards tailnet TCP 443 to this local TLS listener.
+https://opencode.framework13-wsl.homelab.tylertries.com:8444 {
+	bind 127.0.0.1
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	reverse_proxy 127.0.0.1:4096
+}
+
+https://hlims.staging.framework13-wsl.homelab.tylertries.com:8444 {
+	bind 127.0.0.1
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+	reverse_proxy 127.0.0.1:8081
+}

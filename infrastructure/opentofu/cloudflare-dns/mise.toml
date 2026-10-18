@@ -1,0 +1,7 @@
+[tools]
+opentofu = "1.12.6"
+
+[tasks.check]
+description = "Check formatting and validate the Cloudflare DNS OpenTofu root"
+dir = "{{ config_root }}"
+run = 'tofu fmt -check -recursive && tofu init -backend=false -input=false && tofu validate'

@@ -1,0 +1,9 @@
+#:schema https://fnox.jdx.dev/schema.json
+env = "exec"
+if_missing = "error"
+
+[providers.bitwarden]
+type = "bitwarden"
+
+[secrets]
+CLOUDFLARE_API_TOKEN = { provider = "bitwarden", value = "homelab-cloudflare-dns-opentofu/password", if_missing = "error", description = "Zone-scoped Cloudflare DNS token for interactive OpenTofu runs" }

@@ -2,7 +2,7 @@ monorepo_root = true
 min_version = "2026.9.5"
 
 [monorepo]
-config_roots = ["services/*", "opnsense"]
+config_roots = ["services/*", "opnsense", "infrastructure/opentofu/*", "infrastructure/ingress/*"]
 lockfile = true
 
 [tools]
@@ -29,7 +29,7 @@ run = 'session="$(fnox -c "{{ config_root }}/fnox.local.toml" get BW_SESSION)" &
 
 [tasks.check]
 description = "Run checks for every project"
-depends = ["//services/...:check", "//opnsense:syntax"]
+depends = ["//services/...:check", "//opnsense:syntax", "//infrastructure/opentofu/...:check"]
 
 [tasks."precommit"]
 description = "Run all repository pre-commit hooks"

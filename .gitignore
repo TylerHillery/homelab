@@ -15,3 +15,10 @@ fnox.local.toml
 skills-lock.json
 opnsense/collections/
 opnsense/group_vars/all/site.yml
+infrastructure/opentofu/**/.terraform/
+infrastructure/opentofu/**/*.tfstate
+infrastructure/opentofu/**/*.tfstate.*
+infrastructure/opentofu/**/*.tfplan
+infrastructure/opentofu/**/crash.log
+infrastructure/opentofu/**/crash.*.log
+infrastructure/ingress/**/.build/

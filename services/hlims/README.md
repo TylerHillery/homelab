@@ -74,6 +74,20 @@ python3 -c 'import sqlite3,sys; src=sqlite3.connect(sys.argv[1]); dst=sqlite3.co
   "$HOME/.local/state/hlims/staging.db" /path/to/private/backup.db
 ```
 
+HLIMS staging is reachable at
+<https://hlims.staging.framework13-wsl.homelab.tylertries.com/console/services/>
+from the tailnet. Framework WSL's Tailscale Serve forwards raw TCP 443 to a
+loopback-only Caddy TLS listener, which routes HLIMS to `127.0.0.1:8081` by
+hostname. Cloudflare's record is DNS-only and points at the Framework's
+Tailscale IP; Funnel is off. The tailnet's current allow-all ACL permits every
+tailnet device to reach staging; this is intentional for now. HLIMS has no
+application login, so revisit that policy before admitting untrusted devices.
+See `infrastructure/ingress/framework13-wsl/README.md` for status and rollback.
+
+The staging inventory records the custom-domain HTTPS endpoints for HLIMS and
+Framework OpenCode as preferred; the Framework localhost endpoints remain
+available for recovery.
+
 The console exposes an installable web-app manifest and square icons. Installing
 it starts at `/console/machines/` in a standalone window; it does **not** cache
 inventory or work offline. On Chrome for Android, reopen or refresh the staging
